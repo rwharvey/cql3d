@@ -1,0 +1,64 @@
+diff pltelec.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltendn.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltends.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltfvsv.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltinit.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltlosc.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltmain.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltpower.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltprppr.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltrstv.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltrun.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltstrml.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltvec.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltvflux.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff rdc_bplt.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff tdchief.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff tdinitl.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff tdnpadiag.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff tdplteq.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff tdpltjop.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff tdpltmne.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff tdtloop.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff urfbplt.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff urfchief.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff vlfbplt.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff vlhbplt.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff pltdnz.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff urfsetup.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff urfindfl.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff urfinitl.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+diff r8subs.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+
+
+
+
+
+
+
+
+cp pltelec.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltendn.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltends.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltfvsv.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltinit.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltlosc.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltmain.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltpower.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltprppr.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltrstv.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltrun.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltstrml.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltvec.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltvflux.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp rdc_bplt.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+
+cp tdplteq.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp tdpltjop.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp tdpltmne.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+
+cp urfbplt.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp urfchief.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp vlfbplt.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp vlhbplt.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228
+cp pltdnz.f /home/bobh/cql3d/cql3d_cvs/code/cql3d_YuP_120228

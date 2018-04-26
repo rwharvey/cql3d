@@ -1,0 +1,730 @@
+
+March 11, 2009
+==============
+
+CQL3D is open software:  see ./a_cqlp.f.
+
+The CQL3D Collisional-QuasiLinear 3D Fokker-Planck code
+is placed in the SWIM svn repository by Bob Harvey (CompX).
+This version have recently been converted entirely to
+use f90 pointers, rather than the previous default cray pointers,
+simplifying further code development.  Recent changes in the
+code are catalogued in a_change.h in the distribution.
+
+There is some MPI capability through the makefile_mpi_xxxx
+make files, although speed up is maximally about a factor of 2 [but
+see March 16, 2011 below: now speedup ~ number of flux surfaces].
+Parallelization has been performed for the solution of the main
+velocity space matrix on each flux surface.  However, this
+parallelization only covered about half the cpu cycles used
+by the code.
+
+The makefiles are applicable for a range of 32- and 64-bit
+computers, and represent a history of recent code usage.
+
+The namelist input file is to be named cqlinput.  Except for
+circular analytic toroidal equilibria cases, the code also
+requires eqdsk data, as specified in namelist variable eqdskin.
+An additional file is required for RF data for cases calculating
+radial profiles of RF heating and current drive.
+The namelist variables are described in the cqlinput_help file.
+
+Further explanation of cql3d is available as a manual at
+http://www.compxco.com.
+
+Initial commit of the code to the cswim svn directory:
+[Have trunk/ tags/ and branches as subdirectories of a directory,
+ cql3d_swim_svn.  The cql3d distribution is in the trunk/directory.
+ Be in directory containing the cql3d_cswim_svn directory.]
+svn import cql3d_cswim_svn https://cswim.org/svn/cswim/cql3d -m \
+'Initial import of the cql3d Fokker-Planck code into the SWIM svn repository'
+==> cql3d committed to cswim repository at indicated new position.
+To get a checkout version of cql3d in directory cql3d_swim_svn:
+rm -rf cql3d_swim_svn
+svn co https://cswim.org/svn/cswim/cql3d cql3d_cswim_svn
+
+The code uses open software libraries for MPI, netCDF, and 
+PGPLOT.  It can be run with just the netCDF library, as 
+controlled by various alternative makefiles, for example:
+makefile_gfortran64
+makefile_gfortran64_mpi
+makefile_gfortran64_noplots
+The latter option is rarely used, and, from time to time,
+the source list may need to be updated to conform with
+makefile_gfortran64, which is used directly by the authors.
+If noplots is used, plots are created directly from the
+netCDF output file, which contains a large set of output
+data, as controlled by the namelist input file (see cqlinput_help).
+The MPI version of cql3d is created through replacement of special
+cql3d comments in the serial version, using the python
+script ./mpi/doparallel.py.
+
+A basic set of regression tests is in the file
+00_cql3d_Regression_Tests_basic.tar.gz (separate from the 
+cql3d distribution).
+
+
+
+
+March 14, 2009
+=============
+Locked files in the trunk with the command:
+svn lock * -m 'Please contact bobh@compxco.com to modify.  User can add files to branches subdirectory.'
+
+
+Creating tagged version: cql3d_f90ptr_090314
+svn copy https://cswim.org/svn/cswim/cql3d/trunk \
+         https://cswim.org/svn/cswim/cql3d/tags/cql3d_f90ptr_090314 \
+         -m "Tagging cql3d as of March 14, 2009"
+==>Committed revision 1433
+
+
+May 15, 2009
+============
+See a_change.h for updates.
+Fixed couple of minor bugs, plus updated rdc_multi.f to accomodate
+different normalization velocities in cql3d and in the input
+du0u0_input file.
+Added namelist to account for difference in sign convention of
+DC v_parallel defn (pos in magnetic field B dirn) and cql3d (pos
+v_parallel has component in pos toroidal direction in a cylindrical
+coordinate system): rdc_upar_sign=-1. will reverse vpar sign in du0u0_input,
+for neg B_toroidal cases.  Default is rdc_upar_sign=+1.
+Added option for time-dependent output of x-ray data to the .nc file.
+
+Updated trunk: Version now at cql3d_f90ptr_090514.  Revision 1568.
+
+Creating tagged version: cql3d_f90ptr_090314 in
+https://cswim.org/svn/cswim/cql3d/tags/cql3d_f90ptr_090515  (Revision 1569).
+
+
+
+June 16, 2009
+=============
+Updated version number will be 1679.
+See a_change.h for updates.
+Main change:  The maxp parameter in param.i was reset from 1500 to 150000,
+increasing the number of Monte Carlo particles which can be used in 
+NBI model.  Previously, the namelist value was reset to maxp, unnecessarily
+limiting noise reduction in NBI deposition.
+
+Add pwrrf, specific rf power density versus u/unorm, to .nc output.
+
+Add tau (bounce time*vpar) to _rf.nc file.
+
+Modified urffflx to assign ray elements which are outside the
+LCFS to the outer radial bin inside the LCFS (urfmod="enabled").
+This removed on out-of-bounds reference, resulting from the
+new GENRAY capability for ray tracing in the SOL [BH090602].
+
+
+Sept 2, 2009
+============
+This will be svn revision 1870.
+version='cql3d_f90ptr_090514' (unchanged).
+(Have brought cql3d_cswim_svn/ up to date with cql3d_f90ptr_090514/.)
+Couple of bug fixes, not expected to affect past results.
+Fully relativistic FP collisional coeffs working again,
+and are being further benchmarked.
+Most of prior graflib plotting now upgraded to pgplot.
+See a_change.h for more detail.
+
+
+Also, svn checked out cql3d_cswim_svn/tags/cql3d_f90ptr_090515
+and updated it from trunk/, then committed the changes.
+
+
+Sept 22, 2009
+=============
+This will be revision 1950.
+version='cql3d_f90ptr_090514' (unchanged).
+Additional bugs for relativ='fully' fixed.
+Reasonably close agreement (~2 percent) is obtained with
+B.J. Braams and C.F.F. Karney, Phys. Fluids B 1 (7), 1989, p.1355, (Table I).
+for plasma electrical resistivity to 55. MeV at r/R=0. CQL3D also
+calculates r/R.ne.0. cases.
+
+Sept 24, 2009
+=============
+Deleted reference to grfont.dat in makefile_swim since
+this file is available to the user after setting
+PGPLOT_DIR='/u0/v/vlynch/pgplot/5.2/cnl2.0_pathscale3.2/lib'
+in user's login script.
+Update cql3d files in $(IPS_PHYS_ROOT) tree, with
+make -f makefile_cswim clean
+make -f makefile_cswim install
+
+
+Oct. 31, 2009
+=============
+This will be svn revision 2143.
+version='cql3d_091031'
+Additional bugs changes for relativ='fully'
+have lead to good agreement between relativ='fully' and
+relativ='enabled' calculations of the relativistic collision
+coefficients.   relativ='enabled' uses a non-relativistic
+collision kernel and fully-relativistic distributions and 
+integrations in momentum space.  It is accurate to within
+a couple of percent in electrical conductivity, for fusion
+energy plasma temperatures (see report 
+CompX-2009-1_Fully-Rel.pdf, Yuri Petrov, 091016).
+Also, a_change.h has a few more details.
+
+
+March 26, 2010
+==============
+Remade cql3d on franklin in /global/homes/u/u650/cql3d_cswim_svn/trunk
+and did a:
+make -f makefile_swim clean; make -f makefile_swim; \
+make -f makefile_swim install 
+
+
+May 27,2010
+===========
+Redo of NPA, and increased flexibility of SXR starting
+positions.
+
+
+May 27, 2010
+============
+Committed NPA and SXR mods to SWIM SVN repository.
+version='cql3d_cswim_100527'
+
+On Frankin:
+pathscale environment
+svn update in /global/homes/u/u650/cql3d_cswim_svn/trunk
+make -f makefile_franklin_pathscale
+make -f makefile_swim clean; make -f makefile_swim; \
+make -f makefile_swim install 
+
+
+
+Feb. 2-3, 2011:  Major upgrade to cql3d.
+========================================
+Prior to upgrade, svn is at version 2994.
+
+Files added:
+tdtranspn.f franklin_batchscript_mpi4 makefile_franklin
+makefile_franklin_f90ptr_pathscale mpilib.f README_tests_100809
+franklin_batchscript_pgi r8subs.f_updt fow_orbits.f it3dalloc.f ilut.f
+mpins_par.f mpi/mpins_par0.f
+
+The following changes and new features are incorporated:
+
+(1)A fully-implicit 3D (2D-in-momentum, 1D-in-generalized radius)
+iterative solve using sparse matrix techniques provides for time-
+steps up to near the transport time, and can be used as the main
+option. SPARSKIT library routines are used, giving solution by
+sparse matrix bi-conjugate-gradient techniques and with drop-tolerance.
+This greatly speeds up 3D radial transport solutions, makes
+the solution much more reliable, and provides greater stability
+of the solution.
+
+(2)The fully-relativistic nonlinear collisional operator is debugged,
+updated, and tested.
+
+(3)Multi-species QL diffusion capability is added for the ray-tracing
+based calculation.  An arbitrary number of harmonics can, in principle,
+be used.
+
+(4) The neutral particle analyzer synthetic diagnostic is modified
+and now agrees over a range of experimental C-Mod parameters with 
+observations.
+ 
+(5) A full non-symmetric up-down equilibrium capabilty is added.  Previously,
+non-up-down-symmetric equilibria were interally up-down symmetrized,
+and all aspects of the calculation used the up-down symmetry.
+The new option is accessed through eqsym="none".  The default value
+remains eqsym="average", averaging poloidal flux values above and below
+the Z=0 plane in the eqdsk.  Of course, use of eqsym="none" significantly
+increases memory and execution time since Fokker-Planck coefficients
+must be separately calculated about and below the magnetic axis height.
+
+(6) Dynamic dimensioning has been added for all large arrays in the code.
+Thus it should no longer be necessary to use different parameter settings
+(as given in the param.h file) for different types of runs, an previous
+troublesome, confusing requirement.   This change has greatly reduced
+the memory requirements in most cases, since the code was previously
+dimensioned for cases with several non-intersecting array requirements.
+A speedup of 7x has been observed in some franklin runs, although
+often more modest.
+
+(7) Capability to restart cql3d from previously generated netcdf output
+from cql3d has been extended by allowing the maximum energy on the momentum
+grid (enorm) to be varied in the cqlinput namelist file.  Number of mesh
+points, jx, and mesh-spacing parameter xfac, can also be varies.   The
+restart distribution is interpolated and extrapolated, as required, onto
+the new velocity mesh. This facilitates time-dependent solution with 
+large growth of the particle tail population, e.g., in some ICRF cases.
+When restarting cql3d from a netcdf file, the distrfunc text restart
+file is not longer needed.
+
+(8) Several bugs were fixed, as detailed in the a_change.h file.
+
+(9) A suite of 16 test cases covering the above options plus several other
+cases has been constructed, and is used to ensure code integrity.
+
+
+These changes  give one unified version of cql3d.  This version is prior
+to implementation of comprehensive parallelization, first-order 
+finite-orbit-width (FOW) effects, and full-FOW effects currently 
+being worked upon (Feb., 2011,  Bob Harvey and Yuri Petrov).
+
+This will be svn revision 2996.
+Approximately 240 of the 400 source files are modified.
+
+On Franklin:
+pathscale environment
+svn update in /global/homes/u/u650/cql3d_cswim_svn/trunk
+Remade cql3d executables, xcql3d_pathscale and xcql3d_pgi, in
+/global/homes/u/u650/cql3d_cswim_svn/trunk
+Tested the executables with ncrestrt='ncregrid' (dc.5) case.
+
+make -f makefile_franklin_pathscale
+and make -f makefile_franklin_pathscale in ./pathscale subdirectory.
+Tested using cql3d.4 case out of aorsa-dc-cql3d sequence, using
+dc generated ICRF diffusion coeffs ncrestrt='ncregrid'.
+Results are equal, but xcql3d_pathscale took 2200 secs,
+xcql3d_pgi only 960 secs.   Henceforth using xcql3d_pgi.
+
+Adjusted makefile_swim to install xcql3d_pgi (not xcql3d_pathscale
+as in previous installs).  But, xcql3d_pgi is installed as xcql3d,
+so no other name-changes are required.
+
+make -f makefile_swim clean; make -f makefile_swim; \
+make -f makefile_swim install 
+
+Copied new param.h frname_decl.h  frname.h  name_decl.h  name.h
+aindflt.f  aindfpa.f  eqindflt.f  frinitl.f urfindfl.f  zcunix.f
+to
+/global/homes/u/u650/my_ips_trunk/components/fp/cql3d/src
+and updated svn there.
+
+The svn changes including to this file give revisions up to 3002.
+
+
+
+
+March 16, 2011
+=============
+
+version="cql3d_cswim_110315_mpi"
+
+Major MPI upgrade to cql3d, primarily by Yuri Petrov.
+Parallelization is over flux surfaces for the usual
+soln_method='direct' FP solve, and for diagnostics.  
+Construction of the QL diffusion coefficient from ray data
+is also parallelized, over rays.  Execution time on hopper.nersc.gov
+was reduced from 380 secs (serial) to 40 secs using 72 cores,
+for a ten time step, 32 flux surface run using aorsa 
+diffusion coefficients.   This 10x speedup, and is on top
+of the above recent (Feb. 2-3, 2011) 3x speedup occuring with the
+reduced memory usage obtained with introducing dynamic dimensioning
+of all larger arrays in the code.
+
+Thus, most cql3d mpi runs on NERSC franklin or hopper runs will
+take less than 1 minute, using 72 or more cores, and will not
+significantly affect overall computational times when run in
+tandem with aorsa or toric full-wave codes, or the DC diffusion
+coefficient code.
+
+The MPI version is obtained from the same source code as the
+serial version, using makefiles which invoke python scripts from
+the ./mpi subdirectory to replace source code comments beginning
+with CMPI with appropriate MPI instructions.  This enables maintaining
+a single source code for serial and mpi instantiations of the code.
+Identical results down to roundoff error are obtained by the serial
+and mpi code version.
+
+The present MPI version of the code is applicable to cases with
+radial transport turned on, but using the splitting method between
+velocity space solve and radial solve.  The radial part of the
+solve is not parallelized, but is a 1D tridiagonal solve and is
+quite fast.
+
+Two bugs in freya routines were removed, which prevented smoothing
+of NBI deposition profiles, and in the case of one beam source per
+beamline (nsourc=1) prevented proper choice of aperature window.
+Effect of past runs for diii-d (nsourc=2) were negligible.  For
+past NSTX runs (nsourc=1) changes in radial profile results such
+as power deposition profiles, average energy, driven ion current
+turned out to  be not large (5-10%).
+
+The code has been compiled with MPI and serial versions on
+franklin and hopper, using make utility with
+makefile_mpi.franklin, makefile_mpi.hopper, makefile_pgi.franklin,
+and makefile_pgi.hopper; and on a Linux PC using 
+makefile_gfortran64_mpi and makefile_gfortran64.
+
+SWIM svn version number 3144.
+
+Will make and update SWIM framework related files on franklin
+and hopper.
+
+make -f makefile_swim.hopper clean; make -f makefile_swim.hopper; \
+make -f makefile_swim.hopper install
+
+Similarly for franklin, where also in phys-bin/phys/cql3d/bin/
+ln -s xcql3d.pgi.franklin xcql3d
+so that previous invocations of xcql3d on franklin remain unchanged.
+Similarly in phys-bin/phys/cql3d/lib/, 
+ln -s libcql3d_input.hopper.a libcql3d_input.a
+[See makefile_swim.franklin].
+
+xcql3d_pgi.xxxxxx can be launched directly from the command line.
+xcql3d_mpi.xxxxxx is launched with (typically):
+aprun -n 72 [full path to xcql3d_mpi.xxxxxx executable]
+xxxxx=franklin or hopper.
+
+Updating files in component/fp/cql3d/src;  updating svn accordingly
+(SWIM svn version number 3149).
+
+
+
+
+April 1, 2011
+=============
+
+version="cql3d_cswim_110401_mpi"
+Number of Legendre harmonics in X-ray and neutron calcs
+now enabled to be larger than the number used for the
+FP collision coeffs (i.e., msxr.gt.mx, mmsv.gt.mx, now OK).
+MPI works with transp='enabled', for soln_method='direct',
+but not yet other soln_method options.
+
+Updating SWIM svn repository, and executables at NERSC.
+SVN repository version 3175.
+<<<<<<< .mine
+
+
+
+
+Nov. 1, 2011
+============
+Re-made xcql3d_mpi.hopper and xcql3d_pgi.hopper, using PGI 
+compiler.
+
+Then, source ~u650/my_ips_trunk/swim.bashrc.hopper
+to get SWIM environment, including IPS_PHYS_ROOT,
+for makefile_swim.hopper.
+
+Then,
+make -f makefile_swim.hopper clean
+make -f makefile_swim.hopper
+make -f makefile_swim.hopper install
+==>
+xcql3d_mpi.hopper  xcql3d_pgi.hopper
+in /project/projectdirs/m876/phys-bin/phys/cql3d/bin
+frname_decl.h  frname.h  name_decl.h  name.h  param.h
+in /project/projectdirs/m876/phys-bin/phys/cql3d/include
+libcql3d_input.hopper.a
+in /project/projectdirs/m876/phys-bin/phys/cql3d/lib
+
+Client software will need to point to these files.
+=======
+
+
+Aug. 9, 2011
+============
+
+version="cql3d_cswim_110804_mpi"
+revision 3419
+
+Small mods, bug fixes, improvements, per a_change.h
+including:
+-clipping option to smooth external diffusion coeffs from DC
+ or AORSA added in rdc_multi.
+-Updated NPA recombination rate in tdnpa.f.
+
+
+
+Oct. 5, 2011
+============
+version="cql3d_cswim_110804_mpi"
+revision 3620
+
+Fixed a bug appearing when msrx greater than mx,
+number of Legendre polynomials for expansion of 
+the distrubution function, for soft xray and collisions,
+respectively.
+
+ 
+ 
+ 
+ 
+Nov. 1, 2011
+============
+Re-made xcql3d_mpi.hopper and xcql3d_pgi.hopper, using PGI 
+compiler.
+
+Then, source ~u650/my_ips_trunk/swim.bashrc.hopper
+to get SWIM environment, including IPS_PHYS_ROOT,
+for makefile_swim.hopper.
+
+Then,
+make -f makefile_swim.hopper clean
+make -f makefile_swim.hopper
+make -f makefile_swim.hopper install
+==>
+xcql3d_mpi.hopper  xcql3d_pgi.hopper
+in /project/projectdirs/m876/phys-bin/phys/cql3d/bin
+frname_decl.h  frname.h  name_decl.h  name.h  param.h
+in /project/projectdirs/m876/phys-bin/phys/cql3d/include
+libcql3d_input.hopper.a
+in /project/projectdirs/m876/phys-bin/phys/cql3d/lib
+
+Client software will need to point to these files.
+
+
+Nov. 2, 2011
+============
+After snv updating cql3d, to compx version, redid Nov. 1, 2011.
+
+svn revision is 3678.
+
+
+Jan. 4, 2012
+============
+
+Fixed potentially significant bug (YuP discovered) in the trapped particle
+symmetrization of collisional coefficients C,D, and F in cfpcoefn.
+However, testing with cql3d-aorsa-dc run showed no change.
+Increased iotalim dimensioning variable to accomodate jx.gt.750.
+
+April 25, 2012
+==============
+
+Updated fileset on SWIM svn, revision 3801.
+
+
+Nov. 25, 2012
+=============
+Got basic set of regression tests using
+svn co https://cswim.org/svn/cswim/cql3d/trunk/00_cql3d_Regression_Tests \
+00_cql3d_Regression_Tests_basic
+
+Updated to version="cql3d_cswim_121120_mpi" in svn, revision 3951.
+
+
+
+Oct. 2, 2013
+============
+
+Have modified relavant open() file statements throughout the
+code which may impact list and namelist output of character
+variables, with the delim='apastrophe' clause.
+
+Updated to cql3d version="cql3d_cswim_120928_mpi" compiles and loads,
+serial and mpi, with pgi environment.  Both serial xcql3d_pgi.hopper
+and MPI version xcql3d_mpi.pgi.hopper execute OK.
+
+See test case in 
+hopper07:/global/homes/u/u650/cql3d_cswim_svn/trunk/00_cql3d_Regression_Tests/D3D_96143_one_ray/tmp_130928_hopper
+
+Submitted jobs from pgi and swim-intel environment:  made no difference.
+
+Have discovered that the pgi environment with netcdf module loaded
+produces static executables, that is, ldd xcql3d gives that no
+shared libraries are used.
+
+Updated relvant files in 
+hopper07:/global/homes/u/u650/my_ips_trunk/components/fp/cql3d/src
+including  delim='apastrophe' in prepare_cql3d_input.f90,
+and remade there.
+
+svn is up to date here and in src/ area.
+revision 4034.
+
+
+Feb. 24, 2014
+=============
+Serial and MPI versions compiled and loaded with PrgEnv-intel 
+on edison.nersc.gov.  Ran test case 
+./00_cql3d_Regression_Tests/D3D_96143_one_ray.
+Committed revision 4070.
+
+
+Mar. 20, 2014
+=============
+svn evidently was upgraded from version 1.6 to 1.7.
+
+svn -u status in ./trunk wouldn't run, and said to see svn upgrade.
+But, svn upgrade also wouldn't work.   So removed ./trunk,
+and did svn update, which did work.
+
+
+Mar. as, 2016
+=============
+Since Mar 20, 2014, from a_change:
+c[211] version="cql3d_cswim_160312.0"
+c[211] Bug fixed in tdrmsst.f which was causing EC absorption to
+c[211] to be (impossibly) radially inboard of the closest approach
+c[211] of the input EC rays to the magnetic axis, for a eqsym='none'
+c[211] case [YuP and BH 160312].
+
+c[210] Attemping to get cqlinput_mirror_ions_IC.10 case going:
+c[210] Uses Gary Smith b-field model, single flux surface, added couple 
+c[210] of logic lines (See cBH151202) but then realized more variables
+c[210] need setting for ICRF vlfmod to work in this environment.
+c[210] Eventually, single flux surface, particle source + RF QL 
+c[210] worked cqlinput_mirror_ions_IC.4.8.4) (diffusion(BH151202).
+
+c[209] Enabled various capitalizations of species namep/namei, for 
+c[209] operation with Plasma State software [YuP, 150620].
+
+c[208] YuP[2015/05/03] version=cql3d_fullFOW_140425.1
+c[208] Several adjustments in subr.eqorbit().
+c[208] 1. Set a limitation/resetting for the value of epsicon_
+c[208]   which is the input argument for eqorbit().
+c[208]   If it is too small (outside of LCFS), reset with warning:
+c[208]     epsicon_= psilim + 0.001*(psimag-psilim)
+c[208]   The shifting fraction, 0.001, could be changed.
+c[208]   The starting point for tracing the surface
+c[208]   should not be too close to the LCFS (psi=psilim),
+c[208]   otherwise the "orbit" of the surface may diverge 
+c[208]   outside of the LCFS.
+c[208] 2. Modified the adjustment of 1st/last point:
+c[208]   At small rho, the "orbit" usually "drifts" towards magn.axis,
+c[208]   so that solr_(nn)<solr_(1).
+c[208]   But at outer surfaces, the "orbit" diverges to the outside,
+c[208]   so that solr_(nn)>solr_(1).
+c[208]   In such a case, the orbit can get outside of LCFS,
+c[208]   if the starting point solr_(1) is close to the LCFS.
+c[208]   So, setting solr_(1)=max(solr_(1),solr_(nn)) would have
+c[208]   a bad result. Simply move the last point to the starting point:
+c[208]   solr_(nn)=solr_(1)
+c[208] 3. Sometimes, at ending point, in case of eqsym='none',
+c[208]   an orbit/surface cannot get to the starting point
+c[208]   because of accuracy of the orbit integrator.
+c[208]   Orbit can get to a smaller R, where the value of bval/bmidplne_
+c[208]   is a bit smaller than at the starting point, say 0.9999
+c[208]   instead of 1.d0. Although the ending point is forced 
+c[208]   to be the same as the starting point (later in the subr),
+c[208]   the previous point (lorbit_-1) may still have the value of
+c[208]   bpsi_(lorbit_-1) = 0.9999 or so.
+c[208]   In any case, bpsi_(l) cannot be less than 1.d0 - 
+c[208]   the code cannot handle such equilibria.
+c[208]   The adjustment that is made only works for eqsym=none
+c[208]   (during 2nd half of surface):
+c[208]   Adjust (R,Z) points by setting them in a straight line 
+c[208]   connecting the first point where bpsi_<1 is detected 
+c[208]   (designated l=lbad) to the end/starting point [to be exact, 
+c[208]   connecting the point(lbad-1) to the point(lorbit_)]
+c[208] There are few more adjustments for the last two points 
+c[208] in surface tracing (mostly for the case of eqsym='none').
+c[208] Search for 2015/05/03 in eqorbit.f.
+
+c[207] YuP[2015/05/03] Added plotting of the LCFS in plots
+c[207] with flux surfaces, in case of eqsym='none'.
+
+c[206] YuP[2015/05/03] Bug fix in eqrhopsi: 
+c[206]   ez2=ez(jmag+1) ! was (imag+1)
+c[206] It was affecting the tracing of small flux surfaces
+c[206] near magn.axis in some cases of nonsymmetrical 
+c[206] up-dn equilibria (eqsym='none'), because of error in 
+c[206] determination of (supposedly more accurate) value of zmag.
+
+c[205] YuP[2015/05/02] Added a more accurate def. of volume and area
+c[205] near magnetic axis.  This definition 
+c[205] is not dependent/sensitive to tracing the surface.
+c[205] Gives better convergence in eqfndpsi in cases for 
+c[205] radcoord.eq."sqtorflx", when 'rhonew' is proportional to 
+c[205] sqrt of 'volum' (near magn.axis).
+
+c[204] YuP got rid of the nipple at region of f(v=0) which was
+c[204] appearing in restart runs due to that [YuP believes] f(j=1) is 
+c[204] not found as the solution, but taken from the previous time step.
+c[204] YuP[04/10/2015].
+
+c[203] Slight correction of simplban loss model: use local bmod0
+c[203] rather than edge bmod0, for gyro-losses.
+c[203] Enabled use of density rescaling along with lbdry(k)="conserv",
+c[203] using new option lbdry(k)="consscal". Previously, density
+c[203] rescaling only occured with lbdry(k)="fixed". [YuP+BH 140806].
+
+c[202] version="cql3d_cswim_140804"
+c[202] Fixed bug in calc of cfpgamma (Coul log) for diagnostic
+c[202] purposes in tdoutput.f (tdnflxs not called in l=1,lrz loop).
+c[202] (Also, lr_ improperly used in a do loop variable.) BH140804.
+
+
+
+April 6, 2017
+=============
+Two ion species regression test in
+/home/bobh/cql3d/cql3d_cvs/code/cql3d_cswim_svn/trunk/00_cql3d_Regression_Tests/D3D_ngen2_urf_NBI_H.short_rerun_170406
+both serial and mpi.
+With 
+mpirun -np 4
+/home/bobh/cql3d/cql3d_cvs/code/cql3d_cswim_svn/cql3d_cswim_170101.2/xcql3d_mpi.gfortran64
+MPI Full time =   6.490 secs on CompX3
+With serial version: 10.11 secs  on CompX3
+Results identical in .ps file.
+Variation from previous 2012 results in 
+D3D_ngen2_urf_NBI_H.short_rerun
+is typically 3-10 percent.  Profile a little more broadened near
+the magnetic axis.  Changes presumably due to modifications of QL
+calc by YuP.  NB deposition points are identical to 2012, indicating
+still need freya cross-section data upgrade.
+
+Also, two ion species, two rffile DIIID regression tests in
+/home/bobh/cql3d/gtaylor/120201_mmsv8_rerun_170405
+/home/bobh/cql3d/gtaylor/120201_mmsv8_rerun_170405.mpi
+Results are slightly different near the plasma edge, in the
+region of sharp change in the plasma density, compared to the
+2012 results.  Distributions at radii in the .ps file (at rho=0.8
+and inboard) are close.
+
+
+170708
+======
+cql3d_cswim_svn/cql3d_cswim_170101.3/
+As of email from Yuri, 2017-01-04 12:27, we switched back
+to an older version of losscone.f, to maintain backward
+compatibility with a regression test case, given in
+"multiURF_cql3d_cswim_170101_old_losscone.zip"  This was using
+losscone.f:140910
+(losscone.f_to_170707 is very small update to losscone.f_old:140910)
+
+Comparing with cql3d_cswim_170101.3/losscone.f_new, the latter
+contains the simplbn1 and simplbn2 options not in the 140910.
+Also, lossmode=simplban has slightly changed.
+
+
+So,  restoring losscone.f=losscone.f_new, after slight
+adjustment to make simplban option backward compatible
+==> losscone.f=losscone.f_170708
+
+cql3d_cswim_svn/trunk has been using losscone.f=losscone.f_new
+
+Removed some FOW material from this ZOW version of cql3d.
+
+See also notes re simplban in a_change:c[266] and c[263]
+
+Running test case (ngen=2, multURF) in 
+/home/bobh/cql3d/cql3d_cvs/code/cql3d_cswim_svn/trunk/00_cql3d_Regression_Tests/D3D_ngen2_urf_NBI_H.short_rerun_170708
+==> slight differences in rf power deposition from cql3d_cswim_170101.1/, 
+which should be tracked down.  
+[test case in D3D_ngen2_urf_NBI_H.short_rerun_170406/]
+
+To do:
+Bringing cql3d_cswim_svn/trunk up to date.
+
+
+170715
+======
+In cql3d_cswim_170101.3/:
+Reverted losscone.f to the coding for lossmode='simplban','simplbn1',
+or 'simplbn2'.  Found bug in the new losscone.f indexing. 
+Now lossmode(k).eq."simplban" gives same result as the old losscone.f
+in cql3d_cswim_170101.1/, for 
+trunk/00_cql3d_Regression_Tests/D3D_ngen2_urf_NBI_H.short_rerun_170708 .
+The newer 'simplbn1',or 'simplbn2' could use more benchmarking (but
+not done at this time).
+
+
+170717
+======
+tdrmshst.f  has been giving wrong area/vol flux surface increments in some
+test cases resulting in incorrect total current (e.g., in 
+eoved_.16_multi-flux-surface0.1.ps), and this was fixed.

@@ -1,0 +1,29 @@
+/home/bobh/cql3d/cql3d_cvs/code/cql3d_merge_orbit_desymm_100809
+
+This has 
+CQL3D_100720_update2.ZIP/CQL3D_100720_update1.ZIP from Yuri.
+ efswtch='method5',
+
+
+/home/bobh/cql3d/mst/100505_burke/MergedCQL3D_variant.1/
+========================================================
+Test of LH with iteration of DC electric field to obtain
+eqdsk tor. current with no tranport, in
+/home/bobh/cql3d/mst/100505_burke/MergedCQL3D_variant.1
+==>  Looks sensible, although log file shows the electric
+field iteration is not complete (but probably OK enough)
+at lr_=14 (all other flux surfaces meet error criterion
+currerr=0.1 by default).
+
+/home/bobh/cql3d/diem/100811/
+=============================
+Steffi Diem test case, with EBW (looks like), determining
+electric field with 
+ efswtch='method5'
+ soln_method='it3drv'
+Code runs after fixing couple of bounds errors (compiler
+issue + diagnostic printing out-of-bounds).
+But, electric field convergence is very slow.
+Passed case to Yuri, to check out.
+
+

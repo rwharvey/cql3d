@@ -1,0 +1,3 @@
+write(*,
+print*
+write(6,

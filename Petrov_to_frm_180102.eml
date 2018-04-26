@@ -1,0 +1,159 @@
+Re: cql3d_cswim_171124_update180102
+From: 
+petrov@compxco.com
+  To: 
+bobh@compxco.com
+  Date: 
+2018-01-02 12:26
+  Attachments: 
+ cql3d_cswim_171124_update180102.zip
+   
+Hi Bob,
+
+I added, please see if it's ok.
+So far I fixed these items from your list
+(Please see item 6 - I cannot reproduce the problem,
+but I added a printout, maybe you will have a strange printout of 
+shape(xperp), so - let me know):
+
+1.  Pitch angle avg source vs. u:
+  In subroutine pltsofvv, added (similar to pltcont) --
+  Setup different types of horizontal axis, depending on
+  namelist settings of pltlim = 'u/c' or 'energy' or 'x'.
+  YuP[2018-01-02]
+
+4. ! BH,YuP[2018-01-02] Added resetting of ipro*** values
+    ! to "prbola-t", in case when the run
+    ! is done with nbctime>0 (time-dependent profiles),
+    ! but ipro*** values are set to "parabola".
+
+5. mpirank in impavnc0:  it is used for print-out only.
+For a serial run, mpirank is not defined,
+because the lines with common mpi mpirank, mpisrc, mpisize, mpiierr, 
+mpistatus, ...
+are absent.  I simply removed the printout of mpirank from impavnc0.
+
+6. Added comments in subr. de_alloc,
+but - cannot reproduce the problem with xperp.
+Printed shape(xpar),shape(xperp), just before deallocation - look ok.
+
+--Yuri
+
+
+
+On 2018-01-02 12:04, Bob Harvey wrote:
+> Hi Yuri,
+> 
+> Let's do the resetting to "prbola-t".   Actually, I did not
+> real the warning, and got caught by this problem for a
+> second time.   So, do the resetting, but also leave the
+> warning.
+> 
+> Thanks,
+> 
+> Bob
+> 
+> On Tuesday 02 January 2018, you wrote:
+>> Hi Bob,
+>> 
+>> So far, I fixed the problems with source plots and mpirank printout.
+>> 
+>> On nbctime, we already have in ainsetva (lines 350-359):
+>> 
+>>        if (nbctime.ne.0) then
+>>           if (iprone.eq."parabola" .or. iprote.eq."parabola"
+>>       1      .or.iproti.eq."parabola" .or. iprozeff.eq."parabola"
+>>       1      .or.iproelec.eq."parabola" .or. iprovphi.eq."parabola") 
+>> then
+>>              WRITE(*,*)
+>>              WRITE(*,*) 'nbctime.ne.0: CHECK whether "prbola-t" is 
+>> the'
+>>              WRITE(*,*) '         correct setting (coding has 
+>> changed)'
+>>              WRITE(*,*)
+>>           endif
+>>        endif
+>> 
+>> So, do you want to reset to
+>> iprone="prbola-t"
+>> (and all other ipro***)
+>> instead of this warning message?
+>> 
+>> Yuri
+>> 
+>> On 2018-01-01 17:30, Bob Harvey wrote:
+>> > On Monday 01 January 2018, you wrote:
+>> >> Hi Bob,
+>> >>
+>> >> The folder in KnockOn_RE_whyte80_test_case.zip
+>> >> came up empty. Could you send it again, please.
+>> >>
+>> >> Thanks,
+>> >>
+>> >> Yuri
+>> >>
+>> >> On 2018-01-01 13:59, Bob Harvey wrote:
+>> >> > Hi Yuri,
+>> >> >
+>> >> > Attached is a cql3d_cswim_171124.1 which I have been working on.
+>> >> > Also, a Runaway Electron test case (lrz=1, lrzmax=4), which led
+>> >> > to a few out-of-bounds, which I fixed.  I am also adding a bit of
+>> >> > coding for UW, re netcdf read of d_rr and d_r, and time-dep
+>> >> > scaling thereof.
+>> >> >
+>> >> > The test case is in KnockOn_RE_whyte80_test_case.zip .
+>> >> > Results from March 14, 2009 are in wh80.ps.gz.
+>> >> > Results from present cql3d are in wh80.ps_cql3d_cswim_171124.1.gz
+>> >> > and log_cql3d_cswim_171124.1.gz .
+>> >> >
+>> >> >
+>> >> > Could you fix a few things for me:
+>> >> > 1.  Pitch angle avg source vs. u, Fr. 83 of
+>> >> >      ps_cql3d_cswim_171124 doesn't look correct.
+>> >> > 2.  Normalized V-flux, Fr. 86, doesn't look correct.
+>> >> > 3.  Get the pltstrml.f working.  I see you have worked on it a bit.
+>> >> >       Attached is Stream_Lines_970407.pdf notes if that will
+>> >> >       be helpful.
+>> >> > 4.  Obtain backwards compatibility for iprone="parabola" and
+>> >> >       nbctime.ne.0.  That is, add coding to ainsetva.f to detect
+>> >> >       that namelist condition, and redesignate iprone="prbola-t".
+>> >> >       Similarly for the other iproxxx.
+>> >> > 5.   There is a not-good-looking "***" in the screen dump
+>> >> >       () coming from mpirank not set at line 2473 in impanvc0.f.
+>> >> > 6.   The code ends with a seg fault coming from
+>> >> >        it3dalloc.f: line 567 (re xperp).
+>> >
+>> > Hi Yuri,
+>> >
+>> > The cqlinput_whyte80_171215.problem should work after
+>> > you add the backward-compatibility feature.
+>> >
+>> > Thanks,
+>> >
+>> > Bob
+>> >
+>> >> >       It would also be useful to write in ainalloc.f about what
+>> >> >       needs to be done to properly dealloc arrays, when new
+>> >> >       ones are created elsewhere in the code.
+>> >> >
+>> >> > I will probably be making a few more changes in this version
+>> >> > before releasing it.
+>> >> >
+>> >> > Thanks very much.
+>> >> >
+>> >> > Happy New Year, and to Shiny,
+>> >> >
+>> >> > Bob
+>> >> >
+>> >> >
+>> >> >
+>> >> >
+>> >> > **********************************************************************
+>> >> >*** ** Bob Harvey                                       CompX
+>> >> >       phone: (858) 509-2131                        Box 2672
+>> >> >       Fax:   (858) 509-2132                         Del Mar, CA 92014
+>> >> >       Email: bobh@compxco.com               USA
+>> >> > **********************************************************************
+>> >> >*** **
+>> 
+cql3d_cswim_171124_update180102.zip

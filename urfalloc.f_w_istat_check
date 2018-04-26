@@ -1,0 +1,284 @@
+c
+c
+      subroutine urfalloc
+      implicit integer (i-n), real*8 (a-h,o-z)
+      include 'param.h'
+      include 'comm.h'
+cdir$ nobounds
+c.......................................................................
+c     Allocate allocatable arrays for rf modules
+c.......................................................................
+       complex*16 czero
+
+      lniyjx=iya*jxa*lrz*mrfn
+      lniylz=iya*lza*lrzmax
+      lnyxp2=iyjx2a*ngena*lrors
+      lnj=jxa
+      lni=iya
+      lnjj=jjxa
+      nrnrm=nrayelta*nraya*mrfn
+      nrnr2=nrayelta*nraya*2
+c     Add 1 to ipacka, to ensure sufficient length if ipacka is odd.
+      ipack=((ipacka+1)/machinea)*mrfn
+      ipack16=((ipack16a+1)/machinea)*mrfn
+      nrm=nraya*mrfn
+
+c...................................................................
+c     Note three complex*16 arrays, cosz1, sinz1, sinz2 
+c     must be 2x longer than real*8 arrays.
+c     Same for cwexde,cweyde and cwezde.
+c     lnurfdum is length of urfdum measured in 8 byte words.
+c...................................................................
+
+      lnurfdum=4*lniyjx+lniylz+lnyxp2+8*lnj+(3*2+4)*lni+4*lnjj
+     1  +1*nrnr2+(9+3*2+16)*nrnrm+2*ipack+2*ipack16+16*nrm
+
+      czero = (0.0,0.0)
+
+
+c..................................................................
+c     Check on the allocate by adding up istat.
+c     If not zero, problem has occurred.
+cBH100830:  But, this didn't work with gfortran when nraya parameter
+cBH100830:  is  made excessively large.  Code gets Segmentation fault
+cBH100830:  [presumably in urfalloc.f].  But this indicates that
+cBH100830:  checking on istat is not sufficient to catch a problem
+cBH100830:  of using too much memory.
+
+c..................................................................
+      istat_tot=0
+
+      allocate(urfb(iy,jx,lrz,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(urfb,zero,SIZE(urfb))
+      allocate(urfc(iy,jx,lrz,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(urfc,zero,SIZE(urfc))
+      allocate(urfe(iy,jx,lrz,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(urfe,zero,SIZE(urfe))
+      allocate(urff(iy,jx,lrz,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(urff,zero,SIZE(urff))
+      allocate(cosmz(iya,lza,lrzmax),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(cosmz,zero,SIZE(cosmz))
+      allocate(g_(0:iyp1a,0:jxp1a,ngena,lrors),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(g_,zero,SIZE(g_))
+      allocate(alfag(jxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(alfag,zero,SIZE(alfag))
+      allocate(argmnt(jxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(argmnt,zero,SIZE(argmnt))
+      allocate(ilim1d(jxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ilim1d,zero,SIZE(ilim1d))
+      allocate(ilim2d(jxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ilim2d,zero,SIZE(ilim2d))
+      allocate(ilim1dd(jxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ilim1dd,zero,SIZE(ilim1dd))
+      allocate(ilim2dd(jxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ilim2dd,zero,SIZE(ilim2dd))
+      allocate(sx(jxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(sx,zero,SIZE(sx))
+      allocate(xmdx(jxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(xmdx,zero,SIZE(xmdx))
+      allocate(cosz1(iya),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ccast(cosz1,czero,SIZE(cosz1))
+      allocate(sinz1(iya),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ccast(sinz1,czero,SIZE(sinz1))
+      allocate(sinz2(iya),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ccast(sinz2,czero,SIZE(sinz2))
+      allocate(thtf1(iya),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(thtf1,zero,SIZE(thtf1))
+      allocate(thtf2(iya),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(thtf2,zero,SIZE(thtf2))
+      allocate(alfi(iya),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(alfi,zero,SIZE(alfi))
+      allocate(alfa(iya),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(alfa,zero,SIZE(alfa))
+      allocate(ilim1(jjxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ilim1,zero,SIZE(ilim1))
+      allocate(ilim2(jjxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ilim2,zero,SIZE(ilim2))
+      allocate(ifct1(jjxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ifct1,zero,SIZE(ifct1))
+      allocate(ifct2(jjxa),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ifct2,zero,SIZE(ifct2))
+      allocate(urftmp(nrayelta*nraya*2),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(urftmp,zero,SIZE(urftmp))
+      allocate(urfpwr(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(urfpwr,zero,SIZE(urfpwr))
+      allocate(urfpwrc(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(urfpwrc,zero,SIZE(urfpwrc))
+      allocate(urfpwrl(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(urfpwrl,zero,SIZE(urfpwrl))
+      allocate(jminray(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(jminray,zero,SIZE(jminray))
+      allocate(jmaxray(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(jmaxray,zero,SIZE(jmaxray))
+      allocate(lloc(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(lloc,zero,SIZE(lloc))
+      allocate(llray(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(llray,zero,SIZE(llray))
+      allocate(psiloc(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(psiloc,zero,SIZE(psiloc))
+      allocate(scalurf(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(scalurf,zero,SIZE(scalurf))
+      allocate(cwexde(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ccast(cwexde,czero,SIZE(cwexde))
+      allocate(cweyde(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ccast(cweyde,czero,SIZE(cweyde))
+      allocate(cwezde(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ccast(cwezde,czero,SIZE(cwezde))
+      allocate(delpwr(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(delpwr,zero,SIZE(delpwr))
+      allocate(fluxn(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(fluxn,zero,SIZE(fluxn))
+      allocate(seikon(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(seikon,zero,SIZE(seikon))
+      allocate(spsi(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(spsi,zero,SIZE(spsi))
+      allocate(sdpwr(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(sdpwr,zero,SIZE(sdpwr))
+      allocate(sbtot(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(sbtot,zero,SIZE(sbtot))
+      allocate(sene(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(sene,zero,SIZE(sene))
+      allocate(salphac(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(salphac,zero,SIZE(salphac))
+      allocate(salphal(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(salphal,zero,SIZE(salphal))
+      allocate(ws(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(ws,zero,SIZE(ws))
+      allocate(wr(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(wr,zero,SIZE(wr))
+      allocate(wz(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(wz,zero,SIZE(wz))
+      allocate(wnpar(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(wnpar,zero,SIZE(wnpar))
+      allocate(wdnpar(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(wdnpar,zero,SIZE(wdnpar))
+      allocate(wnper(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(wnper,zero,SIZE(wnper))
+      allocate(wphi(nrayelta,nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(wphi,zero,SIZE(wphi))
+      allocate(ilowp(ipack,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ilowp,zero,SIZE(ilowp))
+      allocate(iupp(ipack,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(iupp,zero,SIZE(iupp))
+      allocate(ifct1_(ipack16,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ifct1_,zero,SIZE(ifct1_))
+      allocate(ifct2_(ipack16,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(ifct2_,zero,SIZE(ifct2_))
+      allocate(nrayelt(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(nrayelt,zero,SIZE(nrayelt))
+      allocate(jslofas(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(jslofas,zero,SIZE(jslofas))
+      allocate(nurefls(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(nurefls,zero,SIZE(nurefls))
+      allocate(keiks(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(keiks,zero,SIZE(keiks))
+      allocate(jpes(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(jpes,zero,SIZE(jpes))
+      allocate(jpis(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(jpis,zero,SIZE(jpis))
+      allocate(istarts(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(istarts,zero,SIZE(istarts))
+      allocate(iprmt5(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(iprmt5,zero,SIZE(iprmt5))
+      allocate(jhlfs(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(jhlfs,zero,SIZE(jhlfs))
+      allocate(sxxrt(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(sxxrt,zero,SIZE(sxxrt))
+      allocate(skpsi(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(skpsi,zero,SIZE(skpsi))
+      allocate(skth(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(skth,zero,SIZE(skth))
+      allocate(skphi(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(skphi,zero,SIZE(skphi))
+      allocate(lrayelt(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(lrayelt,zero,SIZE(lrayelt))
+      allocate(delpwr0(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call bcast(delpwr0,zero,SIZE(delpwr0))
+      allocate(nrayelt0(nraya,mrfn),STAT=istat)
+      istat_tot=istat_tot+istat
+      call ibcast(nrayelt0,zero,SIZE(nrayelt0))
+
+c     Check that allocations were OK
+      if (istat_tot.ne.0) then
+         write(*,*)'urfalloc.f:  Problem with allocation'
+         write(*,*)'urfalloc.f:  Reduce param.h paramaters?'
+         write(*,*)'urfalloc.f:  Stopping'
+         STOP
+      endif
+      
+
+      return
+      end

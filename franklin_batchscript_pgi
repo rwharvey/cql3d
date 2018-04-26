@@ -1,0 +1,15 @@
+#PBS -N xcql3d_pgi
+#PBS -q regular
+#PBS -A m876
+#PBS -m e
+#PBS -j oe
+#PBS -l walltime=00:40:00
+#PBS -l mppwidth=1
+
+
+
+
+cd $PBS_O_WORKDIR
+
+
+aprun -n 1  /scratch/scratchdirs/ypetrov/cql3d/xcql3d_pgi

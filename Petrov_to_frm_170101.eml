@@ -1,0 +1,83 @@
+Re: Problem NBI+FW regression test case: cql3d_cswim_161220_update170101
+From: 
+petrov@compxco.com
+  To: 
+Bob Harvey <bobh@compxco.com>
+  Date: 
+2017-01-01 20:37
+  Attachments: 
+ cql3d_cswim_161220_update170101.zip
+   
+Hi Bob,
+
+I tracked the problem down to some changes that I made in the  
+"mirrors" version,
+and these changes proliferated into cswim_161220, with the recent updates.
+They are absent in the FOW version.
+So I commented them out - please update these two files.
+
+Mainly the changes are in urfpack, the lines [315-333],[342-360],[374-392].
+
+Also urfb0, lines [243-280] (there are similar lines in urfdamp1, but  
+they have little effect on results).
+With these two files, you will get results similar to those from the  
+latest cql3d_FOW version.
+
+Those lines in urfb0 is the attempt to deal with 1/rrr divergence,
+see my comments at lines urfb0[220-226]. In the original version,  
+there is some sort of averaging of "rrr" already present, see lines  
+229-236, but this procedure may not be always effective.
+So I added my own version at lines 243-280.
+In fact, if you uncomment them back (but still use the  
+adjusted/original urfpack that I attached now),
+the profile of Prf(rho) becomes better - no negative part !
+It means that the result is quite sensitive to the rrr term
+(it is related to banana tip turning point).
+
+So maybe we better keep my averaging version in urfb0[243-280]?
+Uncomment (activate) them back?
+
+--Yuri
+
+Quoting Bob Harvey <bobh@compxco.com>:
+
+> Hi Yuri,
+>
+> I am checking
+> 00_cql3d_Regression_Tests/D3D_ngen2_urf_NBI_H.short_rerun
+> I guess you have the required genrayfw_18rays.nc .  Otherwise,
+> I can send it (~8MB).
+>
+> I ran with recent cql3d-FOW, and the new cql3d_cswim_161220.1.
+> The RF power profiles are very different.  (I checked NBI only, and
+> those profiles are identical).
+>
+> Also ran with prior version="cql3d_cswim_160602" ZOW cql3d and
+> results are reasonably close to present cql3d-FOW.
+>
+> Could you see what went wrong with cql3d_cswim_161220.1?
+>
+> BUT, there appears to be another, older problem (or question) with cql3d-FOW
+> runnning in ZOW mode, or the cql3d_cswim_160602.  The large negative
+> rf power density at rho=0.63 did not appear in previous versions of
+> ZOW cql3d, for example, cql3d_FOW_130124.
+>
+> So, neg absorption also needs an explanation or fix.
+>
+> Seems we should do the regression tests more often.
+>
+> Happy New Year,
+>
+> Bob
+>
+>
+>
+> ***************************************************************************
+>       Bob Harvey                                       CompX
+>       phone: (858) 509-2131                        Box 2672
+>       Fax:   (858) 509-2132                         Del Mar, CA 92014
+>       Email: bobh@compxco.com               USA
+> ***************************************************************************
+
+
+cql3d_cswim_161220_update170101.zip

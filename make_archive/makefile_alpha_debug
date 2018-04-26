@@ -1,0 +1,283 @@
+SHELL=/bin/sh
+#
+# This makefile was produced by /usr/bin/fmgen at 03:40:38 PM on 10/15/91
+# If it is invoked by the command line
+#	make -f makefile
+# it will compile the fortran modules indicated by SRCS into the object
+# modules indicated by OBJS and produce an executable named cqlp and
+# an executable which profiles named cqlp.prof.
+#
+# To remove all the object and but leave the executables use the command line
+#	make -f makefile clean
+#
+# To remove everything but the source files use the command line
+#	make -f makefile clobber
+#
+# To remove the source files created by /usr/bin/fmgen and this makefile
+# use the command line
+#	make -f makefile void
+#
+# The parameters SRCS and OBJS should not need to be changed.  If, however,
+# you need to add a new module add the name of the source module to the
+# SRCS parameter and add the name of the resulting object file to the OBJS
+# parameter.  The new modules are not limited to fortran, but may be C, YACC,
+# LEX, or CAL.  An explicit rule will need to be added for PASCAL modules.
+#
+
+# started from Olivier's VERSION=  E_930209
+# synthesized Olivier and Bob versions to 940222.
+# MKDIR=  /work1/u650/cql3d/cqlp_2sp/new_version
+VERSION=  CQLP_990501
+CFSVERS=  cqlp_990501
+INCS= advnce.h comm.h frcomm.h name.h param.h trans.h wpadvnc.h
+
+SRCS=	a_cqlp.f  abchief.f  achief1.f  achiefn.f  aclear.f  ainalloc.f   \
+	aindflt.f  aindfpa.f  aingeom.f  ainitial.f   ainpla.f  ainplt.f  ainpltpa.f   \
+	ainsetpa.f  ainsetva.f  ainspec.f  ainvnorm.f  aminmx.f bavdens.f  bavgmax.f  baviorbt.f   \
+	bcast.f  bsl.f  bsu.f  cfpcoefc.f  cfpcoefn.f  cfpcoefr.f  cfpgamma.f  cfpleg.f   cfpmodbe.f   \
+	cfpsymt.f  coefefad.f  coefefld.f coefegad.f  coeffpad.f  coefload.f  coefmidt.f  coefmidv.f   \
+	coefrfad.f  coefstup.f  coefsyad.f  coefwti.f  coefwtj.f  diag.f  diagcfac.f   \
+	diagdens.f  diagdenz.f  diagentr.f  diagescl.f  diaggnde.f  diaggnde2.f  diagimpd.f  diagscal.f   \
+	diagwrng.f  diagxswt.f  diagxswx.f  dsk_gr.f dskout.f  efield.f  eflditer.f eqalloc.f   \
+	eqcoord.f  eqelpse.f  eqflxavg.f  eqfn.f  eqfndpsi.f  eqfninv.f  eqfpsi.f   \
+	eqindflt.f  eqinitl.f  eqjac.f  eqonovrp.f  eqorbit.f  eqrhopsi.f  eqrhs.f   \
+	eqtopeol.f  equilib.f  eqvolpsi.f  eqwrng.f  esefld.f  exlin.f  exsweep.f  exsweept.f   \
+	exsweepx.f  finit.f  firstdrv.f  fle.f flxfn.f  freya.f  freyasou.f  frhexdrv.f   \
+	frinitl.f  frinitz.f  frnbdep2.f  frnfreya.f  frplteq.f  frsmooth.f  frsplft.f   \
+	frstup.f  frsubs.f  frsuppor.f  frwrong.f  hpalloc0.f  impavnc.f  impavnc0.f  impchk.f  impnorm.f   \
+	lookup.f  losscone.f  lossegy.f  lossorbm.f  losstor.f  micfrplt.f  micgetr.f   \
+	micgmbnd.f  micgnbnd.f  micxinil.f  micxinim.f  micxinit.f  micxiniz.f  netcdfrf.f  netcdfrw2.f  ntdstore.f   \
+	ntloop.f  pack21.f  pltcont.f  pltcycl.f  pltdf.f  pltdnz.f  pltelec.f  pltendn.f   \
+	pltends.f  pltfluxs.f pltfofvv.f pltfvsv.f  pltinit.f  pltlosc.f  pltmain.f  pltpower.f  pltprppr.f   \
+	pltrstv.f  pltrun.f pltstrml.f  pltvec.f  pltvectr.f  pltvflux.f  profaxis.f  profiles.f prppr.f   \
+	prpprctr.f  psif.f  psifp.f  psifppy.f  psifpy.f  psiinv.f  r8lsode.f  r8subs.f  restcon.f resthks.f  \
+	  restvty.f  rf.f  sigalloc.f  siggy.f  sigmax.f  sigsetup.f sigv5d.f  \
+        sigfn.f      sigie.f      sigmaxwl.f   sigv.f  soucrit.f sounorm.f  soup.f  soup0.f  souplt.f   \
+	sourc0.f  sourcee.f  sourcef.f  sourceko.f sourcpwr.f synchrad.f  tdbootst.f tdboothi.f  tdchief.f   \
+	tddiag.f  tddsig.f  tdeqdsk.f  tdinitl.f  tdinlegw.f  tdinterp.f  tdnflxs.f  tdnpadiag.f  tdoutput.f   \
+	tdplteq.f  tdpltjop.f  tdpltmne.f  tdpro.f  tdreadf.f  tdrmshst.f  tdsetsxr.f   \
+	tdstin.f  tdsxr.f  tdsxr0.f  tdsxray.f  tdsxrplt.f  tdtloop.f  tdtoarad.f   \
+	tdtoaray.f  tdtraloc.f  tdtransp.f  tdtravct.f  tdtrchk.f  tdtrchkd.f  tdtrcon.f   \
+	tdtrdfus.f  tdtrfcop.f  tdtrflg.f  tdtrflx.f  tdtrmuy.f  tdtrrsou.f  tdtrrtov.f   \
+	tdtrrtov2.f  tdtrsavf.f  tdtrsym.f  tdtrvint.f  tdtrvsou.f  tdtrvtor.f  tdtrvtor2.f   \
+	tdtrvtor3.f  tdtrwtl.f  tdtry.f  tdtscinp.f  tdtscout.f  tdwrng.f  tdwritef.f  tdxin13d.f   \
+	tdxin23d.f  tdxin33d.f  tdxinitl.f  urfalloc.f  urfavg.f  urfb0.f  urfbes.f   \
+	urfbplt.f  urfchief.f  urfdamp0.f  urfdamp1.f  urfdamp2.f  urfdout.f  urfedge.f   \
+	urffflx.f  urfindfl.f  urfinitl.f  urfmidv.f  urfpack.f  urfpackm.f  urfrays.f  urfread.f   \
+	urfread_.f  urfsetup.f  urfwrite.f  urfwrite_.f  urfwrong.f  urfwr0.f  urfwr0c.f \
+        vlf.f vlfalloc.f vlfbplt.f vlfsetup.f vlh.f  vlhbplt.f vlhd.f  \
+	wpalloc.f  wparsou.f  wpavg.f  wpbdry.f  wpcheck.f  wpchgdy.f wpcthta.f  wpelecf.f   \
+	wpinitl.f  wploweq.f  wpsavf.f  wptrafx.f  wptramu.f  wptrmuy.f  wpvptb.f  wpwrng.f  wpmshchk.f \
+	zblock.f  zcunix.f  zfreya.F    znonsym.f 
+#	zblock.f  zcunix.f  zfreya.F    zgauss.f   znonsym.f 
+#	zblock.f  zcunix.f  zfreya.F    zgauss.f    dropfile.c znonsym.f 
+
+SRCSUP=	a_cqlp.f  abchief.f  achief1.f  achiefn.f  aclear.f  ainalloc.f   \
+	aindflt.f  aindfpa.f  aingeom.f  ainitial.f  ainpla.f  ainplt.f  ainpltpa.f   \
+	ainsetpa.f  ainsetva.f  ainspec.f  ainvnorm.f  aminmx.f bavdens.f  bavgmax.f  baviorbt.f   \
+	bcast.f  bsl.f  bsu.f  cfpcoefc.f  cfpcoefn.f  cfpcoefr.f  cfpgamma.f  cfpleg.f  cfpmodbe.f   \
+	cfpsymt.f  coefefad.f  coefefld.f coefegad.f  coeffpad.f  coefload.f  coefmidt.f  coefmidv.f   \
+	coefrfad.f  coefstup.f  coefsyad.f  coefwti.f  coefwtj.f  diag.f  diagcfac.f   \
+	diagdens.f  diagdenz.f  diagentr.f  diagescl.f  diaggnde.f  diaggnde2.f  diagimpd.f  diagscal.f   \
+	diagwrng.f  diagxswt.f  diagxswx.f  dsk_gr.f  dskout.f  efield.f  eflditer.f eqalloc.f   \
+	eqcoord.f  eqelpse.f  eqflxavg.f  eqfn.f  eqfndpsi.f  eqfninv.f  eqfpsi.f   \
+	eqindflt.f  eqinitl.f  eqjac.f  eqonovrp.f  eqorbit.f  eqrhopsi.f  eqrhs.f   \
+	eqtopeol.f  equilib.f  eqvolpsi.f  eqwrng.f  esefld.f  exlin.f  exsweep.f  exsweept.f   \
+	exsweepx.f  finit.f  firstdrv.f  fle.f flxfn.f  freya.f  freyasou.f  frhexdrv.f   \
+	frinitl.f  frinitz.f  frnbdep2.f  frnfreya.f  frplteq.f  frsmooth.f  frsplft.f   \
+	frstup.f  frsubs.f  frsuppor.f  frwrong.f  hpalloc0.f  impavnc.f  impavnc0.f  impchk.f  impnorm.f   \
+	lookup.f  losscone.f  lossegy.f  lossorbm.f  losstor.f  micfrplt.f  micgetr.f   \
+	micgmbnd.f  micgnbnd.f  micxinil.f  micxinim.f  micxinit.f  micxiniz.f  netcdfrf.f  netcdfrw2.f  ntdstore.f   \
+	ntloop.f  pack21.f  pltcont.f  pltcycl.f  pltdf.f  pltdnz.f  pltelec.f  pltendn.f   \
+	pltends.f  pltfluxs.f pltfofvv.f pltfvsv.f  pltinit.f  pltlosc.f  pltmain.f  pltpower.f  pltprppr.f   \
+	pltrstv.f  pltrun.f pltstrml.f  pltvec.f  pltvectr.f  pltvflux.f  profaxis.f  profiles.f prppr.f   \
+	prpprctr.f  psif.f  psifp.f  psifppy.f  psifpy.f  psiinv.f  r8lsode.f  r8subs.f  restcon.f  resthks.f \
+	restvty.f  rf.f   sigalloc.f  siggy.f  sigmax.f  sigsetup.f sigv5d.f  \
+        sigfn.f      sigie.f      sigmaxwl.f   sigv.f  soucrit.f sounorm.f  soup.f  soup0.f  souplt.f   \
+	sourc0.f  sourcee.f  sourcef.f  sourceko.f sourcpwr.f synchrad.f  tdbootst.f tdboothi.f  tdchief.f   \
+	tddiag.f  tddsig.f  tdeqdsk.f  tdinitl.f  tdinlegw.f  tdinterp.f  tdnflxs.f  tdnpadiag.f  tdoutput.f   \
+	tdplteq.f  tdpltjop.f  tdpltmne.f  tdpro.f  tdreadf.f  tdrmshst.f  tdsetsxr.f   \
+	tdstin.f  tdsxr.f  tdsxr0.f  tdsxray.f  tdsxrplt.f  tdtloop.f  tdtoarad.f   \
+	tdtoaray.f  tdtraloc.f  tdtransp.f  tdtravct.f  tdtrchk.f  tdtrchkd.f  tdtrcon.f   \
+	tdtrdfus.f  tdtrfcop.f  tdtrflg.f  tdtrflx.f  tdtrmuy.f  tdtrrsou.f  tdtrrtov.f   \
+	tdtrrtov2.f  tdtrsavf.f  tdtrsym.f  tdtrvint.f  tdtrvsou.f  tdtrvtor.f  tdtrvtor2.f   \
+	tdtrvtor3.f  tdtrwtl.f  tdtry.f  tdtscinp.f  tdtscout.f  tdwrng.f  tdwritef.f  tdxin13d.f   \
+	tdxin23d.f  tdxin33d.f  tdxinitl.f  urfalloc.f  urfavg.f  urfb0.f  urfbes.f   \
+	urfbplt.f  urfchief.f  urfdamp0.f  urfdamp1.f  urfdamp2.f  urfdout.f  urfedge.f   \
+	urffflx.f  urfindfl.f  urfinitl.f  urfmidv.f  urfpack.f  urfpackm.f  urfrays.f  urfread.f   \
+	urfread_.f  urfsetup.f  urfwrite.f  urfwrite_.f  urfwrong.f  urfwr0.f  urfwr0c.f \
+        vlf.f vlfalloc.f vlfbplt.f vlfsetup.f vlh.f  vlhbplt.f vlhd.f  \
+	wpalloc.f  wparsou.f  wpavg.f  wpbdry.f  wpcheck.f  wpcthta.f  wpelecf.f   \
+	wpinitl.f  wploweq.f  wpsavf.f  wptrafx.f  wptramu.f  wptrmuy.f  wpvptb.f  wpwrng.f
+
+SRCSUP=	wpalloc.f  wparsou.f  wpavg.f  wpbdry.f  wpcheck.f  wpchgdy.f wpcthta.f  wpelecf.f   \
+	wpinitl.f  wploweq.f  wpsavf.f  wptrafx.f  wptramu.f  wptrmuy.f  wpvptb.f  wpwrng.f  wpmshchk.f
+
+OBJS=	a_cqlp.o  abchief.o  achief1.o  achiefn.o  aclear.o  ainalloc.o   \
+	aindflt.o  aindfpa.o  aingeom.o  ainitial.o   ainpla.o  ainplt.o  ainpltpa.o   \
+	ainsetpa.o  ainsetva.o  ainspec.o  ainvnorm.o  aminmx.o  bavdens.o  bavgmax.o  baviorbt.o   \
+	bcast.o  bsl.o  bsu.o  cfpcoefc.o  cfpcoefn.o  cfpcoefr.o  cfpgamma.o  cfpleg.o  cfpmodbe.o   \
+	cfpsymt.o  coefefad.o  coefefld.o coefegad.o  coeffpad.o  coefload.o  coefmidt.o  coefmidv.o   \
+	coefrfad.o  coefstup.o  coefsyad.o  coefwti.o  coefwtj.o  diag.o  diagcfac.o   \
+	diagdens.o  diagdenz.o  diagentr.o  diagescl.o  diaggnde.o  diaggnde2.o  diagimpd.o  diagscal.o   \
+	diagwrng.o  diagxswt.o  diagxswx.o  dsk_gr.o  dskout.o  efield.o  eflditer.o eqalloc.o   \
+	eqcoord.o  eqelpse.o  eqflxavg.o  eqfn.o  eqfndpsi.o  eqfninv.o  eqfpsi.o   \
+	eqindflt.o  eqinitl.o  eqjac.o  eqonovrp.o  eqorbit.o  eqrhopsi.o  eqrhs.o   \
+	eqtopeol.o  equilib.o  eqvolpsi.o  eqwrng.o  esefld.o  exlin.o  exsweep.o  exsweept.o   \
+	exsweepx.o  finit.o  firstdrv.o  fle.o flxfn.o  freya.o  freyasou.o  frhexdrv.o   \
+	frinitl.o  frinitz.o  frnbdep2.o  frnfreya.o  frplteq.o  frsmooth.o  frsplft.o   \
+	frstup.o  frsubs.o  frsuppor.o  frwrong.o  hpalloc0.o  impavnc.o  impavnc0.o  impchk.o  impnorm.o   \
+	lookup.o  losscone.o  lossegy.o  lossorbm.o  losstor.o  micfrplt.o  micgetr.o   \
+	micgmbnd.o  micgnbnd.o  micxinil.o  micxinim.o  micxinit.o  micxiniz.o  netcdfrf.o  netcdfrw2.o  ntdstore.o   \
+	ntloop.o  pack21.o  pltcont.o  pltcycl.o  pltdf.o  pltdnz.o  pltelec.o  pltendn.o   \
+	pltends.o  pltfluxs.o pltfofvv.o pltfvsv.o  pltinit.o  pltlosc.o  pltmain.o  pltpower.o  pltprppr.o   \
+	pltrstv.o  pltrun.o  pltstrml.o  pltvec.o  pltvectr.o  pltvflux.o  profaxis.o  profiles.o prppr.o   \
+	prpprctr.o  psif.o  psifp.o  psifppy.o  psifpy.o  psiinv.o  r8lsode.o  r8subs.o  restcon.o resthks.o   \
+	 restvty.o  rf.o   sigalloc.o  siggy.o  sigmax.o  sigsetup.o sigv5d.o  \
+        sigfn.o      sigie.o      sigmaxwl.o   sigv.o  soucrit.o sounorm.o  soup.o  soup0.o  souplt.o   \
+	sourc0.o  sourcee.o  sourcef.o  sourceko.o sourcpwr.o synchrad.o  tdbootst.o tdboothi.o  tdchief.o   \
+	tddiag.o  tddsig.o  tdeqdsk.o  tdinitl.o  tdinlegw.o  tdinterp.o  tdnflxs.o  tdoutput.o   \
+	tdplteq.o  tdpltjop.o  tdpltmne.o  tdpro.o  tdreadf.o  tdrmshst.o  tdsetsxr.o   \
+	tdstin.o  tdsxr.o  tdsxr0.o  tdsxray.o  tdsxrplt.o  tdtloop.o  tdtoarad.o   \
+	tdtoaray.o  tdtraloc.o  tdtransp.o  tdtravct.o  tdtrchk.o  tdtrchkd.o  tdtrcon.o   \
+	tdtrdfus.o  tdtrfcop.o  tdtrflg.o  tdtrflx.o  tdtrmuy.o  tdtrrsou.o  tdtrrtov.o   \
+	tdtrrtov2.o  tdtrsavf.o  tdtrsym.o  tdtrvint.o  tdtrvsou.o  tdtrvtor.o  tdtrvtor2.o   \
+	tdtrvtor3.o  tdtrwtl.o  tdtry.o  tdtscinp.o  tdtscout.o  tdwrng.o  tdwritef.o  tdxin13d.o   \
+	tdxin23d.o  tdxin33d.o  tdxinitl.o  urfalloc.o  urfavg.o  urfb0.o  urfbes.o   \
+	urfbplt.o  urfchief.o  urfdamp0.o  urfdamp1.o  urfdamp2.o  urfdout.o  urfedge.o   \
+	urffflx.o  urfindfl.o  urfinitl.o  urfmidv.o  urfpack.o  urfpackm.o  urfrays.o  urfread.o   \
+	urfread_.o  urfsetup.o  urfwrite.o  urfwrite_.o  urfwrong.o  urfwr0.o  urfwr0c.o \
+        vlf.o vlfalloc.o vlfbplt.o vlfsetup.o  vlh.o  vlhbplt.o vlhd.o  \
+	wpalloc.o  wparsou.o  wpavg.o  wpbdry.o  wpcheck.o  wpchgdy.o wpcthta.o  wpelecf.o  \
+	wpinitl.o  wploweq.o  wpsavf.o  wptrafx.o  wptramu.o  wptrmuy.o  wpvptb.o  wpwrng.o  wpmshchk.o \
+	zblock.o  zcunix.o  zfreya.o    znonsym.o 
+#	zblock.o  zcunix.o  zfreya.o    zgauss.o    znonsym.o 
+#	zblock.o  zcunix.o  zfreya.o    zgauss.o    dropfile.o  znonsym.o 
+
+LISTPROG=	pagenumberlist.o
+
+# Tunable parameters
+#
+# CF		Name of the fortran compiling system to use
+# LDFLAGS	Flags to the loader
+# LIBS		List of libraries
+# CMD		Name of the executable
+# PROFLIB	Library needed for profiling
+#
+CC =		/bin/cc
+CF =		f77
+CMD =		cqlp
+
+# To perform the default compilation, use the first line
+# To compile with flowtracing turned on, use the second line
+# To compile giving profile additonal information, use the third line
+# WARNING:  SIMULTANEOUSLY PROFILING AND FLOWTRACING IS NOT RECOMMENDED 
+# For DEC Alpha:
+FFLAGS = -g -v -align dcommons
+LDFLAGS = -warning_unresolved
+LIBS=  -L/d/osf/lib -llapack -lblas -lnetcdf  -L/usr/local/pgplot -lpgplot -lX11
+
+.F.o:
+	$(CF) $(FFLAGS) -c $*.f
+
+# Lines from here on down should not need to be changed.  They are the
+# actual rules which make uses to build cqlp.
+#
+all:	get incOK $(CMD) $(CMD).prof put
+
+$(CMD):		$(INCS) $(OBJS) 
+	$(CF) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+
+segldr:	
+	$(CF) $(LDFLAGS2) -o $(CMD) $(OBJS) $(LIBS)
+
+# Make the profiled version of the command and call it cqlp.prof
+#
+$(CMD).prof:	$(OBJS)
+	$(CF) $(LDFLAGS) -o $(@) $(OBJS) $(PROFLIB) $(LIBS)
+incOK:	$(INCS)
+	touch incOK  $(SRCS)
+get:	
+#	cp $(MKDIR)/sub/*.F .
+	cp $(MKDIR)/sub/*.f .
+	cp $(MKDIR)/sub/*.c .
+	cp $(MKDIR)/obj/*.o .
+	cp $(MKDIR)/inc/*.h .
+put:
+	cp $(SRCS) *.f  $(MKDIR)/sub/
+	cp $(SRCS)  $(MKDIR)/sub/
+	cp *.o $(MKDIR)/obj/
+	cp *.h $(MKDIR)/inc/
+tar_so:
+#	cp $(MKDIR)/sub/*.F .
+#	cp $(MKDIR)/sub/*.f .
+#	cp $(MKDIR)/sub/*.c .
+#	cp $(MKDIR)/inc/*.h .
+#	cp $(MKDIR)/inp/c* .
+#	cp $(MKDIR)/inp/ray* .
+#	cp $(MKDIR)/inp/eqdsk* .
+#	cp $(MKDIR)/obj/*.o .
+	tar cf so$(CFSVERS)tar *.f *.F *.c *.h  make* cqli* ray* eqd* dir* *.o o.test* cbtes* runt*
+	cfs store cqlp/so$(CFSVERS)tar
+	mv so$(CFSVERS)tar ../so$(CFSVERS)tar
+tar_s:
+#	cp $(MKDIR)/sub/*.F .
+#	cp $(MKDIR)/sub/*.f .
+#	cp $(MKDIR)/sub/*.c .
+#	cp $(MKDIR)/inc/*.h .
+#	cp $(MKDIR)/inp/cqli* .
+#	cp $(MKDIR)/inp/ray* .
+#	cp $(MKDIR)/inp/eqdsk* .
+##	tar cf ../$(CFSVERS).tar *.f *.c      *.h  make* cqli* ray* eqd*
+	tar cf $(CFSVERS).tar *.f *.F *.c *.h  make* cqli* ray* eqd* dir* o.test* cbtes* runt*
+	cfs store cqlp/$(CFSVERS).tar
+	mv $(CFSVERS).tar ../$(CFSVERS).tar
+tar_sr:
+#	cp $(MKDIR)/sub/*.F .
+#	cp $(MKDIR)/sub/*.f .
+#	cp $(MKDIR)/sub/*.c .
+#	cp $(MKDIR)/inc/*.h .
+#	cp $(MKDIR)/inp/c* .
+#	cp $(MKDIR)/inp/ray* .
+#	cp $(MKDIR)/inp/eqdsk* .
+#	tar cf s_$(CFSVERS).tar *.F *.c *.f  *.h  make* c* ray* eqd*
+#	cfs replace cqlp/s_$(CFSVERS).tar
+touch:
+	touch -a *
+	touch -a $(MKDIR)/sub/*
+	touch -a $(MKDIR)/obj/*
+	touch -a $(MKDIR)/inc/*
+clean:
+	-rm -f $($(MKDIR)/objS)
+
+clobber:	clean
+	-rm -f $(CMD) $(CMD).prof
+
+void:	clobber
+	-rm -f $(SRCS) makefile
+
+init:	
+	for x in *.F; do \
+	cp $$x `basename $$x .F`.f; \
+	done
+
+unsplit:
+##	cat $(SRCS) > ../$(CMD).f
+	cp $(INCS) ..
+	cat $(INCS) > ../$(VERSION).f
+	cat $(SRCS) >> ../$(VERSION).f
+
+listing:
+	/bin/cc -opagenumberlist.exe pagenumberlist.c
+	echo " " > sou.update
+	rm sou.update
+	for x in $(INCS); do \
+	  echo "*COMDECK "$$x >> sou.update; \
+	  cat $$x >> sou.update; \
+	done
+	for x in $(SRCSUP); do \
+	  echo "*DECK "$$x  >> sou.update; \
+	  cat $$x >> sou.update; \
+	done
+	time pagenumberlist.exe < sou.update >../$(VERSION).l
+	rm sou.update

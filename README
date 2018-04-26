@@ -1,0 +1,53 @@
+/home/bobh/cql3d/cql3d_cvs/code/cql3d_f90ptr_081215
+
+This is a purely f90 pointered version of cql3d, going forward.
+
+
+
+Feb 2, 2011
+===========
+franklin: svn update, after commit of major revision from compx1.
+
+
+
+Feb 3, 2011
+===========
+Major revision for MPI committed from compx1.
+
+================================================================
+
+See  ./README_cql3d_devel
+
+
+
+NOTE:  Some variables in cqlinput_help refer to the finite orbit
+version of the code, which is still being developed and is not
+yet released (BH20151031).
+
+
+To get an idea of most recent make files, do 
+ls -lt make*
+160602
+======
+c[263] version="cql3d_fullFOW_160508.2"
+c[263] Upgraded lossmode(1)='simplban' so banana (+gyro) losses are based
+c[263] on the first order deltarho orbit shift.  Kept the old pre-160403
+c[263] model (='simplbn2'), and an intermediate model (='simplbn1') for
+c[263] backward compatibility and cross-checking.  Main changes are in 
+c[262] losscome.f.  [See file log.1_simplban_extended.gz for comparisons.]
+c[262] Should use lossmode(1)='simplban' in combination with ndeltarho=
+c[262] ='freya', to prevent unphysical scrapeoff of beams. [BH, 160602].
+170107
+======
+Updating to version=cql3d_cswim_170101.1.
+Reverted losscone.f to older version.  Also, urfb0.f and urfdamp1.f
+reverted to older version of the rrr= resonance calculation.
+Regression tests for D3D_96143_one_ray and 
+D3D_ngen2_urf_NBI_H.short_rerun_161230 used to check out the code.
+Also, ran a KSTAR EC test. Edc_full_eps ==> six fig agreement on current.
+
+
+
+180425
+======
+Put cql3d_cswim_180101.1 under git version control.

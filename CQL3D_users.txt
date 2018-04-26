@@ -1,0 +1,108 @@
+Re: Transferring latest Genray and Cql3d to EAST
+From: 
+bobh <bobh@compxco.com>
+  To: 
+"Paul Bonoli" <bonoli@psfc.mit.edu>
+  CC: 
+berryla@ornl.gov, petrov@compxco.com
+  Date: 
+2013-03-27 10:37
+   
+Hello Paul,
+
+I have recently send out copies of genray, xdraw, and cql3d to
+several people: genray_distribution_121230.tar and
+cql3d_121230.tar.
+
+These files are about 4.5GB each, and include brief
+descriptions, directions on compilation, and a 
+set of regression tests.   I would propose sending
+out this set to Lee and to Cheng Yang.   This way,
+I will know exactly what they have, and they will know
+where the code came from.
+
+This version does not contain recent, in-progress
+work on FOW.
+
+There are others using genray and cql3d in China,
+for example, W. Lu from Chengdu.   He is working with
+Giruzzi and others to look at Girardo's claim of EC/LH synergy.
+As I understand, Ron Prater has installed the code suite
+at EAST.
+
+Petrov has visited KSTAR in February, and installed this version of 
+genray/cql3d, working with Sun-Ho Kim.
+
+Jingchun Li, student at Univ. of South China, is using genray.
+Alexander Kikushkin (Kurchatov) is working with genray/cql3d
+to add a general radiation model.  Kikushkin is interested
+in possible modification of radiation damping rates due to
+quasilinear effects.
+
+We ask that people who use the code and find any 
+improvements will feed these back to me so they can
+be carried forward in the general distribution.
+
+We are, of course, delighted that genray/cql3d are being
+found useful.
+
+Thanks,
+
+Bob
+
+P.S.  Will need Lee and Cheng Yang emails.  We can resend
+this email, with attachments.
+
+
+\On Wednesday 27 March 2013 04:41:28 Paul Bonoli wrote:
+> Dear Bob,
+> 
+> There is a Chinese post-doc from EAST (Cheng Yang) who was visiting me for
+> 6 months at MIT and has become proficient in using Genray and Cql3d. He
+> has continued to use the codes after his return to China, but he is using
+> them remotely on our local computing cluster at MIT (Loki) and
+> occasionally at NERSC.
+> 
+> I am emailing you because I would like your permission to transfer Genray
+> and Cql3d to the EAST computing cluster. I feel comfortable doing this
+> because Cheng is conversant with the codes and is an active collaborator
+> with me. Also, in addition to Cheng, there is a physicist at EAST named
+> Xinjun Zhang who I know can help Cheng work through any problems they may
+> have building the codes locally there. We have worked with Xinjun in the
+> past on Toric implementations at EAST.
+> 
+> If you do give us permission to transfer the codes then there is the
+> question of how best to do this. We have always used the most recent SVN
+> version of these codes in our work, where I would check the codes out of
+> the CSWIM repository at ORNL and we would build them on Loki. I do not
+> think it is practical because of security issues to get Cheng an XCAMS
+> account at ORNL so that he can check out the codes from SVN there. So I
+> could just send Cheng a tar file with the Genray and Cql3d sources if you
+> think that is the best way to proceed. Or alternatively he could just get
+> the sources himself from the most recent checkout that I did from SVN on
+> the Loki cluster.
+> 
+> Let me know what you think and thanks in advance,
+> 
+> -paul
+>
+
+
+"Cheng Yang" <yangc@ipp.ac.cn>   from Paul Bonoli
+
+Olivier Sauter
+
+Alexei Pankin
+
+UW
+
+ORNL   RF-SciDACers and  "Diem, Stephanie J." <diemsj@ornl.gov>
+
+Myunghee Choi
+
+Ron Prater
+
+MIT people
+
+PPPL people, principally Gary Taylor at the moment.
+

@@ -1,0 +1,551 @@
+c***********************************************************************
+c       Define some Cray-like functions and real*8 related functions:
+c         cvmgt,
+c         luf,lug
+c         daxpy,dcopy,ddot,dscal,idamax
+c         D1MACH
+c         rbound
+c
+c***********************************************************************
+c
+c
+c
+c..................................................................
+c     define some intrinsic functions that exist 
+c     in CRAY FORTRAN but are not available on HPs.
+c..................................................................
+c
+cSTANDARDS
+c     CF90 and MIPSpro 7 Fortran 90 compiler extension to Fortran 90
+c
+cDESCRIPTION
+c     At run time, k is tested.  You can use the conditional vector merge
+c     (CVMG) functions when an IF statement involving arrays prevents
+c     vectorization of a loop.  The compiler can vectorize almost all such
+c     loops, but these functions can be used in older codes.  Scalar
+c     arguments can also be used with these functions.
+c
+c     CVMG functions cannot be passed as arguments.  They are elemental
+c     functions.
+c
+c     These functions test for the following:
+c
+c     * CVMGT tests for true.  i is returned if k is true.  j is returned if
+c       k is false.
+c
+c
+c     These functions accept the following arguments:
+c
+c     i     Can be of type logical, Boolean, integer, real, or Cray pointer.
+c
+c           See the RETURN VALUES section of this man page for more
+c           information on how the type of i affects the return value.
+c
+c     j     Can be of type logical, Boolean, integer, real, or Cray pointer.
+c
+c           See the RETURN VALUES section of this man page for more
+c           information on how the type of j affects the return value.
+c
+c     k     Can be of type logical, Boolean, integer, real, or Cray pointer.
+c
+c           See the RETURN VALUES section of this man page for more
+c           information on how the type of k affects the return value.
+c
+c
+      real*8 function cvmgt(x,y,z)
+      implicit integer (i-n), real*8 (a-h,o-z)
+      logical z
+      cvmgt=y
+      if (z) cvmgt=x
+      return
+      end function
+c
+c
+
+
+      integer function luf(px,parray,kn)
+      implicit integer (i-n), real*8 (a-h,o-z)
+c
+c     THIS ROUTINE SHOULD BE A BINARY SEARCH.  IT NEEDS WORK!!!
+c     luf(x,table,n) (MATHLIB) which is a function returning the index
+c        of the first element in the table that is greater than x.
+c
+c     Elements must be strictly increasing. x.gt.table(n)==>n+1. !!!
+c
+      dimension parray(kn)
+c
+c     YuP added: check that parray(i) is increasing with i
+      do i=2,kn
+      !write(*,*) i,parray(i)-parray(i-1)
+        if(parray(i)-parray(i-1) .lt. 0.d-15) then
+          !write(*,*) 'Function LUF: parray(i)=',  parray(1:kn)
+          write(*,*) 'Function LUF: array/table should be increasing.',i
+          goto 5
+          !STOP
+        endif
+      enddo
+
+5     continue
+
+c     find first index such that parray(luf).gt.px
+      do i=1,kn
+        if (parray(i) .gt. px) go to 10
+      end do
+ 10   continue
+c     luf = 1 if px.lt.parray(1) and luf=kn+1 if px>ge.parray(kn)
+      luf = i
+c
+      return
+      end function
+
+
+
+      integer function lug(px,parray,kn,iguess)
+      implicit integer (i-n), real*8 (a-h,o-z)
+c
+c     IGUESS is dummy.  THIS NEEDS WORK.
+c     lug(x,table,n,iguess) (MATHLIB) same as luf, 
+c        but with guess index iguess.
+c     IDEA of this routine is a binary search, starting
+c       at iguess
+c
+c     Elements must be strictly increasing. x.gt.table(n)==>n+1. !!!
+c
+      dimension parray(kn)
+c
+c     YuP added: check that parray(i) is increasing with i
+      do i= 2,kn !max(2,iguess), kn
+        if(parray(i)-parray(i-1) .lt. 0.d0) then
+          !write(*,*) 'Function LUG: parray(i)=',  parray(1:kn)       
+          write(*,*) 'Function LUG: array/table should be increasing.',i
+          goto 5
+          !pause
+          !STOP
+        endif
+      enddo
+
+5     continue
+
+c     find first index such that parray(luf).gt.px
+      do i=1,kn !YuP: do i=iguess,kn  results in 1-sinyy2*xs becoming negative.
+        if (parray(i) .gt. px) go to 10
+      end do
+ 10   continue
+c     lug = 1 if px.lt.parray(1) and lug=kn+1 if px>ge.parray(kn)
+      lug = i
+c
+      return
+      end function
+
+
+
+c$$$      real*8 function D1MACH (item)
+c$$$c
+c$$$c --- return machine-dependent floating point constants ----------------
+c$$$c
+c$$$      implicit none
+c$$$c
+c$$$      integer  item
+c$$$      real*8   rmach(5)
+c$$$      save     rmach
+c$$$c
+c$$$c990131      data     rmach(1) / 200034000000000000000b /,
+c$$$c990131     .         rmach(2) / 577767777777777777776b /,
+c$$$c990131     .         rmach(3) / 377224000000000000000b /,
+c$$$c990131     .         rmach(4) / 377234000000000000000b /,
+c$$$c990131     .         rmach(5) / 377774642023241175720b /
+c$$$C     MACHINE CONSTANTS FOR THE CONVEX
+c$$$C     USING THE -p8 OR -pd8 COMPILER OPTION
+c$$$C
+c$$$      DATA RMACH(1) / Z'0010000000000000' /
+c$$$      DATA RMACH(2) / Z'7FFFFFFFFFFFFFFF' /
+c$$$      DATA RMACH(3) / Z'3CC0000000000000' /
+c$$$      DATA RMACH(4) / Z'3CD0000000000000' /
+c$$$      DATA RMACH(5) / Z'3FF34413509F79FF' /
+c$$$c
+c$$$      D1MACH= rmach(item)
+c$$$      return
+c$$$c
+c$$$      end
+
+!Updated D1MACH by BH, 080118: see web, 
+!   'd1mach revisited: no more uncommenting DATA statements' 1995.
+!    David Gay and Eric Grosse,  Summary written by Bo Einarsson
+!DECK D1MACH
+
+      real*8 FUNCTION D1MACH (I)
+      IMPLICIT NONE
+      INTEGER :: I
+      INTEGER :: IFIRST
+
+      real*8 :: B, X
+      real*8, DIMENSION(5) :: DMACH
+      SAVE
+
+      DATA IFIRST /1/
+
+!***BEGIN PROLOGUE  D1MACH
+!***PURPOSE  Return floating point machine dependent constants.
+!***LIBRARY   SLATEC
+!***CATEGORY  R1
+!***TYPE      SINGLE PRECISION (D1MACH-S, D1MACH-D)
+!***KEYWORDS  MACHINE CONSTANTS
+!***AUTHOR  Fox, P. A., (Bell Labs)
+!           Hall, A. D., (Bell Labs)
+!           Schryer, N. L., (Bell Labs)
+!***DESCRIPTION
+!
+!   D1MACH can be used to obtain machine-dependent parameters for the
+!   local machine environment.  It is a function subprogram with one
+!   (input) argument, and can be referenced as follows:
+!
+!        A = D1MACH(I)
+!
+!   where I=1,...,5.  The (output) value of A above is determined by
+!   the (input) value of I.  The results for various values of I are
+!   discussed below.
+!
+!   D1MACH(1) = B**(EMIN-1), the smallest positive magnitude.
+!   D1MACH(2) = B**EMAX*(1 - B**(-T)), the largest magnitude.
+!   D1MACH(3) = B**(-T), the smallest relative spacing.
+!   D1MACH(4) = B**(1-T), the largest relative spacing.
+!   D1MACH(5) = LOG10(B)
+!
+!   Assume single precision numbers are represented in the T-digit,
+!   base-B form
+!
+!              sign (B**E)*( (X(1)/B) + ... + (X(T)/B**T) )
+!
+!   where 0 .LE. X(I) .LT. B for I=1,...,T, 0 .LT. X(1), and
+!   EMIN .LE. E .LE. EMAX.
+!
+!   The values of B, T, EMIN and EMAX are provided in I1MACH as
+!   follows:
+!   I1MACH(10) = B, the base.
+!   I1MACH(11) = T, the number of base-B digits.
+!   I1MACH(12) = EMIN, the smallest exponent E.
+!   I1MACH(13) = EMAX, the largest exponent E.
+!
+!
+!***REFERENCES  P. A. Fox, A. D. Hall and N. L. Schryer, Framework for
+!                 a portable library, ACM Transactions on Mathematical
+!                 Software 4, 2 (June 1978), pp. 177-188.
+!***ROUTINES CALLED  XERMSG
+!***REVISION HISTORY  (YYMMDD)
+!   790101  DATE WRITTEN
+!   960329  Modified for Fortran 90 (BE after suggestions by EHG)      
+!***END PROLOGUE  D1MACH
+!      
+      X = 1.0D0
+      B = RADIX(X)
+c$$$      SELECT CASE (I)
+c$$$        CASE (1)
+c$$$          D1MACH = B**(MINEXPONENT(X)-1) ! the smallest positive magnitude.
+c$$$        CASE (2)
+c$$$          D1MACH = HUGE(X)               ! the largest magnitude.
+c$$$        CASE (3)
+c$$$          D1MACH = B**(-DIGITS(X))       ! the smallest relative spacing.
+c$$$        CASE (4)
+c$$$          D1MACH = B**(1-DIGITS(X))      ! the largest relative spacing.
+c$$$        CASE (5)
+c$$$          D1MACH = LOG10(B)
+c$$$        CASE DEFAULT
+c$$$          WRITE (*, FMT = 9000)
+c$$$ 9000     FORMAT ('1ERROR    1 IN D1MACH - I OUT OF BOUNDS')
+c$$$          STOP
+c$$$      END SELECT
+      if (ifirst.eq.1) then
+          DMACH(1) = B**(MINEXPONENT(X)-1) ! the smallest positive magnitude.
+          DMACH(2) = HUGE(X)               ! the largest magnitude.
+          DMACH(3) = B**(-DIGITS(X))       ! the smallest relative spacing.
+          DMACH(4) = B**(1-DIGITS(X))      ! the largest relative spacing.
+          DMACH(5) = LOG10(B)
+
+         write(*,*)'d1mach_new_f90 : dmach(1:5)=',dmach(1:5)
+         ifirst=0
+         d1mach=dmach(i)
+      else
+         d1mach=dmach(i)
+      endif
+      RETURN
+      END function
+
+
+c***********************************************************************
+c     Copied the following routines from lapack.tar.gz
+c     (which includes sources for BLAS and LAPACK):
+c       daxpy.f, dcopy.f, ddot.f, dscal.f, and idmax.f
+c***********************************************************************
+c
+c
+      subroutine daxpy(n,da,dx,incx,dy,incy)
+c
+c     constant times a vector plus a vector.
+c     uses unrolled loops for increments equal to one.
+c     jack dongarra, linpack, 3/11/78.
+c     modified 12/3/93, array(1) declarations changed to array(*)
+c
+      real*8 dx(*),dy(*),da
+      integer i,incx,incy,ix,iy,m,mp1,n
+c
+      if(n.le.0)return
+      if (da .eq. 0.0d0) return
+      if(incx.eq.1.and.incy.eq.1)go to 20
+c
+c        code for unequal increments or equal increments
+c          not equal to 1
+c
+      ix = 1
+      iy = 1
+      if(incx.lt.0)ix = (-n+1)*incx + 1
+      if(incy.lt.0)iy = (-n+1)*incy + 1
+      do 10 i = 1,n
+        dy(iy) = dy(iy) + da*dx(ix)
+        ix = ix + incx
+        iy = iy + incy
+   10 continue
+      return
+c
+c        code for both increments equal to 1
+c
+c
+c        clean-up loop
+c
+   20 m = mod(n,4)
+      if( m .eq. 0 ) go to 40
+      do 30 i = 1,m
+        dy(i) = dy(i) + da*dx(i)
+   30 continue
+      if( n .lt. 4 ) return
+   40 mp1 = m + 1
+      do 50 i = mp1,n,4
+        dy(i) = dy(i) + da*dx(i)
+        dy(i + 1) = dy(i + 1) + da*dx(i + 1)
+        dy(i + 2) = dy(i + 2) + da*dx(i + 2)
+        dy(i + 3) = dy(i + 3) + da*dx(i + 3)
+   50 continue
+      return
+      end
+c
+c
+      subroutine dcopy(n,dx,incx,dy,incy)
+c
+c     copies a vector, x, to a vector, y.
+c     uses unrolled loops for increments equal to one.
+c     jack dongarra, linpack, 3/11/78.
+c     modified 12/3/93, array(1) declarations changed to array(*)
+c
+      real*8 dx(*),dy(*)
+      integer i,incx,incy,ix,iy,m,mp1,n
+c
+      if(n.le.0)return
+      if(incx.eq.1.and.incy.eq.1)go to 20
+c
+c        code for unequal increments or equal increments
+c          not equal to 1
+c
+      ix = 1
+      iy = 1
+      if(incx.lt.0)ix = (-n+1)*incx + 1
+      if(incy.lt.0)iy = (-n+1)*incy + 1
+      do 10 i = 1,n
+        dy(iy) = dx(ix)
+        ix = ix + incx
+        iy = iy + incy
+   10 continue
+      return
+c
+c        code for both increments equal to 1
+c
+c
+c        clean-up loop
+c
+   20 m = mod(n,7)
+      if( m .eq. 0 ) go to 40
+      do 30 i = 1,m
+        dy(i) = dx(i)
+   30 continue
+      if( n .lt. 7 ) return
+   40 mp1 = m + 1
+      do 50 i = mp1,n,7
+        dy(i) = dx(i)
+        dy(i + 1) = dx(i + 1)
+        dy(i + 2) = dx(i + 2)
+        dy(i + 3) = dx(i + 3)
+        dy(i + 4) = dx(i + 4)
+        dy(i + 5) = dx(i + 5)
+        dy(i + 6) = dx(i + 6)
+   50 continue
+      return
+      end
+c
+c
+      real*8 function ddot(n,dx,incx,dy,incy)
+c
+c     forms the dot product of two vectors.
+c     uses unrolled loops for increments equal to one.
+c     jack dongarra, linpack, 3/11/78.
+c     modified 12/3/93, array(1) declarations changed to array(*)
+c
+      real*8 dx(*),dy(*),dtemp
+      integer i,incx,incy,ix,iy,m,mp1,n
+c
+      ddot = 0.0d0
+      dtemp = 0.0d0
+      if(n.le.0)return
+      if(incx.eq.1.and.incy.eq.1)go to 20
+c
+c        code for unequal increments or equal increments
+c          not equal to 1
+c
+      ix = 1
+      iy = 1
+      if(incx.lt.0)ix = (-n+1)*incx + 1
+      if(incy.lt.0)iy = (-n+1)*incy + 1
+      do 10 i = 1,n
+        dtemp = dtemp + dx(ix)*dy(iy)
+        ix = ix + incx
+        iy = iy + incy
+   10 continue
+      ddot = dtemp
+      return
+c
+c        code for both increments equal to 1
+c
+c
+c        clean-up loop
+c
+   20 m = mod(n,5)
+      if( m .eq. 0 ) go to 40
+      do 30 i = 1,m
+        dtemp = dtemp + dx(i)*dy(i)
+   30 continue
+      if( n .lt. 5 ) go to 60
+   40 mp1 = m + 1
+      do 50 i = mp1,n,5
+        dtemp = dtemp + dx(i)*dy(i) + dx(i + 1)*dy(i + 1) +
+     *   dx(i + 2)*dy(i + 2) + dx(i + 3)*dy(i + 3) + dx(i + 4)*dy(i + 4)
+   50 continue
+   60 ddot = dtemp
+      return
+      end function
+c
+c
+      subroutine dscal(n,da,dx,incx)
+c
+c     scales a vector by a constant.
+c     uses unrolled loops for increment equal to one.
+c     jack dongarra, linpack, 3/11/78.
+c     modified 3/93 to return if incx .le. 0.
+c     modified 12/3/93, array(1) declarations changed to array(*)
+c
+      real*8 da,dx(*)
+      integer i,incx,m,mp1,n,nincx
+c
+      if( n.le.0 .or. incx.le.0 )return
+      if(incx.eq.1)go to 20
+c
+c        code for increment not equal to 1
+c
+      nincx = n*incx
+      do 10 i = 1,nincx,incx
+        dx(i) = da*dx(i)
+   10 continue
+      return
+c
+c        code for increment equal to 1
+c
+c
+c        clean-up loop
+c
+   20 m = mod(n,5)
+      if( m .eq. 0 ) go to 40
+      do 30 i = 1,m
+        dx(i) = da*dx(i)
+   30 continue
+      if( n .lt. 5 ) return
+   40 mp1 = m + 1
+      do 50 i = mp1,n,5
+        dx(i) = da*dx(i)
+        dx(i + 1) = da*dx(i + 1)
+        dx(i + 2) = da*dx(i + 2)
+        dx(i + 3) = da*dx(i + 3)
+        dx(i + 4) = da*dx(i + 4)
+   50 continue
+      return
+      end
+c
+c
+      integer function idamax(n,dx,incx)
+c
+c     finds the index of element having max. absolute value.
+c     jack dongarra, linpack, 3/11/78.
+c     modified 3/93 to return if incx .le. 0.
+c     modified 12/3/93, array(1) declarations changed to array(*)
+c     dabs() ==> generic abs(), BobH, 990620
+c
+      real*8 dx(*),dmax
+      integer i,incx,ix,n
+c
+      idamax = 0
+      if( n.lt.1 .or. incx.le.0 ) return
+      idamax = 1
+      if(n.eq.1)return
+      if(incx.eq.1)go to 20
+c
+c        code for increment not equal to 1
+c
+      ix = 1
+      dmax = abs(dx(1))
+      ix = ix + incx
+      do 10 i = 2,n
+         if(abs(dx(ix)).le.dmax) go to 5
+         idamax = i
+         dmax = abs(dx(ix))
+    5    ix = ix + incx
+   10 continue
+      return
+c
+c        code for increment equal to 1
+c
+   20 dmax = abs(dx(1))
+      do 30 i = 2,n
+         if(abs(dx(i)).le.dmax) go to 30
+         idamax = i
+         dmax = abs(dx(i))
+   30 continue
+      return
+      end function
+
+
+      real*4 function rbound(r8)
+      save
+c
+c     Converts a real*8 argument to a real number,
+c     equal to 0. (if r8=0.) or,
+c     bounded in absolute value by 1.e-33 and 1.e+33.
+c     This can be used to convert real*8 numbers to
+c     real numbers, and to keep the resulting numbers
+c     within the specified bounds.  This is necessary
+c     for the PGPLOT library running on a 32-bit machine.
+c     (1.e-35 was found to be too small in some cases,
+c      on the DEC Alpha).
+c     For a 64-bit machine, one might consider appropriate
+c     adjustment of em33/ep33.
+c
+cBH090905      real*4 rbound
+      real*8 r8,r8sign,r8abs
+      real*8 em33,ep33,zero,one
+      data em33/1.d-33/, ep33/1.d+33/, zero/0.d0/, one/1.d0/
+
+      r8abs=abs(r8)
+      if (r8abs.ne.zero) then
+         r8sign=sign(one,r8)
+         r8abs=min(r8abs,ep33)
+         rbound=r8sign*max(r8abs,em33)
+      else
+         rbound=0.
+      endif
+
+      return
+      end function

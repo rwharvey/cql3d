@@ -1,0 +1,34 @@
+INSTALL=/usr/bin/install
+CQLLIB0=libcql3d_input.a
+CQLLIB=libcql3d_input.franklin.a
+APP=cql3d
+BIN0=xcql3d
+BIN1=xcql3d_pgi.franklin
+BIN2=xcql3d_mpi.franklin
+OBJS=eqindflt.o aindflt.o aindfpa.o frinitl.o urfindfl.o zcunix.o
+#BH090924: Discuss whether relevant .f files preferably also stored?
+INCLUDES=frname.h frname_decl.h name_decl.h name.h param.h 
+#BH090924  SHARE=grfont.dat  #grfont.dat is from the PGPLOT_DIR which
+#BH090924                    #presently needs to be set in user's login script.
+
+all:  $(OBJS) $(INCLUDES)
+	ar rv $(CQLLIB) $(OBJS)
+
+#BH090924  install:  $(BIN) $(CQLLIB) $(INCLUDES) $(SHARE)
+install:  $(BIN1) $(BIN2) $(CQLLIB) $(INCLUDES)
+	-$(INSTALL) $(BIN1) $(IPS_PHYS_ROOT)/$(APP)/bin
+	-$(INSTALL) $(BIN2) $(IPS_PHYS_ROOT)/$(APP)/bin
+	-$(INSTALL) $(CQLLIB) $(IPS_PHYS_ROOT)/$(APP)/lib
+	-$(INSTALL) $(INCLUDES) $(IPS_PHYS_ROOT)/$(APP)/include
+#BH090924  	-$(INSTALL) $(SHARE) $(IPS_PHYS_ROOT)/$(APP)/share
+	ln -s $(IPS_PHYS_ROOT)/$(APP)/bin/$(BIN1) $(IPS_PHYS_ROOT)/$(APP)/bin/$(BIN0)
+	ln -s $(IPS_PHYS_ROOT)/$(APP)/lib/$(CQLLIB) $(IPS_PHYS_ROOT)/$(APP)/lib/$(CQLLIB0)
+
+clean:
+	rm $(IPS_PHYS_ROOT)/$(APP)/lib/*
+	rm $(IPS_PHYS_ROOT)/$(APP)/bin/*
+	rm $(IPS_PHYS_ROOT)/$(APP)/include/*
+#BH090924	rm $(IPS_PHYS_ROOT)/$(APP)/share/*
+	
+	
+	

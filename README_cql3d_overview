@@ -1,0 +1,85 @@
+README_cql3d_overview
+=====================
+RWH, Dec/2012
+
+CQL3D is a 3D multi-species toroidal plasma oriented
+collisional/RF-quasilinear Fokker-Planck code for 
+simulation of electron and ion distributions  resulting
+from RF, neutral beam, and alpha-particle auxiliary
+heating in toroidal plasma devices (tokamaks,
+reverse-field pinches, for example).  The time-dependent
+or steady state electron and ion distributions are obtained
+as a 3D function of  parallel and perpendicular momentum and
+non-circular plasma radius.
+
+A brief description of the code can be found at
+http://www.compxco.com/cql3d.html
+
+Due to time available, developers can answer a very limited
+number of questions on the use of these codes.  In general,
+CompX obtains support funds for instructions, applications,
+additions to CQL3D (and other CompX codes).
+
+CQL3D is written in fortran, and is compiled with the open 
+software libraries for netCDF, and pgplot.  The developers
+use the gfortran compiler, but several other compilers have
+also successfully been used.
+
+Namelist input specifies the particular code runs.  The
+input namelist file must be named cqlinput. 
+A description of the namelist inputs is maintained in the
+cqlinput_help file in the distribution.  This file is
+part of the main documentation of code input, and is
+kept current.
+
+For most applications, cql3d also requires an "eqdsk"
+which specifies the 2D plasma flux surfaces in a 
+poloidal cross-section.  Additional input files are 
+required in some run modes, as specified in the
+cqlinput_help file.  For example, an input netCDF rf data
+file from the genray code is ofter used in rf simulations.
+
+A mnemonic.ps (or other name as specified by the mnemonic
+namelist input) postscript file is found very useful for
+a preliminary view of the code results.  In addition, much
+available data from the code is output to a netCDF file,
+mnemonic.nc, and this can be used for further plotting
+and analysis, for example, using python and matplotlib.
+Various netCDF file viewers are also available on the internet.
+
+You will also need an MPI library, if you want a parallelized
+execution (RWH uses open source openmpi).
+
+RWH makes the genray executable under Linux using gmake 
+(make -f makefile_gfortran64).  SAP (and more recently,
+Yuri Petrov, CompX) uses a Microsoft environment.  The
+basic makefile is makefile_gfortran64, for a serial version
+of cql3d.   A version for debugging and bounds checking
+can be obtained with makefile_gfortran64_debug_BOUNDS-CHECK.
+
+An MPI version is obtained with makefile_gfortran64_mpi,
+and with the RWH Linux setup, execution is then given by
+mpirun -np 4 xcql3d_mpi.gfortran64  #for example.
+The makefile_gfortran64_mpi causes mpi statements to be
+added to the cql3d code at specific insertion points 
+(comment lines for serial compilation), as described in
+CQL3D_Parallelization_CompX-2006-1.pdf.
+
+Some familiarity with the code can be developed by running
+the regression tests given in 00_cql3d_Regression_Tests_basic.tar.gz
+See README therein.
+
+The mainline (public) version of the code does not contain the
+finite-orbit-width (FOW) option which is under development
+(Dec. 30, 2013).
+
+Primary documentation for the code is given in the CQL3D Manual,
+cql3d_manual_110218.pdf, available also at 
+http://www.compxco.com/cql3d.html
+
+
+
+
+
+
+

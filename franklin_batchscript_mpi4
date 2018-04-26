@@ -1,0 +1,15 @@
+#PBS -N cqlp_mpi
+#PBS -q regular
+#PBS -A m876
+#PBS -m e
+#PBS -j oe
+#PBS -l walltime=00:40:00
+#PBS -l mppwidth=4
+
+
+
+
+cd $PBS_O_WORKDIR
+
+
+aprun -n 4  /scratch/scratchdirs/ypetrov/cql3d/cqlp_mpi

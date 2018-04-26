@@ -1,0 +1,36 @@
+
+
+From Jin Chen, PPPL,  2014-07-31, for CQL3D compilation, along with
+prepare and process files for interface with the Plasma State:  
+
+Here are the makefile to compile prepare... and process... in intel and
+pathf90 on portal.ppp.gov:
+
+pathf90:
+1. module load swim
+2. cd /p/swim/jchen/IPS/ips/components/fp/cql3d/src.pathf90
+    "make -f makefile_pathscale_portal_pppl PRE=0" compiles prepare...
+    "make -f makefile_pathscale_portal_pppl PRE=1" compiles process...
+
+ifort:
+1. source /p/swim/jchen/IPS/ips/components/fp/cql3d/moduleload.intel
+2. cd /p/swim/jchen/IPS/ips/components/fp/cql3d/src.intel
+    "make -f makefile_intel_portal_pppl PRE=0" compiles prepare...
+    "make -f makefile_intel_portal_pppl PRE=1" compiles process...
+
+The source files for prepare... & process... are modified. Please do "svn
+diff" to check.
+
+In order to compile cql3d itself, please use
+
+pathf90:
+1. source /p/swim/jchen/IPS/genray/cql3d/intel-module_portal_pppl.csh
+2. cd /p/swim/jchen/IPS/genray/cql3d/trunk
+    "make -f ../makefile_intel_portal.pppl" to build a intel version
+
+ifort:
+1. source /p/swim/jchen/IPS/genray/cql3d/pathscale-module_portal_pppl.csh
+2. cd /p/swim/jchen/IPS/genray/cql3d/trunk
+    "make -f ../makefile_pathscale_portal_pppl" to build a pathf90 version
+
+Please use "svn diff" to check the differences.

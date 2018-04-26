@@ -1,0 +1,3480 @@
+c***********************************************************************
+c       Define some Cray-like functions and real*8 related functions:
+c         cvmgm, cfmgn, cvmgp, cvmgt, cvmgz
+c         luf,lug
+c         daxpy,dcopy,ddot,dscal,idamax
+c         D1MACH
+c         rbound
+c
+c***********************************************************************
+c
+c
+c
+c..................................................................
+c     define some intrinsic functions that exist 
+c     in CRAY FORTRAN but are not available on HPs.
+c..................................................................
+c
+cSTANDARDS
+c     CF90 and MIPSpro 7 Fortran 90 compiler extension to Fortran 90
+c
+cDESCRIPTION
+c     At run time, k is tested.  You can use the conditional vector merge
+c     (CVMG) functions when an IF statement involving arrays prevents
+c     vectorization of a loop.  The compiler can vectorize almost all such
+c     loops, but these functions can be used in older codes.  Scalar
+c     arguments can also be used with these functions.
+c
+c     CVMG functions cannot be passed as arguments.  They are elemental
+c     functions.
+c
+c     These functions test for the following:
+c
+c     * CVMGM tests for minus (negative).  i is returned if k < 0.  j is
+c       returned if k >= 0.
+c
+c     * CVMGN tests for nonzero.  i is returned if k is not equal to 0.  j
+c       is returned if k = 0.
+c
+c     * CVMGP tests for positive or zero.  i is returned if k >= 0.  j is
+c       returned if k < 0.
+c
+c     * CVMGT tests for true.  i is returned if k is true.  j is returned if
+c       k is false.
+c
+c     * CVMGZ tests for zero.  i is returned if k = 0.  j is returned if k
+c       is not equal to 0.
+c
+c     These functions accept the following arguments:
+c
+c     i     Can be of type logical, Boolean, integer, real, or Cray pointer.
+c
+c           See the RETURN VALUES section of this man page for more
+c           information on how the type of i affects the return value.
+c
+c     j     Can be of type logical, Boolean, integer, real, or Cray pointer.
+c
+c           See the RETURN VALUES section of this man page for more
+c           information on how the type of j affects the return value.
+c
+c     k     Can be of type logical, Boolean, integer, real, or Cray pointer.
+c
+c           See the RETURN VALUES section of this man page for more
+c           information on how the type of k affects the return value.
+c
+c
+      real*8 function cvmgm(x,y,z)
+      implicit integer (i-n), real*8 (a-h,o-z)
+      cvmgm=y
+      if (z .lt. 0.d0) cvmgm=x
+      return
+      end function
+c
+c
+      real*8 function cvmgp(x,y,z)
+      implicit integer (i-n), real*8 (a-h,o-z)
+      cvmgp=y
+      if (z .gt. 0.d0) cvmgp=x
+      return
+      end function
+c
+c
+      real*8 function cvmgt(x,y,z)
+      implicit integer (i-n), real*8 (a-h,o-z)
+      logical z
+      cvmgt=y
+      if (z) cvmgt=x
+      return
+      end function
+c
+c
+
+
+      integer function luf(px,parray,kn)
+      implicit integer (i-n), real*8 (a-h,o-z)
+c
+c     THIS ROUTINE SHOULD BE A BINARY SEARCH.  IT NEEDS WORK!!!
+c     luf(x,table,n) (MATHLIB) which is a function returning the index
+c        of the first element in the table that is greater than x.
+c
+c     Elements must be strictly increasing. x.gt.table(n)==>n+1. !!!
+c
+      dimension parray(kn)
+c
+c     YuP added: check that parray(i) is increasing with i
+      do i=2,kn
+      !write(*,*) i,parray(i)-parray(i-1)
+        if(parray(i)-parray(i-1) .lt. 0.d-15) then
+          !write(*,*) 'Function LUF: parray(i)=',  parray(1:kn)
+          write(*,*) 'Function LUF: array/table should be increasing.',i
+          goto 5
+          !STOP
+        endif
+      enddo
+
+5     continue
+
+c     find first index such that parray(luf).gt.px
+      do i=1,kn
+        if (parray(i) .gt. px) go to 10
+      end do
+ 10   continue
+c     luf = 1 if px.lt.parray(1) and luf=kn+1 if px>ge.parray(kn)
+      luf = i
+c
+      return
+      end function
+
+
+
+      integer function lug(px,parray,kn,iguess)
+      implicit integer (i-n), real*8 (a-h,o-z)
+c
+c     IGUESS is dummy.  THIS NEEDS WORK.
+c     lug(x,table,n,iguess) (MATHLIB) same as luf, 
+c        but with guess index iguess.
+c     IDEA of this routine is a binary search, starting
+c       at iguess
+c
+c     Elements must be strictly increasing. x.gt.table(n)==>n+1. !!!
+c
+      dimension parray(kn)
+c
+c     YuP added: check that parray(i) is increasing with i
+      do i= 2,kn !max(2,iguess), kn
+        if(parray(i)-parray(i-1) .lt. 0.d0) then
+          !write(*,*) 'Function LUG: parray(i)=',  parray(1:kn)       
+          write(*,*) 'Function LUG: array/table should be increasing.',i
+          goto 5
+          !pause
+          !STOP
+        endif
+      enddo
+
+5     continue
+
+c     find first index such that parray(luf).gt.px
+      do i=1,kn !YuP: do i=iguess,kn  results in 1-sinyy2*xs becoming negative.
+        if (parray(i) .gt. px) go to 10
+      end do
+ 10   continue
+c     lug = 1 if px.lt.parray(1) and lug=kn+1 if px>ge.parray(kn)
+      lug = i
+c
+      return
+      end function
+
+
+
+c$$$      real*8 function D1MACH (item)
+c$$$c
+c$$$c --- return machine-dependent floating point constants ----------------
+c$$$c
+c$$$      implicit none
+c$$$c
+c$$$      integer  item
+c$$$      real*8   rmach(5)
+c$$$      save     rmach
+c$$$c
+c$$$c990131      data     rmach(1) / 200034000000000000000b /,
+c$$$c990131     .         rmach(2) / 577767777777777777776b /,
+c$$$c990131     .         rmach(3) / 377224000000000000000b /,
+c$$$c990131     .         rmach(4) / 377234000000000000000b /,
+c$$$c990131     .         rmach(5) / 377774642023241175720b /
+c$$$C     MACHINE CONSTANTS FOR THE CONVEX
+c$$$C     USING THE -p8 OR -pd8 COMPILER OPTION
+c$$$C
+c$$$      DATA RMACH(1) / Z'0010000000000000' /
+c$$$      DATA RMACH(2) / Z'7FFFFFFFFFFFFFFF' /
+c$$$      DATA RMACH(3) / Z'3CC0000000000000' /
+c$$$      DATA RMACH(4) / Z'3CD0000000000000' /
+c$$$      DATA RMACH(5) / Z'3FF34413509F79FF' /
+c$$$c
+c$$$      D1MACH= rmach(item)
+c$$$      return
+c$$$c
+c$$$      end
+
+!Updated D1MACH by BH, 080118: see web, 
+!   'd1mach revisited: no more uncommenting DATA statements' 1995.
+!    David Gay and Eric Grosse,  Summary written by Bo Einarsson
+!DECK D1MACH
+
+      real*8 FUNCTION D1MACH (I)
+      IMPLICIT NONE
+      INTEGER :: I
+      INTEGER :: IFIRST
+
+      real*8 :: B, X
+      real*8, DIMENSION(5) :: DMACH
+      SAVE
+
+      DATA IFIRST /1/
+
+!***BEGIN PROLOGUE  D1MACH
+!***PURPOSE  Return floating point machine dependent constants.
+!***LIBRARY   SLATEC
+!***CATEGORY  R1
+!***TYPE      SINGLE PRECISION (D1MACH-S, D1MACH-D)
+!***KEYWORDS  MACHINE CONSTANTS
+!***AUTHOR  Fox, P. A., (Bell Labs)
+!           Hall, A. D., (Bell Labs)
+!           Schryer, N. L., (Bell Labs)
+!***DESCRIPTION
+!
+!   D1MACH can be used to obtain machine-dependent parameters for the
+!   local machine environment.  It is a function subprogram with one
+!   (input) argument, and can be referenced as follows:
+!
+!        A = D1MACH(I)
+!
+!   where I=1,...,5.  The (output) value of A above is determined by
+!   the (input) value of I.  The results for various values of I are
+!   discussed below.
+!
+!   D1MACH(1) = B**(EMIN-1), the smallest positive magnitude.
+!   D1MACH(2) = B**EMAX*(1 - B**(-T)), the largest magnitude.
+!   D1MACH(3) = B**(-T), the smallest relative spacing.
+!   D1MACH(4) = B**(1-T), the largest relative spacing.
+!   D1MACH(5) = LOG10(B)
+!
+!   Assume single precision numbers are represented in the T-digit,
+!   base-B form
+!
+!              sign (B**E)*( (X(1)/B) + ... + (X(T)/B**T) )
+!
+!   where 0 .LE. X(I) .LT. B for I=1,...,T, 0 .LT. X(1), and
+!   EMIN .LE. E .LE. EMAX.
+!
+!   The values of B, T, EMIN and EMAX are provided in I1MACH as
+!   follows:
+!   I1MACH(10) = B, the base.
+!   I1MACH(11) = T, the number of base-B digits.
+!   I1MACH(12) = EMIN, the smallest exponent E.
+!   I1MACH(13) = EMAX, the largest exponent E.
+!
+!
+!***REFERENCES  P. A. Fox, A. D. Hall and N. L. Schryer, Framework for
+!                 a portable library, ACM Transactions on Mathematical
+!                 Software 4, 2 (June 1978), pp. 177-188.
+!***ROUTINES CALLED  XERMSG
+!***REVISION HISTORY  (YYMMDD)
+!   790101  DATE WRITTEN
+!   960329  Modified for Fortran 90 (BE after suggestions by EHG)      
+!***END PROLOGUE  D1MACH
+!      
+      X = 1.0D0
+      B = RADIX(X)
+c$$$      SELECT CASE (I)
+c$$$        CASE (1)
+c$$$          D1MACH = B**(MINEXPONENT(X)-1) ! the smallest positive magnitude.
+c$$$        CASE (2)
+c$$$          D1MACH = HUGE(X)               ! the largest magnitude.
+c$$$        CASE (3)
+c$$$          D1MACH = B**(-DIGITS(X))       ! the smallest relative spacing.
+c$$$        CASE (4)
+c$$$          D1MACH = B**(1-DIGITS(X))      ! the largest relative spacing.
+c$$$        CASE (5)
+c$$$          D1MACH = LOG10(B)
+c$$$        CASE DEFAULT
+c$$$          WRITE (*, FMT = 9000)
+c$$$ 9000     FORMAT ('1ERROR    1 IN D1MACH - I OUT OF BOUNDS')
+c$$$          STOP
+c$$$      END SELECT
+      if (ifirst.eq.1) then
+          DMACH(1) = B**(MINEXPONENT(X)-1) ! the smallest positive magnitude.
+          DMACH(2) = HUGE(X)               ! the largest magnitude.
+          DMACH(3) = B**(-DIGITS(X))       ! the smallest relative spacing.
+          DMACH(4) = B**(1-DIGITS(X))      ! the largest relative spacing.
+          DMACH(5) = LOG10(B)
+
+         write(*,*)'d1mach_new_f90 : dmach(1:5)=',dmach(1:5)
+         ifirst=0
+         d1mach=dmach(i)
+      else
+         d1mach=dmach(i)
+      endif
+      RETURN
+      END function
+c$$$
+c$$$
+c$$$c***********************************************************************
+c$$$c     Copied the following routines from lapack.tar.gz
+c$$$c     (which includes sources for BLAS and LAPACK):
+c$$$c       daxpy.f, dcopy.f, ddot.f, dscal.f, and idmax.f
+c$$$c***********************************************************************
+c$$$c
+c$$$c
+c$$$      subroutine daxpy(n,da,dx,incx,dy,incy)
+c$$$c
+c$$$c     constant times a vector plus a vector.
+c$$$c     uses unrolled loops for increments equal to one.
+c$$$c     jack dongarra, linpack, 3/11/78.
+c$$$c     modified 12/3/93, array(1) declarations changed to array(*)
+c$$$c
+c$$$      real*8 dx(*),dy(*),da
+c$$$      integer i,incx,incy,ix,iy,m,mp1,n
+c$$$c
+c$$$      if(n.le.0)return
+c$$$      if (da .eq. 0.0d0) return
+c$$$      if(incx.eq.1.and.incy.eq.1)go to 20
+c$$$c
+c$$$c        code for unequal increments or equal increments
+c$$$c          not equal to 1
+c$$$c
+c$$$      ix = 1
+c$$$      iy = 1
+c$$$      if(incx.lt.0)ix = (-n+1)*incx + 1
+c$$$      if(incy.lt.0)iy = (-n+1)*incy + 1
+c$$$      do 10 i = 1,n
+c$$$        dy(iy) = dy(iy) + da*dx(ix)
+c$$$        ix = ix + incx
+c$$$        iy = iy + incy
+c$$$   10 continue
+c$$$      return
+c$$$c
+c$$$c        code for both increments equal to 1
+c$$$c
+c$$$c
+c$$$c        clean-up loop
+c$$$c
+c$$$   20 m = mod(n,4)
+c$$$      if( m .eq. 0 ) go to 40
+c$$$      do 30 i = 1,m
+c$$$        dy(i) = dy(i) + da*dx(i)
+c$$$   30 continue
+c$$$      if( n .lt. 4 ) return
+c$$$   40 mp1 = m + 1
+c$$$      do 50 i = mp1,n,4
+c$$$        dy(i) = dy(i) + da*dx(i)
+c$$$        dy(i + 1) = dy(i + 1) + da*dx(i + 1)
+c$$$        dy(i + 2) = dy(i + 2) + da*dx(i + 2)
+c$$$        dy(i + 3) = dy(i + 3) + da*dx(i + 3)
+c$$$   50 continue
+c$$$      return
+c$$$      end subroutine daxpy
+c$$$c
+c$$$c
+c$$$      subroutine dcopy(n,dx,incx,dy,incy)
+c$$$c
+c$$$c     copies a vector, x, to a vector, y.
+c$$$c     uses unrolled loops for increments equal to one.
+c$$$c     jack dongarra, linpack, 3/11/78.
+c$$$c     modified 12/3/93, array(1) declarations changed to array(*)
+c$$$c
+c$$$      real*8 dx(*),dy(*)
+c$$$      integer i,incx,incy,ix,iy,m,mp1,n
+c$$$c
+c$$$      if(n.le.0)return
+c$$$      if(incx.eq.1.and.incy.eq.1)go to 20
+c$$$c
+c$$$c        code for unequal increments or equal increments
+c$$$c          not equal to 1
+c$$$c
+c$$$      ix = 1
+c$$$      iy = 1
+c$$$      if(incx.lt.0)ix = (-n+1)*incx + 1
+c$$$      if(incy.lt.0)iy = (-n+1)*incy + 1
+c$$$      do 10 i = 1,n
+c$$$        dy(iy) = dx(ix)
+c$$$        ix = ix + incx
+c$$$        iy = iy + incy
+c$$$   10 continue
+c$$$      return
+c$$$c
+c$$$c        code for both increments equal to 1
+c$$$c
+c$$$c
+c$$$c        clean-up loop
+c$$$c
+c$$$   20 m = mod(n,7)
+c$$$      if( m .eq. 0 ) go to 40
+c$$$      do 30 i = 1,m
+c$$$        dy(i) = dx(i)
+c$$$   30 continue
+c$$$      if( n .lt. 7 ) return
+c$$$   40 mp1 = m + 1
+c$$$      do 50 i = mp1,n,7
+c$$$        dy(i) = dx(i)
+c$$$        dy(i + 1) = dx(i + 1)
+c$$$        dy(i + 2) = dx(i + 2)
+c$$$        dy(i + 3) = dx(i + 3)
+c$$$        dy(i + 4) = dx(i + 4)
+c$$$        dy(i + 5) = dx(i + 5)
+c$$$        dy(i + 6) = dx(i + 6)
+c$$$   50 continue
+c$$$      return
+c$$$      end subroutine dcopy
+c$$$c
+c$$$c
+c$$$      real*8 function ddot(n,dx,incx,dy,incy)
+c$$$c
+c$$$c     forms the dot product of two vectors.
+c$$$c     uses unrolled loops for increments equal to one.
+c$$$c     jack dongarra, linpack, 3/11/78.
+c$$$c     modified 12/3/93, array(1) declarations changed to array(*)
+c$$$c
+c$$$      real*8 dx(*),dy(*),dtemp
+c$$$      integer i,incx,incy,ix,iy,m,mp1,n
+c$$$c
+c$$$      ddot = 0.0d0
+c$$$      dtemp = 0.0d0
+c$$$      if(n.le.0)return
+c$$$      if(incx.eq.1.and.incy.eq.1)go to 20
+c$$$c
+c$$$c        code for unequal increments or equal increments
+c$$$c          not equal to 1
+c$$$c
+c$$$      ix = 1
+c$$$      iy = 1
+c$$$      if(incx.lt.0)ix = (-n+1)*incx + 1
+c$$$      if(incy.lt.0)iy = (-n+1)*incy + 1
+c$$$      do 10 i = 1,n
+c$$$        dtemp = dtemp + dx(ix)*dy(iy)
+c$$$        ix = ix + incx
+c$$$        iy = iy + incy
+c$$$   10 continue
+c$$$      ddot = dtemp
+c$$$      return
+c$$$c
+c$$$c        code for both increments equal to 1
+c$$$c
+c$$$c
+c$$$c        clean-up loop
+c$$$c
+c$$$   20 m = mod(n,5)
+c$$$      if( m .eq. 0 ) go to 40
+c$$$      do 30 i = 1,m
+c$$$        dtemp = dtemp + dx(i)*dy(i)
+c$$$   30 continue
+c$$$      if( n .lt. 5 ) go to 60
+c$$$   40 mp1 = m + 1
+c$$$      do 50 i = mp1,n,5
+c$$$        dtemp = dtemp + dx(i)*dy(i) + dx(i + 1)*dy(i + 1) +
+c$$$     *   dx(i + 2)*dy(i + 2) + dx(i + 3)*dy(i + 3) + dx(i + 4)*dy(i + 4)
+c$$$   50 continue
+c$$$   60 ddot = dtemp
+c$$$      return
+c$$$      end function ddot
+c$$$c
+c$$$c
+c$$$      subroutine dscal(n,da,dx,incx)
+c$$$c
+c$$$c     scales a vector by a constant.
+c$$$c     uses unrolled loops for increment equal to one.
+c$$$c     jack dongarra, linpack, 3/11/78.
+c$$$c     modified 3/93 to return if incx .le. 0.
+c$$$c     modified 12/3/93, array(1) declarations changed to array(*)
+c$$$c
+c$$$      real*8 da,dx(*)
+c$$$      integer i,incx,m,mp1,n,nincx
+c$$$c
+c$$$      if( n.le.0 .or. incx.le.0 )return
+c$$$      if(incx.eq.1)go to 20
+c$$$c
+c$$$c        code for increment not equal to 1
+c$$$c
+c$$$      nincx = n*incx
+c$$$      do 10 i = 1,nincx,incx
+c$$$        dx(i) = da*dx(i)
+c$$$   10 continue
+c$$$      return
+c$$$c
+c$$$c        code for increment equal to 1
+c$$$c
+c$$$c
+c$$$c        clean-up loop
+c$$$c
+c$$$   20 m = mod(n,5)
+c$$$      if( m .eq. 0 ) go to 40
+c$$$      do 30 i = 1,m
+c$$$        dx(i) = da*dx(i)
+c$$$   30 continue
+c$$$      if( n .lt. 5 ) return
+c$$$   40 mp1 = m + 1
+c$$$      do 50 i = mp1,n,5
+c$$$        dx(i) = da*dx(i)
+c$$$        dx(i + 1) = da*dx(i + 1)
+c$$$        dx(i + 2) = da*dx(i + 2)
+c$$$        dx(i + 3) = da*dx(i + 3)
+c$$$        dx(i + 4) = da*dx(i + 4)
+c$$$   50 continue
+c$$$      return
+c$$$      end subroutine dscal
+c$$$c
+c$$$c
+c$$$      integer function idamax(n,dx,incx)
+c$$$c
+c$$$c     finds the index of element having max. absolute value.
+c$$$c     jack dongarra, linpack, 3/11/78.
+c$$$c     modified 3/93 to return if incx .le. 0.
+c$$$c     modified 12/3/93, array(1) declarations changed to array(*)
+c$$$c     dabs() ==> generic abs(), BobH, 990620
+c$$$c
+c$$$      real*8 dx(*),dmax
+c$$$      integer i,incx,ix,n
+c$$$c
+c$$$      idamax = 0
+c$$$      if( n.lt.1 .or. incx.le.0 ) return
+c$$$      idamax = 1
+c$$$      if(n.eq.1)return
+c$$$      if(incx.eq.1)go to 20
+c$$$c
+c$$$c        code for increment not equal to 1
+c$$$c
+c$$$      ix = 1
+c$$$      dmax = abs(dx(1))
+c$$$      ix = ix + incx
+c$$$      do 10 i = 2,n
+c$$$         if(abs(dx(ix)).le.dmax) go to 5
+c$$$         idamax = i
+c$$$         dmax = abs(dx(ix))
+c$$$    5    ix = ix + incx
+c$$$   10 continue
+c$$$      return
+c$$$c
+c$$$c        code for increment equal to 1
+c$$$c
+c$$$   20 dmax = abs(dx(1))
+c$$$      do 30 i = 2,n
+c$$$         if(abs(dx(i)).le.dmax) go to 30
+c$$$         idamax = i
+c$$$         dmax = abs(dx(i))
+c$$$   30 continue
+c$$$      return
+c$$$      end function
+c$$$
+c$$$
+c$$$      real*4 function rbound(r8)
+c$$$      save
+c$$$c
+c$$$c     Converts a real*8 argument to a real number,
+c$$$c     equal to 0. (if r8=0.) or,
+c$$$c     bounded in absolute value by 1.e-33 and 1.e+33.
+c$$$c     This can be used to convert real*8 numbers to
+c$$$c     real numbers, and to keep the resulting numbers
+c$$$c     within the specified bounds.  This is necessary
+c$$$c     for the PGPLOT library running on a 32-bit machine.
+c$$$c     (1.e-35 was found to be too small in some cases,
+c$$$c      on the DEC Alpha).
+c$$$c     For a 64-bit machine, one might consider appropriate
+c$$$c     adjustment of em33/ep33.
+c$$$c
+c$$$cBH090905      real*4 rbound
+c$$$      real*8 r8,r8sign,r8abs
+c$$$      real*8 em33,ep33,zero,one
+c$$$      data em33/1.d-33/, ep33/1.d+33/, zero/0.d0/, one/1.d0/
+c$$$
+c$$$      r8abs=abs(r8)
+c$$$      if (r8abs.ne.zero) then
+c$$$         r8sign=sign(one,r8)
+c$$$         r8abs=min(r8abs,ep33)
+c$$$         rbound=r8sign*max(r8abs,em33)
+c$$$      else
+c$$$         rbound=0.
+c$$$      endif
+c$$$
+c$$$      return
+c$$$      end function
+c$$$      SUBROUTINE DGBTF2( M, N, KL, KU, AB, LDAB, IPIV, INFO )
+c$$$*
+c$$$*  -- LAPACK routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER            INFO, KL, KU, LDAB, M, N
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      DOUBLE PRECISION   AB( LDAB, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  DGBTF2 computes an LU factorization of a real m-by-n band matrix A
+c$$$*  using partial pivoting with row interchanges.
+c$$$*
+c$$$*  This is the unblocked version of the algorithm, calling Level 2 BLAS.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  M       (input) INTEGER
+c$$$*          The number of rows of the matrix A.  M >= 0.
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The number of columns of the matrix A.  N >= 0.
+c$$$*
+c$$$*  KL      (input) INTEGER
+c$$$*          The number of subdiagonals within the band of A.  KL >= 0.
+c$$$*
+c$$$*  KU      (input) INTEGER
+c$$$*          The number of superdiagonals within the band of A.  KU >= 0.
+c$$$*
+c$$$*  AB      (input/output) DOUBLE PRECISION array, dimension (LDAB,N)
+c$$$*          On entry, the matrix A in band storage, in rows KL+1 to
+c$$$*          2*KL+KU+1; rows 1 to KL of the array need not be set.
+c$$$*          The j-th column of A is stored in the j-th column of the
+c$$$*          array AB as follows:
+c$$$*          AB(kl+ku+1+i-j,j) = A(i,j) for max(1,j-ku)<=i<=min(m,j+kl)
+c$$$*
+c$$$*          On exit, details of the factorization: U is stored as an
+c$$$*          upper triangular band matrix with KL+KU superdiagonals in
+c$$$*          rows 1 to KL+KU+1, and the multipliers used during the
+c$$$*          factorization are stored in rows KL+KU+2 to 2*KL+KU+1.
+c$$$*          See below for further details.
+c$$$*
+c$$$*  LDAB    (input) INTEGER
+c$$$*          The leading dimension of the array AB.  LDAB >= 2*KL+KU+1.
+c$$$*
+c$$$*  IPIV    (output) INTEGER array, dimension (min(M,N))
+c$$$*          The pivot indices; for 1 <= i <= min(M,N), row i of the
+c$$$*          matrix was interchanged with row IPIV(i).
+c$$$*
+c$$$*  INFO    (output) INTEGER
+c$$$*          = 0: successful exit
+c$$$*          < 0: if INFO = -i, the i-th argument had an illegal value
+c$$$*          > 0: if INFO = +i, U(i,i) is exactly zero. The factorization
+c$$$*               has been completed, but the factor U is exactly
+c$$$*               singular, and division by zero will occur if it is used
+c$$$*               to solve a system of equations.
+c$$$*
+c$$$*  Further Details
+c$$$*  ===============
+c$$$*
+c$$$*  The band storage scheme is illustrated by the following example, when
+c$$$*  M = N = 6, KL = 2, KU = 1:
+c$$$*
+c$$$*  On entry:                       On exit:
+c$$$*
+c$$$*      *    *    *    +    +    +       *    *    *   u14  u25  u36
+c$$$*      *    *    +    +    +    +       *    *   u13  u24  u35  u46
+c$$$*      *   a12  a23  a34  a45  a56      *   u12  u23  u34  u45  u56
+c$$$*     a11  a22  a33  a44  a55  a66     u11  u22  u33  u44  u55  u66
+c$$$*     a21  a32  a43  a54  a65   *      m21  m32  m43  m54  m65   *
+c$$$*     a31  a42  a53  a64   *    *      m31  m42  m53  m64   *    *
+c$$$*
+c$$$*  Array elements marked * are not used by the routine; elements marked
+c$$$*  + need not be set on entry, but are required by the routine to store
+c$$$*  elements of U, because of fill-in resulting from the row
+c$$$*  interchanges.
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      DOUBLE PRECISION   ONE, ZERO
+c$$$      PARAMETER          ( ONE = 1.0D+0, ZERO = 0.0D+0 )
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      INTEGER            I, J, JP, JU, KM, KV
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      INTEGER            IDAMAX
+c$$$      EXTERNAL           IDAMAX
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL           DGER, DSCAL, DSWAP, XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          MAX, MIN
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     KV is the number of superdiagonals in the factor U, allowing for
+c$$$*     fill-in.
+c$$$*
+c$$$      KV = KU + KL
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF( M.LT.0 ) THEN
+c$$$         INFO = -1
+c$$$      ELSE IF( N.LT.0 ) THEN
+c$$$         INFO = -2
+c$$$      ELSE IF( KL.LT.0 ) THEN
+c$$$         INFO = -3
+c$$$      ELSE IF( KU.LT.0 ) THEN
+c$$$         INFO = -4
+c$$$      ELSE IF( LDAB.LT.KL+KV+1 ) THEN
+c$$$         INFO = -6
+c$$$      END IF
+c$$$      IF( INFO.NE.0 ) THEN
+c$$$         CALL XERBLA( 'DGBTF2', -INFO )
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible
+c$$$*
+c$$$      IF( M.EQ.0 .OR. N.EQ.0 )
+c$$$     $   RETURN
+c$$$*
+c$$$*     Gaussian elimination with partial pivoting
+c$$$*
+c$$$*     Set fill-in elements in columns KU+2 to KV to zero.
+c$$$*
+c$$$      DO 20 J = KU + 2, MIN( KV, N )
+c$$$         DO 10 I = KV - J + 2, KL
+c$$$            AB( I, J ) = ZERO
+c$$$   10    CONTINUE
+c$$$   20 CONTINUE
+c$$$*
+c$$$*     JU is the index of the last column affected by the current stage
+c$$$*     of the factorization.
+c$$$*
+c$$$      JU = 1
+c$$$*
+c$$$      DO 40 J = 1, MIN( M, N )
+c$$$*
+c$$$*        Set fill-in elements in column J+KV to zero.
+c$$$*
+c$$$         IF( J+KV.LE.N ) THEN
+c$$$            DO 30 I = 1, KL
+c$$$               AB( I, J+KV ) = ZERO
+c$$$   30       CONTINUE
+c$$$         END IF
+c$$$*
+c$$$*        Find pivot and test for singularity. KM is the number of
+c$$$*        subdiagonal elements in the current column.
+c$$$*
+c$$$         KM = MIN( KL, M-J )
+c$$$         JP = IDAMAX( KM+1, AB( KV+1, J ), 1 )
+c$$$         IPIV( J ) = JP + J - 1
+c$$$         IF( AB( KV+JP, J ).NE.ZERO ) THEN
+c$$$            JU = MAX( JU, MIN( J+KU+JP-1, N ) )
+c$$$*
+c$$$*           Apply interchange to columns J to JU.
+c$$$*
+c$$$            IF( JP.NE.1 )
+c$$$     $         CALL DSWAP( JU-J+1, AB( KV+JP, J ), LDAB-1,
+c$$$     $                     AB( KV+1, J ), LDAB-1 )
+c$$$*
+c$$$            IF( KM.GT.0 ) THEN
+c$$$*
+c$$$*              Compute multipliers.
+c$$$*
+c$$$               CALL DSCAL( KM, ONE / AB( KV+1, J ), AB( KV+2, J ), 1 )
+c$$$*
+c$$$*              Update trailing submatrix within the band.
+c$$$*
+c$$$               IF( JU.GT.J )
+c$$$     $            CALL DGER( KM, JU-J, -ONE, AB( KV+2, J ), 1,
+c$$$     $                       AB( KV, J+1 ), LDAB-1, AB( KV+1, J+1 ),
+c$$$     $                       LDAB-1 )
+c$$$            END IF
+c$$$         ELSE
+c$$$*
+c$$$*           If pivot is zero, set INFO to the index of the pivot
+c$$$*           unless a zero pivot has already been found.
+c$$$*
+c$$$            IF( INFO.EQ.0 )
+c$$$     $         INFO = J
+c$$$         END IF
+c$$$   40 CONTINUE
+c$$$      RETURN
+c$$$*
+c$$$*     End of DGBTF2
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE DGBTRF( M, N, KL, KU, AB, LDAB, IPIV, INFO )
+c$$$*
+c$$$*  -- LAPACK routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER            INFO, KL, KU, LDAB, M, N
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      DOUBLE PRECISION   AB( LDAB, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  DGBTRF computes an LU factorization of a real m-by-n band matrix A
+c$$$*  using partial pivoting with row interchanges.
+c$$$*
+c$$$*  This is the blocked version of the algorithm, calling Level 3 BLAS.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  M       (input) INTEGER
+c$$$*          The number of rows of the matrix A.  M >= 0.
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The number of columns of the matrix A.  N >= 0.
+c$$$*
+c$$$*  KL      (input) INTEGER
+c$$$*          The number of subdiagonals within the band of A.  KL >= 0.
+c$$$*
+c$$$*  KU      (input) INTEGER
+c$$$*          The number of superdiagonals within the band of A.  KU >= 0.
+c$$$*
+c$$$*  AB      (input/output) DOUBLE PRECISION array, dimension (LDAB,N)
+c$$$*          On entry, the matrix A in band storage, in rows KL+1 to
+c$$$*          2*KL+KU+1; rows 1 to KL of the array need not be set.
+c$$$*          The j-th column of A is stored in the j-th column of the
+c$$$*          array AB as follows:
+c$$$*          AB(kl+ku+1+i-j,j) = A(i,j) for max(1,j-ku)<=i<=min(m,j+kl)
+c$$$*
+c$$$*          On exit, details of the factorization: U is stored as an
+c$$$*          upper triangular band matrix with KL+KU superdiagonals in
+c$$$*          rows 1 to KL+KU+1, and the multipliers used during the
+c$$$*          factorization are stored in rows KL+KU+2 to 2*KL+KU+1.
+c$$$*          See below for further details.
+c$$$*
+c$$$*  LDAB    (input) INTEGER
+c$$$*          The leading dimension of the array AB.  LDAB >= 2*KL+KU+1.
+c$$$*
+c$$$*  IPIV    (output) INTEGER array, dimension (min(M,N))
+c$$$*          The pivot indices; for 1 <= i <= min(M,N), row i of the
+c$$$*          matrix was interchanged with row IPIV(i).
+c$$$*
+c$$$*  INFO    (output) INTEGER
+c$$$*          = 0: successful exit
+c$$$*          < 0: if INFO = -i, the i-th argument had an illegal value
+c$$$*          > 0: if INFO = +i, U(i,i) is exactly zero. The factorization
+c$$$*               has been completed, but the factor U is exactly
+c$$$*               singular, and division by zero will occur if it is used
+c$$$*               to solve a system of equations.
+c$$$*
+c$$$*  Further Details
+c$$$*  ===============
+c$$$*
+c$$$*  The band storage scheme is illustrated by the following example, when
+c$$$*  M = N = 6, KL = 2, KU = 1:
+c$$$*
+c$$$*  On entry:                       On exit:
+c$$$*
+c$$$*      *    *    *    +    +    +       *    *    *   u14  u25  u36
+c$$$*      *    *    +    +    +    +       *    *   u13  u24  u35  u46
+c$$$*      *   a12  a23  a34  a45  a56      *   u12  u23  u34  u45  u56
+c$$$*     a11  a22  a33  a44  a55  a66     u11  u22  u33  u44  u55  u66
+c$$$*     a21  a32  a43  a54  a65   *      m21  m32  m43  m54  m65   *
+c$$$*     a31  a42  a53  a64   *    *      m31  m42  m53  m64   *    *
+c$$$*
+c$$$*  Array elements marked * are not used by the routine; elements marked
+c$$$*  + need not be set on entry, but are required by the routine to store
+c$$$*  elements of U because of fill-in resulting from the row interchanges.
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      DOUBLE PRECISION   ONE, ZERO
+c$$$      PARAMETER          ( ONE = 1.0D+0, ZERO = 0.0D+0 )
+c$$$      INTEGER            NBMAX, LDWORK
+c$$$      PARAMETER          ( NBMAX = 64, LDWORK = NBMAX+1 )
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      INTEGER            I, I2, I3, II, IP, J, J2, J3, JB, JJ, JM, JP,
+c$$$     $                   JU, K2, KM, KV, NB, NW
+c$$$      DOUBLE PRECISION   TEMP
+c$$$*     ..
+c$$$*     .. Local Arrays ..
+c$$$      DOUBLE PRECISION   WORK13( LDWORK, NBMAX ),
+c$$$     $                   WORK31( LDWORK, NBMAX )
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      INTEGER            IDAMAX, ILAENV
+c$$$      EXTERNAL           IDAMAX, ILAENV
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL           DCOPY, DGBTF2, DGEMM, DGER, DLASWP, DSCAL,
+c$$$     $                   DSWAP, DTRSM, XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          MAX, MIN
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     KV is the number of superdiagonals in the factor U, allowing for
+c$$$*     fill-in
+c$$$*
+c$$$      KV = KU + KL
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF( M.LT.0 ) THEN
+c$$$         INFO = -1
+c$$$      ELSE IF( N.LT.0 ) THEN
+c$$$         INFO = -2
+c$$$      ELSE IF( KL.LT.0 ) THEN
+c$$$         INFO = -3
+c$$$      ELSE IF( KU.LT.0 ) THEN
+c$$$         INFO = -4
+c$$$      ELSE IF( LDAB.LT.KL+KV+1 ) THEN
+c$$$         INFO = -6
+c$$$      END IF
+c$$$      IF( INFO.NE.0 ) THEN
+c$$$         CALL XERBLA( 'DGBTRF', -INFO )
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible
+c$$$*
+c$$$      IF( M.EQ.0 .OR. N.EQ.0 )
+c$$$     $   RETURN
+c$$$*
+c$$$*     Determine the block size for this environment
+c$$$*
+c$$$      NB = ILAENV( 1, 'DGBTRF', ' ', M, N, KL, KU )
+c$$$*
+c$$$*     The block size must not exceed the limit set by the size of the
+c$$$*     local arrays WORK13 and WORK31.
+c$$$*
+c$$$      NB = MIN( NB, NBMAX )
+c$$$*
+c$$$      IF( NB.LE.1 .OR. NB.GT.KL ) THEN
+c$$$*
+c$$$*        Use unblocked code
+c$$$*
+c$$$         CALL DGBTF2( M, N, KL, KU, AB, LDAB, IPIV, INFO )
+c$$$      ELSE
+c$$$*
+c$$$*        Use blocked code
+c$$$*
+c$$$*        Zero the superdiagonal elements of the work array WORK13
+c$$$*
+c$$$         DO 20 J = 1, NB
+c$$$            DO 10 I = 1, J - 1
+c$$$               WORK13( I, J ) = ZERO
+c$$$   10       CONTINUE
+c$$$   20    CONTINUE
+c$$$*
+c$$$*        Zero the subdiagonal elements of the work array WORK31
+c$$$*
+c$$$         DO 40 J = 1, NB
+c$$$            DO 30 I = J + 1, NB
+c$$$               WORK31( I, J ) = ZERO
+c$$$   30       CONTINUE
+c$$$   40    CONTINUE
+c$$$*
+c$$$*        Gaussian elimination with partial pivoting
+c$$$*
+c$$$*        Set fill-in elements in columns KU+2 to KV to zero
+c$$$*
+c$$$         DO 60 J = KU + 2, MIN( KV, N )
+c$$$            DO 50 I = KV - J + 2, KL
+c$$$               AB( I, J ) = ZERO
+c$$$   50       CONTINUE
+c$$$   60    CONTINUE
+c$$$*
+c$$$*        JU is the index of the last column affected by the current
+c$$$*        stage of the factorization
+c$$$*
+c$$$         JU = 1
+c$$$*
+c$$$         DO 180 J = 1, MIN( M, N ), NB
+c$$$            JB = MIN( NB, MIN( M, N )-J+1 )
+c$$$*
+c$$$*           The active part of the matrix is partitioned
+c$$$*
+c$$$*              A11   A12   A13
+c$$$*              A21   A22   A23
+c$$$*              A31   A32   A33
+c$$$*
+c$$$*           Here A11, A21 and A31 denote the current block of JB columns
+c$$$*           which is about to be factorized. The number of rows in the
+c$$$*           partitioning are JB, I2, I3 respectively, and the numbers
+c$$$*           of columns are JB, J2, J3. The superdiagonal elements of A13
+c$$$*           and the subdiagonal elements of A31 lie outside the band.
+c$$$*
+c$$$            I2 = MIN( KL-JB, M-J-JB+1 )
+c$$$            I3 = MIN( JB, M-J-KL+1 )
+c$$$*
+c$$$*           J2 and J3 are computed after JU has been updated.
+c$$$*
+c$$$*           Factorize the current block of JB columns
+c$$$*
+c$$$            DO 80 JJ = J, J + JB - 1
+c$$$*
+c$$$*              Set fill-in elements in column JJ+KV to zero
+c$$$*
+c$$$               IF( JJ+KV.LE.N ) THEN
+c$$$                  DO 70 I = 1, KL
+c$$$                     AB( I, JJ+KV ) = ZERO
+c$$$   70             CONTINUE
+c$$$               END IF
+c$$$*
+c$$$*              Find pivot and test for singularity. KM is the number of
+c$$$*              subdiagonal elements in the current column.
+c$$$*
+c$$$               KM = MIN( KL, M-JJ )
+c$$$               JP = IDAMAX( KM+1, AB( KV+1, JJ ), 1 )
+c$$$               IPIV( JJ ) = JP + JJ - J
+c$$$               IF( AB( KV+JP, JJ ).NE.ZERO ) THEN
+c$$$                  JU = MAX( JU, MIN( JJ+KU+JP-1, N ) )
+c$$$                  IF( JP.NE.1 ) THEN
+c$$$*
+c$$$*                    Apply interchange to columns J to J+JB-1
+c$$$*
+c$$$                     IF( JP+JJ-1.LT.J+KL ) THEN
+c$$$*
+c$$$                        CALL DSWAP( JB, AB( KV+1+JJ-J, J ), LDAB-1,
+c$$$     $                              AB( KV+JP+JJ-J, J ), LDAB-1 )
+c$$$                     ELSE
+c$$$*
+c$$$*                       The interchange affects columns J to JJ-1 of A31
+c$$$*                       which are stored in the work array WORK31
+c$$$*
+c$$$                        CALL DSWAP( JJ-J, AB( KV+1+JJ-J, J ), LDAB-1,
+c$$$     $                              WORK31( JP+JJ-J-KL, 1 ), LDWORK )
+c$$$                        CALL DSWAP( J+JB-JJ, AB( KV+1, JJ ), LDAB-1,
+c$$$     $                              AB( KV+JP, JJ ), LDAB-1 )
+c$$$                     END IF
+c$$$                  END IF
+c$$$*
+c$$$*                 Compute multipliers
+c$$$*
+c$$$                  CALL DSCAL( KM, ONE / AB( KV+1, JJ ), AB( KV+2, JJ ),
+c$$$     $                        1 )
+c$$$*
+c$$$*                 Update trailing submatrix within the band and within
+c$$$*                 the current block. JM is the index of the last column
+c$$$*                 which needs to be updated.
+c$$$*
+c$$$                  JM = MIN( JU, J+JB-1 )
+c$$$                  IF( JM.GT.JJ )
+c$$$     $               CALL DGER( KM, JM-JJ, -ONE, AB( KV+2, JJ ), 1,
+c$$$     $                          AB( KV, JJ+1 ), LDAB-1,
+c$$$     $                          AB( KV+1, JJ+1 ), LDAB-1 )
+c$$$               ELSE
+c$$$*
+c$$$*                 If pivot is zero, set INFO to the index of the pivot
+c$$$*                 unless a zero pivot has already been found.
+c$$$*
+c$$$                  IF( INFO.EQ.0 )
+c$$$     $               INFO = JJ
+c$$$               END IF
+c$$$*
+c$$$*              Copy current column of A31 into the work array WORK31
+c$$$*
+c$$$               NW = MIN( JJ-J+1, I3 )
+c$$$               IF( NW.GT.0 )
+c$$$     $            CALL DCOPY( NW, AB( KV+KL+1-JJ+J, JJ ), 1,
+c$$$     $                        WORK31( 1, JJ-J+1 ), 1 )
+c$$$   80       CONTINUE
+c$$$            IF( J+JB.LE.N ) THEN
+c$$$*
+c$$$*              Apply the row interchanges to the other blocks.
+c$$$*
+c$$$               J2 = MIN( JU-J+1, KV ) - JB
+c$$$               J3 = MAX( 0, JU-J-KV+1 )
+c$$$*
+c$$$*              Use DLASWP to apply the row interchanges to A12, A22, and
+c$$$*              A32.
+c$$$*
+c$$$               CALL DLASWP( J2, AB( KV+1-JB, J+JB ), LDAB-1, 1, JB,
+c$$$     $                      IPIV( J ), 1 )
+c$$$*
+c$$$*              Adjust the pivot indices.
+c$$$*
+c$$$               DO 90 I = J, J + JB - 1
+c$$$                  IPIV( I ) = IPIV( I ) + J - 1
+c$$$   90          CONTINUE
+c$$$*
+c$$$*              Apply the row interchanges to A13, A23, and A33
+c$$$*              columnwise.
+c$$$*
+c$$$               K2 = J - 1 + JB + J2
+c$$$               DO 110 I = 1, J3
+c$$$                  JJ = K2 + I
+c$$$                  DO 100 II = J + I - 1, J + JB - 1
+c$$$                     IP = IPIV( II )
+c$$$                     IF( IP.NE.II ) THEN
+c$$$                        TEMP = AB( KV+1+II-JJ, JJ )
+c$$$                        AB( KV+1+II-JJ, JJ ) = AB( KV+1+IP-JJ, JJ )
+c$$$                        AB( KV+1+IP-JJ, JJ ) = TEMP
+c$$$                     END IF
+c$$$  100             CONTINUE
+c$$$  110          CONTINUE
+c$$$*
+c$$$*              Update the relevant part of the trailing submatrix
+c$$$*
+c$$$               IF( J2.GT.0 ) THEN
+c$$$*
+c$$$*                 Update A12
+c$$$*
+c$$$                  CALL DTRSM( 'Left', 'Lower', 'No transpose', 'Unit',
+c$$$     $                        JB, J2, ONE, AB( KV+1, J ), LDAB-1,
+c$$$     $                        AB( KV+1-JB, J+JB ), LDAB-1 )
+c$$$*
+c$$$                  IF( I2.GT.0 ) THEN
+c$$$*
+c$$$*                    Update A22
+c$$$*
+c$$$                     CALL DGEMM( 'No transpose', 'No transpose', I2, J2,
+c$$$     $                           JB, -ONE, AB( KV+1+JB, J ), LDAB-1,
+c$$$     $                           AB( KV+1-JB, J+JB ), LDAB-1, ONE,
+c$$$     $                           AB( KV+1, J+JB ), LDAB-1 )
+c$$$                  END IF
+c$$$*
+c$$$                  IF( I3.GT.0 ) THEN
+c$$$*
+c$$$*                    Update A32
+c$$$*
+c$$$                     CALL DGEMM( 'No transpose', 'No transpose', I3, J2,
+c$$$     $                           JB, -ONE, WORK31, LDWORK,
+c$$$     $                           AB( KV+1-JB, J+JB ), LDAB-1, ONE,
+c$$$     $                           AB( KV+KL+1-JB, J+JB ), LDAB-1 )
+c$$$                  END IF
+c$$$               END IF
+c$$$*
+c$$$               IF( J3.GT.0 ) THEN
+c$$$*
+c$$$*                 Copy the lower triangle of A13 into the work array
+c$$$*                 WORK13
+c$$$*
+c$$$                  DO 130 JJ = 1, J3
+c$$$                     DO 120 II = JJ, JB
+c$$$                        WORK13( II, JJ ) = AB( II-JJ+1, JJ+J+KV-1 )
+c$$$  120                CONTINUE
+c$$$  130             CONTINUE
+c$$$*
+c$$$*                 Update A13 in the work array
+c$$$*
+c$$$                  CALL DTRSM( 'Left', 'Lower', 'No transpose', 'Unit',
+c$$$     $                        JB, J3, ONE, AB( KV+1, J ), LDAB-1,
+c$$$     $                        WORK13, LDWORK )
+c$$$*
+c$$$                  IF( I2.GT.0 ) THEN
+c$$$*
+c$$$*                    Update A23
+c$$$*
+c$$$                     CALL DGEMM( 'No transpose', 'No transpose', I2, J3,
+c$$$     $                           JB, -ONE, AB( KV+1+JB, J ), LDAB-1,
+c$$$     $                           WORK13, LDWORK, ONE, AB( 1+JB, J+KV ),
+c$$$     $                           LDAB-1 )
+c$$$                  END IF
+c$$$*
+c$$$                  IF( I3.GT.0 ) THEN
+c$$$*
+c$$$*                    Update A33
+c$$$*
+c$$$                     CALL DGEMM( 'No transpose', 'No transpose', I3, J3,
+c$$$     $                           JB, -ONE, WORK31, LDWORK, WORK13,
+c$$$     $                           LDWORK, ONE, AB( 1+KL, J+KV ), LDAB-1 )
+c$$$                  END IF
+c$$$*
+c$$$*                 Copy the lower triangle of A13 back into place
+c$$$*
+c$$$                  DO 150 JJ = 1, J3
+c$$$                     DO 140 II = JJ, JB
+c$$$                        AB( II-JJ+1, JJ+J+KV-1 ) = WORK13( II, JJ )
+c$$$  140                CONTINUE
+c$$$  150             CONTINUE
+c$$$               END IF
+c$$$            ELSE
+c$$$*
+c$$$*              Adjust the pivot indices.
+c$$$*
+c$$$               DO 160 I = J, J + JB - 1
+c$$$                  IPIV( I ) = IPIV( I ) + J - 1
+c$$$  160          CONTINUE
+c$$$            END IF
+c$$$*
+c$$$*           Partially undo the interchanges in the current block to
+c$$$*           restore the upper triangular form of A31 and copy the upper
+c$$$*           triangle of A31 back into place
+c$$$*
+c$$$            DO 170 JJ = J + JB - 1, J, -1
+c$$$               JP = IPIV( JJ ) - JJ + 1
+c$$$               IF( JP.NE.1 ) THEN
+c$$$*
+c$$$*                 Apply interchange to columns J to JJ-1
+c$$$*
+c$$$                  IF( JP+JJ-1.LT.J+KL ) THEN
+c$$$*
+c$$$*                    The interchange does not affect A31
+c$$$*
+c$$$                     CALL DSWAP( JJ-J, AB( KV+1+JJ-J, J ), LDAB-1,
+c$$$     $                           AB( KV+JP+JJ-J, J ), LDAB-1 )
+c$$$                  ELSE
+c$$$*
+c$$$*                    The interchange does affect A31
+c$$$*
+c$$$                     CALL DSWAP( JJ-J, AB( KV+1+JJ-J, J ), LDAB-1,
+c$$$     $                           WORK31( JP+JJ-J-KL, 1 ), LDWORK )
+c$$$                  END IF
+c$$$               END IF
+c$$$*
+c$$$*              Copy the current column of A31 back into place
+c$$$*
+c$$$               NW = MIN( I3, JJ-J+1 )
+c$$$               IF( NW.GT.0 )
+c$$$     $            CALL DCOPY( NW, WORK31( 1, JJ-J+1 ), 1,
+c$$$     $                        AB( KV+KL+1-JJ+J, JJ ), 1 )
+c$$$  170       CONTINUE
+c$$$  180    CONTINUE
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of DGBTRF
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE DGBTRS( TRANS, N, KL, KU, NRHS, AB, LDAB, IPIV, B, LDB,
+c$$$     $                   INFO )
+c$$$*
+c$$$*  -- LAPACK routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      CHARACTER          TRANS
+c$$$      INTEGER            INFO, KL, KU, LDAB, LDB, N, NRHS
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      DOUBLE PRECISION   AB( LDAB, * ), B( LDB, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  DGBTRS solves a system of linear equations
+c$$$*     A * X = B  or  A' * X = B
+c$$$*  with a general band matrix A using the LU factorization computed
+c$$$*  by DGBTRF.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  TRANS   (input) CHARACTER*1
+c$$$*          Specifies the form of the system of equations.
+c$$$*          = 'N':  A * X = B  (No transpose)
+c$$$*          = 'T':  A'* X = B  (Transpose)
+c$$$*          = 'C':  A'* X = B  (Conjugate transpose = Transpose)
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The order of the matrix A.  N >= 0.
+c$$$*
+c$$$*  KL      (input) INTEGER
+c$$$*          The number of subdiagonals within the band of A.  KL >= 0.
+c$$$*
+c$$$*  KU      (input) INTEGER
+c$$$*          The number of superdiagonals within the band of A.  KU >= 0.
+c$$$*
+c$$$*  NRHS    (input) INTEGER
+c$$$*          The number of right hand sides, i.e., the number of columns
+c$$$*          of the matrix B.  NRHS >= 0.
+c$$$*
+c$$$*  AB      (input) DOUBLE PRECISION array, dimension (LDAB,N)
+c$$$*          Details of the LU factorization of the band matrix A, as
+c$$$*          computed by DGBTRF.  U is stored as an upper triangular band
+c$$$*          matrix with KL+KU superdiagonals in rows 1 to KL+KU+1, and
+c$$$*          the multipliers used during the factorization are stored in
+c$$$*          rows KL+KU+2 to 2*KL+KU+1.
+c$$$*
+c$$$*  LDAB    (input) INTEGER
+c$$$*          The leading dimension of the array AB.  LDAB >= 2*KL+KU+1.
+c$$$*
+c$$$*  IPIV    (input) INTEGER array, dimension (N)
+c$$$*          The pivot indices; for 1 <= i <= N, row i of the matrix was
+c$$$*          interchanged with row IPIV(i).
+c$$$*
+c$$$*  B       (input/output) DOUBLE PRECISION array, dimension (LDB,NRHS)
+c$$$*          On entry, the right hand side matrix B.
+c$$$*          On exit, the solution matrix X.
+c$$$*
+c$$$*  LDB     (input) INTEGER
+c$$$*          The leading dimension of the array B.  LDB >= max(1,N).
+c$$$*
+c$$$*  INFO    (output) INTEGER
+c$$$*          = 0:  successful exit
+c$$$*          < 0: if INFO = -i, the i-th argument had an illegal value
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      DOUBLE PRECISION   ONE
+c$$$      PARAMETER          ( ONE = 1.0D+0 )
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      LOGICAL            LNOTI, NOTRAN
+c$$$      INTEGER            I, J, KD, L, LM
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      LOGICAL            LSAME
+c$$$      EXTERNAL           LSAME
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL           DGEMV, DGER, DSWAP, DTBSV, XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          MAX, MIN
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      NOTRAN = LSAME( TRANS, 'N' )
+c$$$      IF( .NOT.NOTRAN .AND. .NOT.LSAME( TRANS, 'T' ) .AND. .NOT.
+c$$$     $    LSAME( TRANS, 'C' ) ) THEN
+c$$$         INFO = -1
+c$$$      ELSE IF( N.LT.0 ) THEN
+c$$$         INFO = -2
+c$$$      ELSE IF( KL.LT.0 ) THEN
+c$$$         INFO = -3
+c$$$      ELSE IF( KU.LT.0 ) THEN
+c$$$         INFO = -4
+c$$$      ELSE IF( NRHS.LT.0 ) THEN
+c$$$         INFO = -5
+c$$$      ELSE IF( LDAB.LT.( 2*KL+KU+1 ) ) THEN
+c$$$         INFO = -7
+c$$$      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
+c$$$         INFO = -10
+c$$$      END IF
+c$$$      IF( INFO.NE.0 ) THEN
+c$$$         CALL XERBLA( 'DGBTRS', -INFO )
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible
+c$$$*
+c$$$      IF( N.EQ.0 .OR. NRHS.EQ.0 )
+c$$$     $   RETURN
+c$$$*
+c$$$      KD = KU + KL + 1
+c$$$      LNOTI = KL.GT.0
+c$$$*
+c$$$      IF( NOTRAN ) THEN
+c$$$*
+c$$$*        Solve  A*X = B.
+c$$$*
+c$$$*        Solve L*X = B, overwriting B with X.
+c$$$*
+c$$$*        L is represented as a product of permutations and unit lower
+c$$$*        triangular matrices L = P(1) * L(1) * ... * P(n-1) * L(n-1),
+c$$$*        where each transformation L(i) is a rank-one modification of
+c$$$*        the identity matrix.
+c$$$*
+c$$$         IF( LNOTI ) THEN
+c$$$            DO 10 J = 1, N - 1
+c$$$               LM = MIN( KL, N-J )
+c$$$               L = IPIV( J )
+c$$$               IF( L.NE.J )
+c$$$     $            CALL DSWAP( NRHS, B( L, 1 ), LDB, B( J, 1 ), LDB )
+c$$$               CALL DGER( LM, NRHS, -ONE, AB( KD+1, J ), 1, B( J, 1 ),
+c$$$     $                    LDB, B( J+1, 1 ), LDB )
+c$$$   10       CONTINUE
+c$$$         END IF
+c$$$*
+c$$$         DO 20 I = 1, NRHS
+c$$$*
+c$$$*           Solve U*X = B, overwriting B with X.
+c$$$*
+c$$$            CALL DTBSV( 'Upper', 'No transpose', 'Non-unit', N, KL+KU,
+c$$$     $                  AB, LDAB, B( 1, I ), 1 )
+c$$$   20    CONTINUE
+c$$$*
+c$$$      ELSE
+c$$$*
+c$$$*        Solve A'*X = B.
+c$$$*
+c$$$         DO 30 I = 1, NRHS
+c$$$*
+c$$$*           Solve U'*X = B, overwriting B with X.
+c$$$*
+c$$$            CALL DTBSV( 'Upper', 'Transpose', 'Non-unit', N, KL+KU, AB,
+c$$$     $                  LDAB, B( 1, I ), 1 )
+c$$$   30    CONTINUE
+c$$$*
+c$$$*        Solve L'*X = B, overwriting B with X.
+c$$$*
+c$$$         IF( LNOTI ) THEN
+c$$$            DO 40 J = N - 1, 1, -1
+c$$$               LM = MIN( KL, N-J )
+c$$$               CALL DGEMV( 'Transpose', LM, NRHS, -ONE, B( J+1, 1 ),
+c$$$     $                     LDB, AB( KD+1, J ), 1, ONE, B( J, 1 ), LDB )
+c$$$               L = IPIV( J )
+c$$$               IF( L.NE.J )
+c$$$     $            CALL DSWAP( NRHS, B( L, 1 ), LDB, B( J, 1 ), LDB )
+c$$$   40       CONTINUE
+c$$$         END IF
+c$$$      END IF
+c$$$      RETURN
+c$$$*
+c$$$*     End of DGBTRS
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
+c$$$*     .. Scalar Arguments ..
+c$$$      DOUBLE PRECISION ALPHA,BETA
+c$$$      INTEGER K,LDA,LDB,LDC,M,N
+c$$$      CHARACTER TRANSA,TRANSB
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      DOUBLE PRECISION A(LDA,*),B(LDB,*),C(LDC,*)
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  DGEMM  performs one of the matrix-matrix operations
+c$$$*
+c$$$*     C := alpha*op( A )*op( B ) + beta*C,
+c$$$*
+c$$$*  where  op( X ) is one of
+c$$$*
+c$$$*     op( X ) = X   or   op( X ) = X',
+c$$$*
+c$$$*  alpha and beta are scalars, and A, B and C are matrices, with op( A )
+c$$$*  an m by k matrix,  op( B )  a  k by n matrix and  C an m by n matrix.
+c$$$*
+c$$$*  Arguments
+c$$$*  ==========
+c$$$*
+c$$$*  TRANSA - CHARACTER*1.
+c$$$*           On entry, TRANSA specifies the form of op( A ) to be used in
+c$$$*           the matrix multiplication as follows:
+c$$$*
+c$$$*              TRANSA = 'N' or 'n',  op( A ) = A.
+c$$$*
+c$$$*              TRANSA = 'T' or 't',  op( A ) = A'.
+c$$$*
+c$$$*              TRANSA = 'C' or 'c',  op( A ) = A'.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  TRANSB - CHARACTER*1.
+c$$$*           On entry, TRANSB specifies the form of op( B ) to be used in
+c$$$*           the matrix multiplication as follows:
+c$$$*
+c$$$*              TRANSB = 'N' or 'n',  op( B ) = B.
+c$$$*
+c$$$*              TRANSB = 'T' or 't',  op( B ) = B'.
+c$$$*
+c$$$*              TRANSB = 'C' or 'c',  op( B ) = B'.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  M      - INTEGER.
+c$$$*           On entry,  M  specifies  the number  of rows  of the  matrix
+c$$$*           op( A )  and of the  matrix  C.  M  must  be at least  zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  N      - INTEGER.
+c$$$*           On entry,  N  specifies the number  of columns of the matrix
+c$$$*           op( B ) and the number of columns of the matrix C. N must be
+c$$$*           at least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  K      - INTEGER.
+c$$$*           On entry,  K  specifies  the number of columns of the matrix
+c$$$*           op( A ) and the number of rows of the matrix op( B ). K must
+c$$$*           be at least  zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  ALPHA  - DOUBLE PRECISION.
+c$$$*           On entry, ALPHA specifies the scalar alpha.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, ka ), where ka is
+c$$$*           k  when  TRANSA = 'N' or 'n',  and is  m  otherwise.
+c$$$*           Before entry with  TRANSA = 'N' or 'n',  the leading  m by k
+c$$$*           part of the array  A  must contain the matrix  A,  otherwise
+c$$$*           the leading  k by m  part of the array  A  must contain  the
+c$$$*           matrix A.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  LDA    - INTEGER.
+c$$$*           On entry, LDA specifies the first dimension of A as declared
+c$$$*           in the calling (sub) program. When  TRANSA = 'N' or 'n' then
+c$$$*           LDA must be at least  max( 1, m ), otherwise  LDA must be at
+c$$$*           least  max( 1, k ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  B      - DOUBLE PRECISION array of DIMENSION ( LDB, kb ), where kb is
+c$$$*           n  when  TRANSB = 'N' or 'n',  and is  k  otherwise.
+c$$$*           Before entry with  TRANSB = 'N' or 'n',  the leading  k by n
+c$$$*           part of the array  B  must contain the matrix  B,  otherwise
+c$$$*           the leading  n by k  part of the array  B  must contain  the
+c$$$*           matrix B.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  LDB    - INTEGER.
+c$$$*           On entry, LDB specifies the first dimension of B as declared
+c$$$*           in the calling (sub) program. When  TRANSB = 'N' or 'n' then
+c$$$*           LDB must be at least  max( 1, k ), otherwise  LDB must be at
+c$$$*           least  max( 1, n ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  BETA   - DOUBLE PRECISION.
+c$$$*           On entry,  BETA  specifies the scalar  beta.  When  BETA  is
+c$$$*           supplied as zero then C need not be set on input.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  C      - DOUBLE PRECISION array of DIMENSION ( LDC, n ).
+c$$$*           Before entry, the leading  m by n  part of the array  C must
+c$$$*           contain the matrix  C,  except when  beta  is zero, in which
+c$$$*           case C need not be set on entry.
+c$$$*           On exit, the array  C  is overwritten by the  m by n  matrix
+c$$$*           ( alpha*op( A )*op( B ) + beta*C ).
+c$$$*
+c$$$*  LDC    - INTEGER.
+c$$$*           On entry, LDC specifies the first dimension of C as declared
+c$$$*           in  the  calling  (sub)  program.   LDC  must  be  at  least
+c$$$*           max( 1, m ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*
+c$$$*  Level 3 Blas routine.
+c$$$*
+c$$$*  -- Written on 8-February-1989.
+c$$$*     Jack Dongarra, Argonne National Laboratory.
+c$$$*     Iain Duff, AERE Harwell.
+c$$$*     Jeremy Du Croz, Numerical Algorithms Group Ltd.
+c$$$*     Sven Hammarling, Numerical Algorithms Group Ltd.
+c$$$*
+c$$$*
+c$$$*     .. External Functions ..
+c$$$      LOGICAL LSAME
+c$$$      EXTERNAL LSAME
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC MAX
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      DOUBLE PRECISION TEMP
+c$$$      INTEGER I,INFO,J,L,NCOLA,NROWA,NROWB
+c$$$      LOGICAL NOTA,NOTB
+c$$$*     ..
+c$$$*     .. Parameters ..
+c$$$      DOUBLE PRECISION ONE,ZERO
+c$$$      PARAMETER (ONE=1.0D+0,ZERO=0.0D+0)
+c$$$*     ..
+c$$$*
+c$$$*     Set  NOTA  and  NOTB  as  true if  A  and  B  respectively are not
+c$$$*     transposed and set  NROWA, NCOLA and  NROWB  as the number of rows
+c$$$*     and  columns of  A  and the  number of  rows  of  B  respectively.
+c$$$*
+c$$$      NOTA = LSAME(TRANSA,'N')
+c$$$      NOTB = LSAME(TRANSB,'N')
+c$$$      IF (NOTA) THEN
+c$$$          NROWA = M
+c$$$          NCOLA = K
+c$$$      ELSE
+c$$$          NROWA = K
+c$$$          NCOLA = M
+c$$$      END IF
+c$$$      IF (NOTB) THEN
+c$$$          NROWB = K
+c$$$      ELSE
+c$$$          NROWB = N
+c$$$      END IF
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF ((.NOT.NOTA) .AND. (.NOT.LSAME(TRANSA,'C')) .AND.
+c$$$     +    (.NOT.LSAME(TRANSA,'T'))) THEN
+c$$$          INFO = 1
+c$$$      ELSE IF ((.NOT.NOTB) .AND. (.NOT.LSAME(TRANSB,'C')) .AND.
+c$$$     +         (.NOT.LSAME(TRANSB,'T'))) THEN
+c$$$          INFO = 2
+c$$$      ELSE IF (M.LT.0) THEN
+c$$$          INFO = 3
+c$$$      ELSE IF (N.LT.0) THEN
+c$$$          INFO = 4
+c$$$      ELSE IF (K.LT.0) THEN
+c$$$          INFO = 5
+c$$$      ELSE IF (LDA.LT.MAX(1,NROWA)) THEN
+c$$$          INFO = 8
+c$$$      ELSE IF (LDB.LT.MAX(1,NROWB)) THEN
+c$$$          INFO = 10
+c$$$      ELSE IF (LDC.LT.MAX(1,M)) THEN
+c$$$          INFO = 13
+c$$$      END IF
+c$$$      IF (INFO.NE.0) THEN
+c$$$          CALL XERBLA('DGEMM ',INFO)
+c$$$          RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible.
+c$$$*
+c$$$      IF ((M.EQ.0) .OR. (N.EQ.0) .OR.
+c$$$     +    (((ALPHA.EQ.ZERO).OR. (K.EQ.0)).AND. (BETA.EQ.ONE))) RETURN
+c$$$*
+c$$$*     And if  alpha.eq.zero.
+c$$$*
+c$$$      IF (ALPHA.EQ.ZERO) THEN
+c$$$          IF (BETA.EQ.ZERO) THEN
+c$$$              DO 20 J = 1,N
+c$$$                  DO 10 I = 1,M
+c$$$                      C(I,J) = ZERO
+c$$$   10             CONTINUE
+c$$$   20         CONTINUE
+c$$$          ELSE
+c$$$              DO 40 J = 1,N
+c$$$                  DO 30 I = 1,M
+c$$$                      C(I,J) = BETA*C(I,J)
+c$$$   30             CONTINUE
+c$$$   40         CONTINUE
+c$$$          END IF
+c$$$          RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Start the operations.
+c$$$*
+c$$$      IF (NOTB) THEN
+c$$$          IF (NOTA) THEN
+c$$$*
+c$$$*           Form  C := alpha*A*B + beta*C.
+c$$$*
+c$$$              DO 90 J = 1,N
+c$$$                  IF (BETA.EQ.ZERO) THEN
+c$$$                      DO 50 I = 1,M
+c$$$                          C(I,J) = ZERO
+c$$$   50                 CONTINUE
+c$$$                  ELSE IF (BETA.NE.ONE) THEN
+c$$$                      DO 60 I = 1,M
+c$$$                          C(I,J) = BETA*C(I,J)
+c$$$   60                 CONTINUE
+c$$$                  END IF
+c$$$                  DO 80 L = 1,K
+c$$$                      IF (B(L,J).NE.ZERO) THEN
+c$$$                          TEMP = ALPHA*B(L,J)
+c$$$                          DO 70 I = 1,M
+c$$$                              C(I,J) = C(I,J) + TEMP*A(I,L)
+c$$$   70                     CONTINUE
+c$$$                      END IF
+c$$$   80             CONTINUE
+c$$$   90         CONTINUE
+c$$$          ELSE
+c$$$*
+c$$$*           Form  C := alpha*A'*B + beta*C
+c$$$*
+c$$$              DO 120 J = 1,N
+c$$$                  DO 110 I = 1,M
+c$$$                      TEMP = ZERO
+c$$$                      DO 100 L = 1,K
+c$$$                          TEMP = TEMP + A(L,I)*B(L,J)
+c$$$  100                 CONTINUE
+c$$$                      IF (BETA.EQ.ZERO) THEN
+c$$$                          C(I,J) = ALPHA*TEMP
+c$$$                      ELSE
+c$$$                          C(I,J) = ALPHA*TEMP + BETA*C(I,J)
+c$$$                      END IF
+c$$$  110             CONTINUE
+c$$$  120         CONTINUE
+c$$$          END IF
+c$$$      ELSE
+c$$$          IF (NOTA) THEN
+c$$$*
+c$$$*           Form  C := alpha*A*B' + beta*C
+c$$$*
+c$$$              DO 170 J = 1,N
+c$$$                  IF (BETA.EQ.ZERO) THEN
+c$$$                      DO 130 I = 1,M
+c$$$                          C(I,J) = ZERO
+c$$$  130                 CONTINUE
+c$$$                  ELSE IF (BETA.NE.ONE) THEN
+c$$$                      DO 140 I = 1,M
+c$$$                          C(I,J) = BETA*C(I,J)
+c$$$  140                 CONTINUE
+c$$$                  END IF
+c$$$                  DO 160 L = 1,K
+c$$$                      IF (B(J,L).NE.ZERO) THEN
+c$$$                          TEMP = ALPHA*B(J,L)
+c$$$                          DO 150 I = 1,M
+c$$$                              C(I,J) = C(I,J) + TEMP*A(I,L)
+c$$$  150                     CONTINUE
+c$$$                      END IF
+c$$$  160             CONTINUE
+c$$$  170         CONTINUE
+c$$$          ELSE
+c$$$*
+c$$$*           Form  C := alpha*A'*B' + beta*C
+c$$$*
+c$$$              DO 200 J = 1,N
+c$$$                  DO 190 I = 1,M
+c$$$                      TEMP = ZERO
+c$$$                      DO 180 L = 1,K
+c$$$                          TEMP = TEMP + A(L,I)*B(J,L)
+c$$$  180                 CONTINUE
+c$$$                      IF (BETA.EQ.ZERO) THEN
+c$$$                          C(I,J) = ALPHA*TEMP
+c$$$                      ELSE
+c$$$                          C(I,J) = ALPHA*TEMP + BETA*C(I,J)
+c$$$                      END IF
+c$$$  190             CONTINUE
+c$$$  200         CONTINUE
+c$$$          END IF
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of DGEMM .
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
+c$$$*     .. Scalar Arguments ..
+c$$$      DOUBLE PRECISION ALPHA,BETA
+c$$$      INTEGER INCX,INCY,LDA,M,N
+c$$$      CHARACTER TRANS
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      DOUBLE PRECISION A(LDA,*),X(*),Y(*)
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  DGEMV  performs one of the matrix-vector operations
+c$$$*
+c$$$*     y := alpha*A*x + beta*y,   or   y := alpha*A'*x + beta*y,
+c$$$*
+c$$$*  where alpha and beta are scalars, x and y are vectors and A is an
+c$$$*  m by n matrix.
+c$$$*
+c$$$*  Arguments
+c$$$*  ==========
+c$$$*
+c$$$*  TRANS  - CHARACTER*1.
+c$$$*           On entry, TRANS specifies the operation to be performed as
+c$$$*           follows:
+c$$$*
+c$$$*              TRANS = 'N' or 'n'   y := alpha*A*x + beta*y.
+c$$$*
+c$$$*              TRANS = 'T' or 't'   y := alpha*A'*x + beta*y.
+c$$$*
+c$$$*              TRANS = 'C' or 'c'   y := alpha*A'*x + beta*y.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  M      - INTEGER.
+c$$$*           On entry, M specifies the number of rows of the matrix A.
+c$$$*           M must be at least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  N      - INTEGER.
+c$$$*           On entry, N specifies the number of columns of the matrix A.
+c$$$*           N must be at least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  ALPHA  - DOUBLE PRECISION.
+c$$$*           On entry, ALPHA specifies the scalar alpha.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, n ).
+c$$$*           Before entry, the leading m by n part of the array A must
+c$$$*           contain the matrix of coefficients.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  LDA    - INTEGER.
+c$$$*           On entry, LDA specifies the first dimension of A as declared
+c$$$*           in the calling (sub) program. LDA must be at least
+c$$$*           max( 1, m ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  X      - DOUBLE PRECISION array of DIMENSION at least
+c$$$*           ( 1 + ( n - 1 )*abs( INCX ) ) when TRANS = 'N' or 'n'
+c$$$*           and at least
+c$$$*           ( 1 + ( m - 1 )*abs( INCX ) ) otherwise.
+c$$$*           Before entry, the incremented array X must contain the
+c$$$*           vector x.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  INCX   - INTEGER.
+c$$$*           On entry, INCX specifies the increment for the elements of
+c$$$*           X. INCX must not be zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  BETA   - DOUBLE PRECISION.
+c$$$*           On entry, BETA specifies the scalar beta. When BETA is
+c$$$*           supplied as zero then Y need not be set on input.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  Y      - DOUBLE PRECISION array of DIMENSION at least
+c$$$*           ( 1 + ( m - 1 )*abs( INCY ) ) when TRANS = 'N' or 'n'
+c$$$*           and at least
+c$$$*           ( 1 + ( n - 1 )*abs( INCY ) ) otherwise.
+c$$$*           Before entry with BETA non-zero, the incremented array Y
+c$$$*           must contain the vector y. On exit, Y is overwritten by the
+c$$$*           updated vector y.
+c$$$*
+c$$$*  INCY   - INTEGER.
+c$$$*           On entry, INCY specifies the increment for the elements of
+c$$$*           Y. INCY must not be zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*
+c$$$*  Level 2 Blas routine.
+c$$$*
+c$$$*  -- Written on 22-October-1986.
+c$$$*     Jack Dongarra, Argonne National Lab.
+c$$$*     Jeremy Du Croz, Nag Central Office.
+c$$$*     Sven Hammarling, Nag Central Office.
+c$$$*     Richard Hanson, Sandia National Labs.
+c$$$*
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      DOUBLE PRECISION ONE,ZERO
+c$$$      PARAMETER (ONE=1.0D+0,ZERO=0.0D+0)
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      DOUBLE PRECISION TEMP
+c$$$      INTEGER I,INFO,IX,IY,J,JX,JY,KX,KY,LENX,LENY
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      LOGICAL LSAME
+c$$$      EXTERNAL LSAME
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC MAX
+c$$$*     ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF (.NOT.LSAME(TRANS,'N') .AND. .NOT.LSAME(TRANS,'T') .AND.
+c$$$     +    .NOT.LSAME(TRANS,'C')) THEN
+c$$$          INFO = 1
+c$$$      ELSE IF (M.LT.0) THEN
+c$$$          INFO = 2
+c$$$      ELSE IF (N.LT.0) THEN
+c$$$          INFO = 3
+c$$$      ELSE IF (LDA.LT.MAX(1,M)) THEN
+c$$$          INFO = 6
+c$$$      ELSE IF (INCX.EQ.0) THEN
+c$$$          INFO = 8
+c$$$      ELSE IF (INCY.EQ.0) THEN
+c$$$          INFO = 11
+c$$$      END IF
+c$$$      IF (INFO.NE.0) THEN
+c$$$          CALL XERBLA('DGEMV ',INFO)
+c$$$          RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible.
+c$$$*
+c$$$      IF ((M.EQ.0) .OR. (N.EQ.0) .OR.
+c$$$     +    ((ALPHA.EQ.ZERO).AND. (BETA.EQ.ONE))) RETURN
+c$$$*
+c$$$*     Set  LENX  and  LENY, the lengths of the vectors x and y, and set
+c$$$*     up the start points in  X  and  Y.
+c$$$*
+c$$$      IF (LSAME(TRANS,'N')) THEN
+c$$$          LENX = N
+c$$$          LENY = M
+c$$$      ELSE
+c$$$          LENX = M
+c$$$          LENY = N
+c$$$      END IF
+c$$$      IF (INCX.GT.0) THEN
+c$$$          KX = 1
+c$$$      ELSE
+c$$$          KX = 1 - (LENX-1)*INCX
+c$$$      END IF
+c$$$      IF (INCY.GT.0) THEN
+c$$$          KY = 1
+c$$$      ELSE
+c$$$          KY = 1 - (LENY-1)*INCY
+c$$$      END IF
+c$$$*
+c$$$*     Start the operations. In this version the elements of A are
+c$$$*     accessed sequentially with one pass through A.
+c$$$*
+c$$$*     First form  y := beta*y.
+c$$$*
+c$$$      IF (BETA.NE.ONE) THEN
+c$$$          IF (INCY.EQ.1) THEN
+c$$$              IF (BETA.EQ.ZERO) THEN
+c$$$                  DO 10 I = 1,LENY
+c$$$                      Y(I) = ZERO
+c$$$   10             CONTINUE
+c$$$              ELSE
+c$$$                  DO 20 I = 1,LENY
+c$$$                      Y(I) = BETA*Y(I)
+c$$$   20             CONTINUE
+c$$$              END IF
+c$$$          ELSE
+c$$$              IY = KY
+c$$$              IF (BETA.EQ.ZERO) THEN
+c$$$                  DO 30 I = 1,LENY
+c$$$                      Y(IY) = ZERO
+c$$$                      IY = IY + INCY
+c$$$   30             CONTINUE
+c$$$              ELSE
+c$$$                  DO 40 I = 1,LENY
+c$$$                      Y(IY) = BETA*Y(IY)
+c$$$                      IY = IY + INCY
+c$$$   40             CONTINUE
+c$$$              END IF
+c$$$          END IF
+c$$$      END IF
+c$$$      IF (ALPHA.EQ.ZERO) RETURN
+c$$$      IF (LSAME(TRANS,'N')) THEN
+c$$$*
+c$$$*        Form  y := alpha*A*x + y.
+c$$$*
+c$$$          JX = KX
+c$$$          IF (INCY.EQ.1) THEN
+c$$$              DO 60 J = 1,N
+c$$$                  IF (X(JX).NE.ZERO) THEN
+c$$$                      TEMP = ALPHA*X(JX)
+c$$$                      DO 50 I = 1,M
+c$$$                          Y(I) = Y(I) + TEMP*A(I,J)
+c$$$   50                 CONTINUE
+c$$$                  END IF
+c$$$                  JX = JX + INCX
+c$$$   60         CONTINUE
+c$$$          ELSE
+c$$$              DO 80 J = 1,N
+c$$$                  IF (X(JX).NE.ZERO) THEN
+c$$$                      TEMP = ALPHA*X(JX)
+c$$$                      IY = KY
+c$$$                      DO 70 I = 1,M
+c$$$                          Y(IY) = Y(IY) + TEMP*A(I,J)
+c$$$                          IY = IY + INCY
+c$$$   70                 CONTINUE
+c$$$                  END IF
+c$$$                  JX = JX + INCX
+c$$$   80         CONTINUE
+c$$$          END IF
+c$$$      ELSE
+c$$$*
+c$$$*        Form  y := alpha*A'*x + y.
+c$$$*
+c$$$          JY = KY
+c$$$          IF (INCX.EQ.1) THEN
+c$$$              DO 100 J = 1,N
+c$$$                  TEMP = ZERO
+c$$$                  DO 90 I = 1,M
+c$$$                      TEMP = TEMP + A(I,J)*X(I)
+c$$$   90             CONTINUE
+c$$$                  Y(JY) = Y(JY) + ALPHA*TEMP
+c$$$                  JY = JY + INCY
+c$$$  100         CONTINUE
+c$$$          ELSE
+c$$$              DO 120 J = 1,N
+c$$$                  TEMP = ZERO
+c$$$                  IX = KX
+c$$$                  DO 110 I = 1,M
+c$$$                      TEMP = TEMP + A(I,J)*X(IX)
+c$$$                      IX = IX + INCX
+c$$$  110             CONTINUE
+c$$$                  Y(JY) = Y(JY) + ALPHA*TEMP
+c$$$                  JY = JY + INCY
+c$$$  120         CONTINUE
+c$$$          END IF
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of DGEMV .
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE DGER(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
+c$$$*     .. Scalar Arguments ..
+c$$$      DOUBLE PRECISION ALPHA
+c$$$      INTEGER INCX,INCY,LDA,M,N
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      DOUBLE PRECISION A(LDA,*),X(*),Y(*)
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  DGER   performs the rank 1 operation
+c$$$*
+c$$$*     A := alpha*x*y' + A,
+c$$$*
+c$$$*  where alpha is a scalar, x is an m element vector, y is an n element
+c$$$*  vector and A is an m by n matrix.
+c$$$*
+c$$$*  Arguments
+c$$$*  ==========
+c$$$*
+c$$$*  M      - INTEGER.
+c$$$*           On entry, M specifies the number of rows of the matrix A.
+c$$$*           M must be at least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  N      - INTEGER.
+c$$$*           On entry, N specifies the number of columns of the matrix A.
+c$$$*           N must be at least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  ALPHA  - DOUBLE PRECISION.
+c$$$*           On entry, ALPHA specifies the scalar alpha.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  X      - DOUBLE PRECISION array of dimension at least
+c$$$*           ( 1 + ( m - 1 )*abs( INCX ) ).
+c$$$*           Before entry, the incremented array X must contain the m
+c$$$*           element vector x.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  INCX   - INTEGER.
+c$$$*           On entry, INCX specifies the increment for the elements of
+c$$$*           X. INCX must not be zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  Y      - DOUBLE PRECISION array of dimension at least
+c$$$*           ( 1 + ( n - 1 )*abs( INCY ) ).
+c$$$*           Before entry, the incremented array Y must contain the n
+c$$$*           element vector y.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  INCY   - INTEGER.
+c$$$*           On entry, INCY specifies the increment for the elements of
+c$$$*           Y. INCY must not be zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, n ).
+c$$$*           Before entry, the leading m by n part of the array A must
+c$$$*           contain the matrix of coefficients. On exit, A is
+c$$$*           overwritten by the updated matrix.
+c$$$*
+c$$$*  LDA    - INTEGER.
+c$$$*           On entry, LDA specifies the first dimension of A as declared
+c$$$*           in the calling (sub) program. LDA must be at least
+c$$$*           max( 1, m ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*
+c$$$*  Level 2 Blas routine.
+c$$$*
+c$$$*  -- Written on 22-October-1986.
+c$$$*     Jack Dongarra, Argonne National Lab.
+c$$$*     Jeremy Du Croz, Nag Central Office.
+c$$$*     Sven Hammarling, Nag Central Office.
+c$$$*     Richard Hanson, Sandia National Labs.
+c$$$*
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      DOUBLE PRECISION ZERO
+c$$$      PARAMETER (ZERO=0.0D+0)
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      DOUBLE PRECISION TEMP
+c$$$      INTEGER I,INFO,IX,J,JY,KX
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC MAX
+c$$$*     ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF (M.LT.0) THEN
+c$$$          INFO = 1
+c$$$      ELSE IF (N.LT.0) THEN
+c$$$          INFO = 2
+c$$$      ELSE IF (INCX.EQ.0) THEN
+c$$$          INFO = 5
+c$$$      ELSE IF (INCY.EQ.0) THEN
+c$$$          INFO = 7
+c$$$      ELSE IF (LDA.LT.MAX(1,M)) THEN
+c$$$          INFO = 9
+c$$$      END IF
+c$$$      IF (INFO.NE.0) THEN
+c$$$          CALL XERBLA('DGER  ',INFO)
+c$$$          RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible.
+c$$$*
+c$$$      IF ((M.EQ.0) .OR. (N.EQ.0) .OR. (ALPHA.EQ.ZERO)) RETURN
+c$$$*
+c$$$*     Start the operations. In this version the elements of A are
+c$$$*     accessed sequentially with one pass through A.
+c$$$*
+c$$$      IF (INCY.GT.0) THEN
+c$$$          JY = 1
+c$$$      ELSE
+c$$$          JY = 1 - (N-1)*INCY
+c$$$      END IF
+c$$$      IF (INCX.EQ.1) THEN
+c$$$          DO 20 J = 1,N
+c$$$              IF (Y(JY).NE.ZERO) THEN
+c$$$                  TEMP = ALPHA*Y(JY)
+c$$$                  DO 10 I = 1,M
+c$$$                      A(I,J) = A(I,J) + X(I)*TEMP
+c$$$   10             CONTINUE
+c$$$              END IF
+c$$$              JY = JY + INCY
+c$$$   20     CONTINUE
+c$$$      ELSE
+c$$$          IF (INCX.GT.0) THEN
+c$$$              KX = 1
+c$$$          ELSE
+c$$$              KX = 1 - (M-1)*INCX
+c$$$          END IF
+c$$$          DO 40 J = 1,N
+c$$$              IF (Y(JY).NE.ZERO) THEN
+c$$$                  TEMP = ALPHA*Y(JY)
+c$$$                  IX = KX
+c$$$                  DO 30 I = 1,M
+c$$$                      A(I,J) = A(I,J) + X(IX)*TEMP
+c$$$                      IX = IX + INCX
+c$$$   30             CONTINUE
+c$$$              END IF
+c$$$              JY = JY + INCY
+c$$$   40     CONTINUE
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of DGER  .
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE DLASWP( N, A, LDA, K1, K2, IPIV, INCX )
+c$$$*
+c$$$*  -- LAPACK auxiliary routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER            INCX, K1, K2, LDA, N
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      DOUBLE PRECISION   A( LDA, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  DLASWP performs a series of row interchanges on the matrix A.
+c$$$*  One row interchange is initiated for each of rows K1 through K2 of A.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The number of columns of the matrix A.
+c$$$*
+c$$$*  A       (input/output) DOUBLE PRECISION array, dimension (LDA,N)
+c$$$*          On entry, the matrix of column dimension N to which the row
+c$$$*          interchanges will be applied.
+c$$$*          On exit, the permuted matrix.
+c$$$*
+c$$$*  LDA     (input) INTEGER
+c$$$*          The leading dimension of the array A.
+c$$$*
+c$$$*  K1      (input) INTEGER
+c$$$*          The first element of IPIV for which a row interchange will
+c$$$*          be done.
+c$$$*
+c$$$*  K2      (input) INTEGER
+c$$$*          The last element of IPIV for which a row interchange will
+c$$$*          be done.
+c$$$*
+c$$$*  IPIV    (input) INTEGER array, dimension (K2*abs(INCX))
+c$$$*          The vector of pivot indices.  Only the elements in positions
+c$$$*          K1 through K2 of IPIV are accessed.
+c$$$*          IPIV(K) = L implies rows K and L are to be interchanged.
+c$$$*
+c$$$*  INCX    (input) INTEGER
+c$$$*          The increment between successive values of IPIV.  If IPIV
+c$$$*          is negative, the pivots are applied in reverse order.
+c$$$*
+c$$$*  Further Details
+c$$$*  ===============
+c$$$*
+c$$$*  Modified by
+c$$$*   R. C. Whaley, Computer Science Dept., Univ. of Tenn., Knoxville, USA
+c$$$*
+c$$$* =====================================================================
+c$$$*
+c$$$*     .. Local Scalars ..
+c$$$      INTEGER            I, I1, I2, INC, IP, IX, IX0, J, K, N32
+c$$$      DOUBLE PRECISION   TEMP
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     Interchange row I with row IPIV(I) for each of rows K1 through K2.
+c$$$*
+c$$$      IF( INCX.GT.0 ) THEN
+c$$$         IX0 = K1
+c$$$         I1 = K1
+c$$$         I2 = K2
+c$$$         INC = 1
+c$$$      ELSE IF( INCX.LT.0 ) THEN
+c$$$         IX0 = 1 + ( 1-K2 )*INCX
+c$$$         I1 = K2
+c$$$         I2 = K1
+c$$$         INC = -1
+c$$$      ELSE
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      N32 = ( N / 32 )*32
+c$$$      IF( N32.NE.0 ) THEN
+c$$$         DO 30 J = 1, N32, 32
+c$$$            IX = IX0
+c$$$            DO 20 I = I1, I2, INC
+c$$$               IP = IPIV( IX )
+c$$$               IF( IP.NE.I ) THEN
+c$$$                  DO 10 K = J, J + 31
+c$$$                     TEMP = A( I, K )
+c$$$                     A( I, K ) = A( IP, K )
+c$$$                     A( IP, K ) = TEMP
+c$$$   10             CONTINUE
+c$$$               END IF
+c$$$               IX = IX + INCX
+c$$$   20       CONTINUE
+c$$$   30    CONTINUE
+c$$$      END IF
+c$$$      IF( N32.NE.N ) THEN
+c$$$         N32 = N32 + 1
+c$$$         IX = IX0
+c$$$         DO 50 I = I1, I2, INC
+c$$$            IP = IPIV( IX )
+c$$$            IF( IP.NE.I ) THEN
+c$$$               DO 40 K = N32, N
+c$$$                  TEMP = A( I, K )
+c$$$                  A( I, K ) = A( IP, K )
+c$$$                  A( IP, K ) = TEMP
+c$$$   40          CONTINUE
+c$$$            END IF
+c$$$            IX = IX + INCX
+c$$$   50    CONTINUE
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of DLASWP
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE DSWAP(N,DX,INCX,DY,INCY)
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER INCX,INCY,N
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      DOUBLE PRECISION DX(*),DY(*)
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*     interchanges two vectors.
+c$$$*     uses unrolled loops for increments equal one.
+c$$$*     jack dongarra, linpack, 3/11/78.
+c$$$*     modified 12/3/93, array(1) declarations changed to array(*)
+c$$$*
+c$$$*
+c$$$*     .. Local Scalars ..
+c$$$      DOUBLE PRECISION DTEMP
+c$$$      INTEGER I,IX,IY,M,MP1
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC MOD
+c$$$*     ..
+c$$$      IF (N.LE.0) RETURN
+c$$$      IF (INCX.EQ.1 .AND. INCY.EQ.1) GO TO 20
+c$$$*
+c$$$*       code for unequal increments or equal increments not equal
+c$$$*         to 1
+c$$$*
+c$$$      IX = 1
+c$$$      IY = 1
+c$$$      IF (INCX.LT.0) IX = (-N+1)*INCX + 1
+c$$$      IF (INCY.LT.0) IY = (-N+1)*INCY + 1
+c$$$      DO 10 I = 1,N
+c$$$          DTEMP = DX(IX)
+c$$$          DX(IX) = DY(IY)
+c$$$          DY(IY) = DTEMP
+c$$$          IX = IX + INCX
+c$$$          IY = IY + INCY
+c$$$   10 CONTINUE
+c$$$      RETURN
+c$$$*
+c$$$*       code for both increments equal to 1
+c$$$*
+c$$$*
+c$$$*       clean-up loop
+c$$$*
+c$$$   20 M = MOD(N,3)
+c$$$      IF (M.EQ.0) GO TO 40
+c$$$      DO 30 I = 1,M
+c$$$          DTEMP = DX(I)
+c$$$          DX(I) = DY(I)
+c$$$          DY(I) = DTEMP
+c$$$   30 CONTINUE
+c$$$      IF (N.LT.3) RETURN
+c$$$   40 MP1 = M + 1
+c$$$      DO 50 I = MP1,N,3
+c$$$          DTEMP = DX(I)
+c$$$          DX(I) = DY(I)
+c$$$          DY(I) = DTEMP
+c$$$          DTEMP = DX(I+1)
+c$$$          DX(I+1) = DY(I+1)
+c$$$          DY(I+1) = DTEMP
+c$$$          DTEMP = DX(I+2)
+c$$$          DX(I+2) = DY(I+2)
+c$$$          DY(I+2) = DTEMP
+c$$$   50 CONTINUE
+c$$$      RETURN
+c$$$      END
+c$$$      SUBROUTINE DTBSV(UPLO,TRANS,DIAG,N,K,A,LDA,X,INCX)
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER INCX,K,LDA,N
+c$$$      CHARACTER DIAG,TRANS,UPLO
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      DOUBLE PRECISION A(LDA,*),X(*)
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  DTBSV  solves one of the systems of equations
+c$$$*
+c$$$*     A*x = b,   or   A'*x = b,
+c$$$*
+c$$$*  where b and x are n element vectors and A is an n by n unit, or
+c$$$*  non-unit, upper or lower triangular band matrix, with ( k + 1 )
+c$$$*  diagonals.
+c$$$*
+c$$$*  No test for singularity or near-singularity is included in this
+c$$$*  routine. Such tests must be performed before calling this routine.
+c$$$*
+c$$$*  Arguments
+c$$$*  ==========
+c$$$*
+c$$$*  UPLO   - CHARACTER*1.
+c$$$*           On entry, UPLO specifies whether the matrix is an upper or
+c$$$*           lower triangular matrix as follows:
+c$$$*
+c$$$*              UPLO = 'U' or 'u'   A is an upper triangular matrix.
+c$$$*
+c$$$*              UPLO = 'L' or 'l'   A is a lower triangular matrix.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  TRANS  - CHARACTER*1.
+c$$$*           On entry, TRANS specifies the equations to be solved as
+c$$$*           follows:
+c$$$*
+c$$$*              TRANS = 'N' or 'n'   A*x = b.
+c$$$*
+c$$$*              TRANS = 'T' or 't'   A'*x = b.
+c$$$*
+c$$$*              TRANS = 'C' or 'c'   A'*x = b.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  DIAG   - CHARACTER*1.
+c$$$*           On entry, DIAG specifies whether or not A is unit
+c$$$*           triangular as follows:
+c$$$*
+c$$$*              DIAG = 'U' or 'u'   A is assumed to be unit triangular.
+c$$$*
+c$$$*              DIAG = 'N' or 'n'   A is not assumed to be unit
+c$$$*                                  triangular.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  N      - INTEGER.
+c$$$*           On entry, N specifies the order of the matrix A.
+c$$$*           N must be at least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  K      - INTEGER.
+c$$$*           On entry with UPLO = 'U' or 'u', K specifies the number of
+c$$$*           super-diagonals of the matrix A.
+c$$$*           On entry with UPLO = 'L' or 'l', K specifies the number of
+c$$$*           sub-diagonals of the matrix A.
+c$$$*           K must satisfy  0 .le. K.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, n ).
+c$$$*           Before entry with UPLO = 'U' or 'u', the leading ( k + 1 )
+c$$$*           by n part of the array A must contain the upper triangular
+c$$$*           band part of the matrix of coefficients, supplied column by
+c$$$*           column, with the leading diagonal of the matrix in row
+c$$$*           ( k + 1 ) of the array, the first super-diagonal starting at
+c$$$*           position 2 in row k, and so on. The top left k by k triangle
+c$$$*           of the array A is not referenced.
+c$$$*           The following program segment will transfer an upper
+c$$$*           triangular band matrix from conventional full matrix storage
+c$$$*           to band storage:
+c$$$*
+c$$$*                 DO 20, J = 1, N
+c$$$*                    M = K + 1 - J
+c$$$*                    DO 10, I = MAX( 1, J - K ), J
+c$$$*                       A( M + I, J ) = matrix( I, J )
+c$$$*              10    CONTINUE
+c$$$*              20 CONTINUE
+c$$$*
+c$$$*           Before entry with UPLO = 'L' or 'l', the leading ( k + 1 )
+c$$$*           by n part of the array A must contain the lower triangular
+c$$$*           band part of the matrix of coefficients, supplied column by
+c$$$*           column, with the leading diagonal of the matrix in row 1 of
+c$$$*           the array, the first sub-diagonal starting at position 1 in
+c$$$*           row 2, and so on. The bottom right k by k triangle of the
+c$$$*           array A is not referenced.
+c$$$*           The following program segment will transfer a lower
+c$$$*           triangular band matrix from conventional full matrix storage
+c$$$*           to band storage:
+c$$$*
+c$$$*                 DO 20, J = 1, N
+c$$$*                    M = 1 - J
+c$$$*                    DO 10, I = J, MIN( N, J + K )
+c$$$*                       A( M + I, J ) = matrix( I, J )
+c$$$*              10    CONTINUE
+c$$$*              20 CONTINUE
+c$$$*
+c$$$*           Note that when DIAG = 'U' or 'u' the elements of the array A
+c$$$*           corresponding to the diagonal elements of the matrix are not
+c$$$*           referenced, but are assumed to be unity.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  LDA    - INTEGER.
+c$$$*           On entry, LDA specifies the first dimension of A as declared
+c$$$*           in the calling (sub) program. LDA must be at least
+c$$$*           ( k + 1 ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  X      - DOUBLE PRECISION array of dimension at least
+c$$$*           ( 1 + ( n - 1 )*abs( INCX ) ).
+c$$$*           Before entry, the incremented array X must contain the n
+c$$$*           element right-hand side vector b. On exit, X is overwritten
+c$$$*           with the solution vector x.
+c$$$*
+c$$$*  INCX   - INTEGER.
+c$$$*           On entry, INCX specifies the increment for the elements of
+c$$$*           X. INCX must not be zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*
+c$$$*  Level 2 Blas routine.
+c$$$*
+c$$$*  -- Written on 22-October-1986.
+c$$$*     Jack Dongarra, Argonne National Lab.
+c$$$*     Jeremy Du Croz, Nag Central Office.
+c$$$*     Sven Hammarling, Nag Central Office.
+c$$$*     Richard Hanson, Sandia National Labs.
+c$$$*
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      DOUBLE PRECISION ZERO
+c$$$      PARAMETER (ZERO=0.0D+0)
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      DOUBLE PRECISION TEMP
+c$$$      INTEGER I,INFO,IX,J,JX,KPLUS1,KX,L
+c$$$      LOGICAL NOUNIT
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      LOGICAL LSAME
+c$$$      EXTERNAL LSAME
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC MAX,MIN
+c$$$*     ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF (.NOT.LSAME(UPLO,'U') .AND. .NOT.LSAME(UPLO,'L')) THEN
+c$$$          INFO = 1
+c$$$      ELSE IF (.NOT.LSAME(TRANS,'N') .AND. .NOT.LSAME(TRANS,'T') .AND.
+c$$$     +         .NOT.LSAME(TRANS,'C')) THEN
+c$$$          INFO = 2
+c$$$      ELSE IF (.NOT.LSAME(DIAG,'U') .AND. .NOT.LSAME(DIAG,'N')) THEN
+c$$$          INFO = 3
+c$$$      ELSE IF (N.LT.0) THEN
+c$$$          INFO = 4
+c$$$      ELSE IF (K.LT.0) THEN
+c$$$          INFO = 5
+c$$$      ELSE IF (LDA.LT. (K+1)) THEN
+c$$$          INFO = 7
+c$$$      ELSE IF (INCX.EQ.0) THEN
+c$$$          INFO = 9
+c$$$      END IF
+c$$$      IF (INFO.NE.0) THEN
+c$$$          CALL XERBLA('DTBSV ',INFO)
+c$$$          RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible.
+c$$$*
+c$$$      IF (N.EQ.0) RETURN
+c$$$*
+c$$$      NOUNIT = LSAME(DIAG,'N')
+c$$$*
+c$$$*     Set up the start point in X if the increment is not unity. This
+c$$$*     will be  ( N - 1 )*INCX  too small for descending loops.
+c$$$*
+c$$$      IF (INCX.LE.0) THEN
+c$$$          KX = 1 - (N-1)*INCX
+c$$$      ELSE IF (INCX.NE.1) THEN
+c$$$          KX = 1
+c$$$      END IF
+c$$$*
+c$$$*     Start the operations. In this version the elements of A are
+c$$$*     accessed by sequentially with one pass through A.
+c$$$*
+c$$$      IF (LSAME(TRANS,'N')) THEN
+c$$$*
+c$$$*        Form  x := inv( A )*x.
+c$$$*
+c$$$          IF (LSAME(UPLO,'U')) THEN
+c$$$              KPLUS1 = K + 1
+c$$$              IF (INCX.EQ.1) THEN
+c$$$                  DO 20 J = N,1,-1
+c$$$                      IF (X(J).NE.ZERO) THEN
+c$$$                          L = KPLUS1 - J
+c$$$                          IF (NOUNIT) X(J) = X(J)/A(KPLUS1,J)
+c$$$                          TEMP = X(J)
+c$$$                          DO 10 I = J - 1,MAX(1,J-K),-1
+c$$$                              X(I) = X(I) - TEMP*A(L+I,J)
+c$$$   10                     CONTINUE
+c$$$                      END IF
+c$$$   20             CONTINUE
+c$$$              ELSE
+c$$$                  KX = KX + (N-1)*INCX
+c$$$                  JX = KX
+c$$$                  DO 40 J = N,1,-1
+c$$$                      KX = KX - INCX
+c$$$                      IF (X(JX).NE.ZERO) THEN
+c$$$                          IX = KX
+c$$$                          L = KPLUS1 - J
+c$$$                          IF (NOUNIT) X(JX) = X(JX)/A(KPLUS1,J)
+c$$$                          TEMP = X(JX)
+c$$$                          DO 30 I = J - 1,MAX(1,J-K),-1
+c$$$                              X(IX) = X(IX) - TEMP*A(L+I,J)
+c$$$                              IX = IX - INCX
+c$$$   30                     CONTINUE
+c$$$                      END IF
+c$$$                      JX = JX - INCX
+c$$$   40             CONTINUE
+c$$$              END IF
+c$$$          ELSE
+c$$$              IF (INCX.EQ.1) THEN
+c$$$                  DO 60 J = 1,N
+c$$$                      IF (X(J).NE.ZERO) THEN
+c$$$                          L = 1 - J
+c$$$                          IF (NOUNIT) X(J) = X(J)/A(1,J)
+c$$$                          TEMP = X(J)
+c$$$                          DO 50 I = J + 1,MIN(N,J+K)
+c$$$                              X(I) = X(I) - TEMP*A(L+I,J)
+c$$$   50                     CONTINUE
+c$$$                      END IF
+c$$$   60             CONTINUE
+c$$$              ELSE
+c$$$                  JX = KX
+c$$$                  DO 80 J = 1,N
+c$$$                      KX = KX + INCX
+c$$$                      IF (X(JX).NE.ZERO) THEN
+c$$$                          IX = KX
+c$$$                          L = 1 - J
+c$$$                          IF (NOUNIT) X(JX) = X(JX)/A(1,J)
+c$$$                          TEMP = X(JX)
+c$$$                          DO 70 I = J + 1,MIN(N,J+K)
+c$$$                              X(IX) = X(IX) - TEMP*A(L+I,J)
+c$$$                              IX = IX + INCX
+c$$$   70                     CONTINUE
+c$$$                      END IF
+c$$$                      JX = JX + INCX
+c$$$   80             CONTINUE
+c$$$              END IF
+c$$$          END IF
+c$$$      ELSE
+c$$$*
+c$$$*        Form  x := inv( A')*x.
+c$$$*
+c$$$          IF (LSAME(UPLO,'U')) THEN
+c$$$              KPLUS1 = K + 1
+c$$$              IF (INCX.EQ.1) THEN
+c$$$                  DO 100 J = 1,N
+c$$$                      TEMP = X(J)
+c$$$                      L = KPLUS1 - J
+c$$$                      DO 90 I = MAX(1,J-K),J - 1
+c$$$                          TEMP = TEMP - A(L+I,J)*X(I)
+c$$$   90                 CONTINUE
+c$$$                      IF (NOUNIT) TEMP = TEMP/A(KPLUS1,J)
+c$$$                      X(J) = TEMP
+c$$$  100             CONTINUE
+c$$$              ELSE
+c$$$                  JX = KX
+c$$$                  DO 120 J = 1,N
+c$$$                      TEMP = X(JX)
+c$$$                      IX = KX
+c$$$                      L = KPLUS1 - J
+c$$$                      DO 110 I = MAX(1,J-K),J - 1
+c$$$                          TEMP = TEMP - A(L+I,J)*X(IX)
+c$$$                          IX = IX + INCX
+c$$$  110                 CONTINUE
+c$$$                      IF (NOUNIT) TEMP = TEMP/A(KPLUS1,J)
+c$$$                      X(JX) = TEMP
+c$$$                      JX = JX + INCX
+c$$$                      IF (J.GT.K) KX = KX + INCX
+c$$$  120             CONTINUE
+c$$$              END IF
+c$$$          ELSE
+c$$$              IF (INCX.EQ.1) THEN
+c$$$                  DO 140 J = N,1,-1
+c$$$                      TEMP = X(J)
+c$$$                      L = 1 - J
+c$$$                      DO 130 I = MIN(N,J+K),J + 1,-1
+c$$$                          TEMP = TEMP - A(L+I,J)*X(I)
+c$$$  130                 CONTINUE
+c$$$                      IF (NOUNIT) TEMP = TEMP/A(1,J)
+c$$$                      X(J) = TEMP
+c$$$  140             CONTINUE
+c$$$              ELSE
+c$$$                  KX = KX + (N-1)*INCX
+c$$$                  JX = KX
+c$$$                  DO 160 J = N,1,-1
+c$$$                      TEMP = X(JX)
+c$$$                      IX = KX
+c$$$                      L = 1 - J
+c$$$                      DO 150 I = MIN(N,J+K),J + 1,-1
+c$$$                          TEMP = TEMP - A(L+I,J)*X(IX)
+c$$$                          IX = IX - INCX
+c$$$  150                 CONTINUE
+c$$$                      IF (NOUNIT) TEMP = TEMP/A(1,J)
+c$$$                      X(JX) = TEMP
+c$$$                      JX = JX - INCX
+c$$$                      IF ((N-J).GE.K) KX = KX - INCX
+c$$$  160             CONTINUE
+c$$$              END IF
+c$$$          END IF
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of DTBSV .
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
+c$$$*     .. Scalar Arguments ..
+c$$$      DOUBLE PRECISION ALPHA
+c$$$      INTEGER LDA,LDB,M,N
+c$$$      CHARACTER DIAG,SIDE,TRANSA,UPLO
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      DOUBLE PRECISION A(LDA,*),B(LDB,*)
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  DTRSM  solves one of the matrix equations
+c$$$*
+c$$$*     op( A )*X = alpha*B,   or   X*op( A ) = alpha*B,
+c$$$*
+c$$$*  where alpha is a scalar, X and B are m by n matrices, A is a unit, or
+c$$$*  non-unit,  upper or lower triangular matrix  and  op( A )  is one  of
+c$$$*
+c$$$*     op( A ) = A   or   op( A ) = A'.
+c$$$*
+c$$$*  The matrix X is overwritten on B.
+c$$$*
+c$$$*  Arguments
+c$$$*  ==========
+c$$$*
+c$$$*  SIDE   - CHARACTER*1.
+c$$$*           On entry, SIDE specifies whether op( A ) appears on the left
+c$$$*           or right of X as follows:
+c$$$*
+c$$$*              SIDE = 'L' or 'l'   op( A )*X = alpha*B.
+c$$$*
+c$$$*              SIDE = 'R' or 'r'   X*op( A ) = alpha*B.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  UPLO   - CHARACTER*1.
+c$$$*           On entry, UPLO specifies whether the matrix A is an upper or
+c$$$*           lower triangular matrix as follows:
+c$$$*
+c$$$*              UPLO = 'U' or 'u'   A is an upper triangular matrix.
+c$$$*
+c$$$*              UPLO = 'L' or 'l'   A is a lower triangular matrix.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  TRANSA - CHARACTER*1.
+c$$$*           On entry, TRANSA specifies the form of op( A ) to be used in
+c$$$*           the matrix multiplication as follows:
+c$$$*
+c$$$*              TRANSA = 'N' or 'n'   op( A ) = A.
+c$$$*
+c$$$*              TRANSA = 'T' or 't'   op( A ) = A'.
+c$$$*
+c$$$*              TRANSA = 'C' or 'c'   op( A ) = A'.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  DIAG   - CHARACTER*1.
+c$$$*           On entry, DIAG specifies whether or not A is unit triangular
+c$$$*           as follows:
+c$$$*
+c$$$*              DIAG = 'U' or 'u'   A is assumed to be unit triangular.
+c$$$*
+c$$$*              DIAG = 'N' or 'n'   A is not assumed to be unit
+c$$$*                                  triangular.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  M      - INTEGER.
+c$$$*           On entry, M specifies the number of rows of B. M must be at
+c$$$*           least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  N      - INTEGER.
+c$$$*           On entry, N specifies the number of columns of B.  N must be
+c$$$*           at least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  ALPHA  - DOUBLE PRECISION.
+c$$$*           On entry,  ALPHA specifies the scalar  alpha. When  alpha is
+c$$$*           zero then  A is not referenced and  B need not be set before
+c$$$*           entry.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, k ), where k is m
+c$$$*           when  SIDE = 'L' or 'l'  and is  n  when  SIDE = 'R' or 'r'.
+c$$$*           Before entry  with  UPLO = 'U' or 'u',  the  leading  k by k
+c$$$*           upper triangular part of the array  A must contain the upper
+c$$$*           triangular matrix  and the strictly lower triangular part of
+c$$$*           A is not referenced.
+c$$$*           Before entry  with  UPLO = 'L' or 'l',  the  leading  k by k
+c$$$*           lower triangular part of the array  A must contain the lower
+c$$$*           triangular matrix  and the strictly upper triangular part of
+c$$$*           A is not referenced.
+c$$$*           Note that when  DIAG = 'U' or 'u',  the diagonal elements of
+c$$$*           A  are not referenced either,  but are assumed to be  unity.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  LDA    - INTEGER.
+c$$$*           On entry, LDA specifies the first dimension of A as declared
+c$$$*           in the calling (sub) program.  When  SIDE = 'L' or 'l'  then
+c$$$*           LDA  must be at least  max( 1, m ),  when  SIDE = 'R' or 'r'
+c$$$*           then LDA must be at least max( 1, n ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  B      - DOUBLE PRECISION array of DIMENSION ( LDB, n ).
+c$$$*           Before entry,  the leading  m by n part of the array  B must
+c$$$*           contain  the  right-hand  side  matrix  B,  and  on exit  is
+c$$$*           overwritten by the solution matrix  X.
+c$$$*
+c$$$*  LDB    - INTEGER.
+c$$$*           On entry, LDB specifies the first dimension of B as declared
+c$$$*           in  the  calling  (sub)  program.   LDB  must  be  at  least
+c$$$*           max( 1, m ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*
+c$$$*  Level 3 Blas routine.
+c$$$*
+c$$$*
+c$$$*  -- Written on 8-February-1989.
+c$$$*     Jack Dongarra, Argonne National Laboratory.
+c$$$*     Iain Duff, AERE Harwell.
+c$$$*     Jeremy Du Croz, Numerical Algorithms Group Ltd.
+c$$$*     Sven Hammarling, Numerical Algorithms Group Ltd.
+c$$$*
+c$$$*
+c$$$*     .. External Functions ..
+c$$$      LOGICAL LSAME
+c$$$      EXTERNAL LSAME
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC MAX
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      DOUBLE PRECISION TEMP
+c$$$      INTEGER I,INFO,J,K,NROWA
+c$$$      LOGICAL LSIDE,NOUNIT,UPPER
+c$$$*     ..
+c$$$*     .. Parameters ..
+c$$$      DOUBLE PRECISION ONE,ZERO
+c$$$      PARAMETER (ONE=1.0D+0,ZERO=0.0D+0)
+c$$$*     ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      LSIDE = LSAME(SIDE,'L')
+c$$$      IF (LSIDE) THEN
+c$$$          NROWA = M
+c$$$      ELSE
+c$$$          NROWA = N
+c$$$      END IF
+c$$$      NOUNIT = LSAME(DIAG,'N')
+c$$$      UPPER = LSAME(UPLO,'U')
+c$$$*
+c$$$      INFO = 0
+c$$$      IF ((.NOT.LSIDE) .AND. (.NOT.LSAME(SIDE,'R'))) THEN
+c$$$          INFO = 1
+c$$$      ELSE IF ((.NOT.UPPER) .AND. (.NOT.LSAME(UPLO,'L'))) THEN
+c$$$          INFO = 2
+c$$$      ELSE IF ((.NOT.LSAME(TRANSA,'N')) .AND.
+c$$$     +         (.NOT.LSAME(TRANSA,'T')) .AND.
+c$$$     +         (.NOT.LSAME(TRANSA,'C'))) THEN
+c$$$          INFO = 3
+c$$$      ELSE IF ((.NOT.LSAME(DIAG,'U')) .AND. (.NOT.LSAME(DIAG,'N'))) THEN
+c$$$          INFO = 4
+c$$$      ELSE IF (M.LT.0) THEN
+c$$$          INFO = 5
+c$$$      ELSE IF (N.LT.0) THEN
+c$$$          INFO = 6
+c$$$      ELSE IF (LDA.LT.MAX(1,NROWA)) THEN
+c$$$          INFO = 9
+c$$$      ELSE IF (LDB.LT.MAX(1,M)) THEN
+c$$$          INFO = 11
+c$$$      END IF
+c$$$      IF (INFO.NE.0) THEN
+c$$$          CALL XERBLA('DTRSM ',INFO)
+c$$$          RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible.
+c$$$*
+c$$$      IF (N.EQ.0) RETURN
+c$$$*
+c$$$*     And when  alpha.eq.zero.
+c$$$*
+c$$$      IF (ALPHA.EQ.ZERO) THEN
+c$$$          DO 20 J = 1,N
+c$$$              DO 10 I = 1,M
+c$$$                  B(I,J) = ZERO
+c$$$   10         CONTINUE
+c$$$   20     CONTINUE
+c$$$          RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Start the operations.
+c$$$*
+c$$$      IF (LSIDE) THEN
+c$$$          IF (LSAME(TRANSA,'N')) THEN
+c$$$*
+c$$$*           Form  B := alpha*inv( A )*B.
+c$$$*
+c$$$              IF (UPPER) THEN
+c$$$                  DO 60 J = 1,N
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 30 I = 1,M
+c$$$                              B(I,J) = ALPHA*B(I,J)
+c$$$   30                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 50 K = M,1,-1
+c$$$                          IF (B(K,J).NE.ZERO) THEN
+c$$$                              IF (NOUNIT) B(K,J) = B(K,J)/A(K,K)
+c$$$                              DO 40 I = 1,K - 1
+c$$$                                  B(I,J) = B(I,J) - B(K,J)*A(I,K)
+c$$$   40                         CONTINUE
+c$$$                          END IF
+c$$$   50                 CONTINUE
+c$$$   60             CONTINUE
+c$$$              ELSE
+c$$$                  DO 100 J = 1,N
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 70 I = 1,M
+c$$$                              B(I,J) = ALPHA*B(I,J)
+c$$$   70                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 90 K = 1,M
+c$$$                          IF (B(K,J).NE.ZERO) THEN
+c$$$                              IF (NOUNIT) B(K,J) = B(K,J)/A(K,K)
+c$$$                              DO 80 I = K + 1,M
+c$$$                                  B(I,J) = B(I,J) - B(K,J)*A(I,K)
+c$$$   80                         CONTINUE
+c$$$                          END IF
+c$$$   90                 CONTINUE
+c$$$  100             CONTINUE
+c$$$              END IF
+c$$$          ELSE
+c$$$*
+c$$$*           Form  B := alpha*inv( A' )*B.
+c$$$*
+c$$$              IF (UPPER) THEN
+c$$$                  DO 130 J = 1,N
+c$$$                      DO 120 I = 1,M
+c$$$                          TEMP = ALPHA*B(I,J)
+c$$$                          DO 110 K = 1,I - 1
+c$$$                              TEMP = TEMP - A(K,I)*B(K,J)
+c$$$  110                     CONTINUE
+c$$$                          IF (NOUNIT) TEMP = TEMP/A(I,I)
+c$$$                          B(I,J) = TEMP
+c$$$  120                 CONTINUE
+c$$$  130             CONTINUE
+c$$$              ELSE
+c$$$                  DO 160 J = 1,N
+c$$$                      DO 150 I = M,1,-1
+c$$$                          TEMP = ALPHA*B(I,J)
+c$$$                          DO 140 K = I + 1,M
+c$$$                              TEMP = TEMP - A(K,I)*B(K,J)
+c$$$  140                     CONTINUE
+c$$$                          IF (NOUNIT) TEMP = TEMP/A(I,I)
+c$$$                          B(I,J) = TEMP
+c$$$  150                 CONTINUE
+c$$$  160             CONTINUE
+c$$$              END IF
+c$$$          END IF
+c$$$      ELSE
+c$$$          IF (LSAME(TRANSA,'N')) THEN
+c$$$*
+c$$$*           Form  B := alpha*B*inv( A ).
+c$$$*
+c$$$              IF (UPPER) THEN
+c$$$                  DO 210 J = 1,N
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 170 I = 1,M
+c$$$                              B(I,J) = ALPHA*B(I,J)
+c$$$  170                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 190 K = 1,J - 1
+c$$$                          IF (A(K,J).NE.ZERO) THEN
+c$$$                              DO 180 I = 1,M
+c$$$                                  B(I,J) = B(I,J) - A(K,J)*B(I,K)
+c$$$  180                         CONTINUE
+c$$$                          END IF
+c$$$  190                 CONTINUE
+c$$$                      IF (NOUNIT) THEN
+c$$$                          TEMP = ONE/A(J,J)
+c$$$                          DO 200 I = 1,M
+c$$$                              B(I,J) = TEMP*B(I,J)
+c$$$  200                     CONTINUE
+c$$$                      END IF
+c$$$  210             CONTINUE
+c$$$              ELSE
+c$$$                  DO 260 J = N,1,-1
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 220 I = 1,M
+c$$$                              B(I,J) = ALPHA*B(I,J)
+c$$$  220                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 240 K = J + 1,N
+c$$$                          IF (A(K,J).NE.ZERO) THEN
+c$$$                              DO 230 I = 1,M
+c$$$                                  B(I,J) = B(I,J) - A(K,J)*B(I,K)
+c$$$  230                         CONTINUE
+c$$$                          END IF
+c$$$  240                 CONTINUE
+c$$$                      IF (NOUNIT) THEN
+c$$$                          TEMP = ONE/A(J,J)
+c$$$                          DO 250 I = 1,M
+c$$$                              B(I,J) = TEMP*B(I,J)
+c$$$  250                     CONTINUE
+c$$$                      END IF
+c$$$  260             CONTINUE
+c$$$              END IF
+c$$$          ELSE
+c$$$*
+c$$$*           Form  B := alpha*B*inv( A' ).
+c$$$*
+c$$$              IF (UPPER) THEN
+c$$$                  DO 310 K = N,1,-1
+c$$$                      IF (NOUNIT) THEN
+c$$$                          TEMP = ONE/A(K,K)
+c$$$                          DO 270 I = 1,M
+c$$$                              B(I,K) = TEMP*B(I,K)
+c$$$  270                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 290 J = 1,K - 1
+c$$$                          IF (A(J,K).NE.ZERO) THEN
+c$$$                              TEMP = A(J,K)
+c$$$                              DO 280 I = 1,M
+c$$$                                  B(I,J) = B(I,J) - TEMP*B(I,K)
+c$$$  280                         CONTINUE
+c$$$                          END IF
+c$$$  290                 CONTINUE
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 300 I = 1,M
+c$$$                              B(I,K) = ALPHA*B(I,K)
+c$$$  300                     CONTINUE
+c$$$                      END IF
+c$$$  310             CONTINUE
+c$$$              ELSE
+c$$$                  DO 360 K = 1,N
+c$$$                      IF (NOUNIT) THEN
+c$$$                          TEMP = ONE/A(K,K)
+c$$$                          DO 320 I = 1,M
+c$$$                              B(I,K) = TEMP*B(I,K)
+c$$$  320                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 340 J = K + 1,N
+c$$$                          IF (A(J,K).NE.ZERO) THEN
+c$$$                              TEMP = A(J,K)
+c$$$                              DO 330 I = 1,M
+c$$$                                  B(I,J) = B(I,J) - TEMP*B(I,K)
+c$$$  330                         CONTINUE
+c$$$                          END IF
+c$$$  340                 CONTINUE
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 350 I = 1,M
+c$$$                              B(I,K) = ALPHA*B(I,K)
+c$$$  350                     CONTINUE
+c$$$                      END IF
+c$$$  360             CONTINUE
+c$$$              END IF
+c$$$          END IF
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of DTRSM .
+c$$$*
+c$$$      END
+c$$$      INTEGER          FUNCTION IEEECK( ISPEC, ZERO, ONE )
+c$$$*
+c$$$*  -- LAPACK auxiliary routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER            ISPEC
+c$$$      REAL               ONE, ZERO
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  IEEECK is called from the ILAENV to verify that Infinity and
+c$$$*  possibly NaN arithmetic is safe (i.e. will not trap).
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  ISPEC   (input) INTEGER
+c$$$*          Specifies whether to test just for inifinity arithmetic
+c$$$*          or whether to test for infinity and NaN arithmetic.
+c$$$*          = 0: Verify infinity arithmetic only.
+c$$$*          = 1: Verify infinity and NaN arithmetic.
+c$$$*
+c$$$*  ZERO    (input) REAL
+c$$$*          Must contain the value 0.0
+c$$$*          This is passed to prevent the compiler from optimizing
+c$$$*          away this code.
+c$$$*
+c$$$*  ONE     (input) REAL
+c$$$*          Must contain the value 1.0
+c$$$*          This is passed to prevent the compiler from optimizing
+c$$$*          away this code.
+c$$$*
+c$$$*  RETURN VALUE:  INTEGER
+c$$$*          = 0:  Arithmetic failed to produce the correct answers
+c$$$*          = 1:  Arithmetic produced the correct answers
+c$$$*
+c$$$*     .. Local Scalars ..
+c$$$      REAL               NAN1, NAN2, NAN3, NAN4, NAN5, NAN6, NEGINF,
+c$$$     $                   NEGZRO, NEWZRO, POSINF
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$      IEEECK = 1
+c$$$*
+c$$$      POSINF = ONE / ZERO
+c$$$      IF( POSINF.LE.ONE ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      NEGINF = -ONE / ZERO
+c$$$      IF( NEGINF.GE.ZERO ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      NEGZRO = ONE / ( NEGINF+ONE )
+c$$$      IF( NEGZRO.NE.ZERO ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      NEGINF = ONE / NEGZRO
+c$$$      IF( NEGINF.GE.ZERO ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      NEWZRO = NEGZRO + ZERO
+c$$$      IF( NEWZRO.NE.ZERO ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      POSINF = ONE / NEWZRO
+c$$$      IF( POSINF.LE.ONE ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      NEGINF = NEGINF*POSINF
+c$$$      IF( NEGINF.GE.ZERO ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      POSINF = POSINF*POSINF
+c$$$      IF( POSINF.LE.ONE ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*
+c$$$*
+c$$$*
+c$$$*     Return if we were only asked to check infinity arithmetic
+c$$$*
+c$$$      IF( ISPEC.EQ.0 )
+c$$$     $   RETURN
+c$$$*
+c$$$      NAN1 = POSINF + NEGINF
+c$$$*
+c$$$      NAN2 = POSINF / NEGINF
+c$$$*
+c$$$      NAN3 = POSINF / POSINF
+c$$$*
+c$$$      NAN4 = POSINF*ZERO
+c$$$*
+c$$$      NAN5 = NEGINF*NEGZRO
+c$$$*
+c$$$      NAN6 = NAN5*0.0
+c$$$*
+c$$$      IF( NAN1.EQ.NAN1 ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      IF( NAN2.EQ.NAN2 ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      IF( NAN3.EQ.NAN3 ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      IF( NAN4.EQ.NAN4 ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      IF( NAN5.EQ.NAN5 ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      IF( NAN6.EQ.NAN6 ) THEN
+c$$$         IEEECK = 0
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$      END
+c$$$      INTEGER          FUNCTION ILAENV( ISPEC, NAME, OPTS, N1, N2, N3,
+c$$$     $                 N4 )
+c$$$*
+c$$$*  -- LAPACK auxiliary routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      CHARACTER*( * )    NAME, OPTS
+c$$$      INTEGER            ISPEC, N1, N2, N3, N4
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  ILAENV returns problem-dependent parameters for the local
+c$$$*  environment.  See ISPEC for a description of the parameters.
+c$$$*
+c$$$*  In this version, the problem-dependent parameters are contained in
+c$$$*  the integer array IPARMS in the common block CLAENV and the value
+c$$$*  with index ISPEC is copied to ILAENV.  This version of ILAENV is
+c$$$*  to be used in conjunction with XLAENV in TESTING and TIMING.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  ISPEC   (input) INTEGER
+c$$$*          Specifies the parameter to be returned as the value of
+c$$$*          ILAENV.
+c$$$*          = 1: the optimal blocksize; if this value is 1, an unblocked
+c$$$*               algorithm will give the best performance.
+c$$$*          = 2: the minimum block size for which the block routine
+c$$$*               should be used; if the usable block size is less than
+c$$$*               this value, an unblocked routine should be used.
+c$$$*          = 3: the crossover point (in a block routine, for N less
+c$$$*               than this value, an unblocked routine should be used)
+c$$$*          = 4: the number of shifts, used in the nonsymmetric
+c$$$*               eigenvalue routines
+c$$$*          = 5: the minimum column dimension for blocking to be used;
+c$$$*               rectangular blocks must have dimension at least k by m,
+c$$$*               where k is given by ILAENV(2,...) and m by ILAENV(5,...)
+c$$$*          = 6: the crossover point for the SVD (when reducing an m by n
+c$$$*               matrix to bidiagonal form, if max(m,n)/min(m,n) exceeds
+c$$$*               this value, a QR factorization is used first to reduce
+c$$$*               the matrix to a triangular form.)
+c$$$*          = 7: the number of processors
+c$$$*          = 8: the crossover point for the multishift QR and QZ methods
+c$$$*               for nonsymmetric eigenvalue problems.
+c$$$*          = 9: maximum size of the subproblems at the bottom of the
+c$$$*               computation tree in the divide-and-conquer algorithm
+c$$$*          =10: ieee NaN arithmetic can be trusted not to trap
+c$$$*          =11: infinity arithmetic can be trusted not to trap
+c$$$*
+c$$$*          Other specifications (up to 100) can be added later.
+c$$$*
+c$$$*  NAME    (input) CHARACTER*(*)
+c$$$*          The name of the calling subroutine.
+c$$$*
+c$$$*  OPTS    (input) CHARACTER*(*)
+c$$$*          The character options to the subroutine NAME, concatenated
+c$$$*          into a single character string.  For example, UPLO = 'U',
+c$$$*          TRANS = 'T', and DIAG = 'N' for a triangular routine would
+c$$$*          be specified as OPTS = 'UTN'.
+c$$$*
+c$$$*  N1      (input) INTEGER
+c$$$*  N2      (input) INTEGER
+c$$$*  N3      (input) INTEGER
+c$$$*  N4      (input) INTEGER
+c$$$*          Problem dimensions for the subroutine NAME; these may not all
+c$$$*          be required.
+c$$$*
+c$$$* (ILAENV) (output) INTEGER
+c$$$*          >= 0: the value of the parameter specified by ISPEC
+c$$$*          < 0:  if ILAENV = -k, the k-th argument had an illegal value.
+c$$$*
+c$$$*  Further Details
+c$$$*  ===============
+c$$$*
+c$$$*  The following conventions have been used when calling ILAENV from the
+c$$$*  LAPACK routines:
+c$$$*  1)  OPTS is a concatenation of all of the character options to
+c$$$*      subroutine NAME, in the same order that they appear in the
+c$$$*      argument list for NAME, even if they are not used in determining
+c$$$*      the value of the parameter specified by ISPEC.
+c$$$*  2)  The problem dimensions N1, N2, N3, N4 are specified in the order
+c$$$*      that they appear in the argument list for NAME.  N1 is used
+c$$$*      first, N2 second, and so on, and unused problem dimensions are
+c$$$*      passed a value of -1.
+c$$$*  3)  The parameter value returned by ILAENV is checked for validity in
+c$$$*      the calling subroutine.  For example, ILAENV is used to retrieve
+c$$$*      the optimal blocksize for STRTRI as follows:
+c$$$*
+c$$$*      NB = ILAENV( 1, 'STRTRI', UPLO // DIAG, N, -1, -1, -1 )
+c$$$*      IF( NB.LE.1 ) NB = MAX( 1, N )
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          INT, MIN, REAL
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      INTEGER            IEEECK
+c$$$      EXTERNAL           IEEECK
+c$$$*     ..
+c$$$*     .. Arrays in Common ..
+c$$$      INTEGER            IPARMS( 100 )
+c$$$*     ..
+c$$$*     .. Common blocks ..
+c$$$      COMMON             / CLAENV / IPARMS
+c$$$*     ..
+c$$$*     .. Save statement ..
+c$$$      SAVE               / CLAENV /
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$      IF( ISPEC.GE.1 .AND. ISPEC.LE.5 ) THEN
+c$$$*
+c$$$*        Return a value from the common block.
+c$$$*
+c$$$         ILAENV = IPARMS( ISPEC )
+c$$$*
+c$$$      ELSE IF( ISPEC.EQ.6 ) THEN
+c$$$*
+c$$$*        Compute SVD crossover point.
+c$$$*
+c$$$         ILAENV = INT( REAL( MIN( N1, N2 ) )*1.6E0 )
+c$$$*
+c$$$      ELSE IF( ISPEC.GE.7 .AND. ISPEC.LE.9 ) THEN
+c$$$*
+c$$$*        Return a value from the common block.
+c$$$*
+c$$$         ILAENV = IPARMS( ISPEC )
+c$$$*
+c$$$      ELSE IF( ISPEC.EQ.10 ) THEN
+c$$$*
+c$$$*        IEEE NaN arithmetic can be trusted not to trap
+c$$$*
+c$$$C        ILAENV = 0
+c$$$         ILAENV = 1
+c$$$         IF( ILAENV.EQ.1 ) THEN
+c$$$            ILAENV = IEEECK( 0, 0.0, 1.0 )
+c$$$         END IF
+c$$$*
+c$$$      ELSE IF( ISPEC.EQ.11 ) THEN
+c$$$*
+c$$$*        Infinity arithmetic can be trusted not to trap
+c$$$*
+c$$$C        ILAENV = 0
+c$$$         ILAENV = 1
+c$$$         IF( ILAENV.EQ.1 ) THEN
+c$$$            ILAENV = IEEECK( 1, 0.0, 1.0 )
+c$$$         END IF
+c$$$*
+c$$$      ELSE
+c$$$*
+c$$$*        Invalid value for ISPEC
+c$$$*
+c$$$         ILAENV = -1
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of ILAENV
+c$$$*
+c$$$      END
+c$$$      LOGICAL FUNCTION LSAME(CA,CB)
+c$$$*
+c$$$*  -- LAPACK auxiliary routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      CHARACTER CA,CB
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  LSAME returns .TRUE. if CA is the same letter as CB regardless of
+c$$$*  case.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  CA      (input) CHARACTER*1
+c$$$*
+c$$$*  CB      (input) CHARACTER*1
+c$$$*          CA and CB specify the single characters to be compared.
+c$$$*
+c$$$* =====================================================================
+c$$$*
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC ICHAR
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      INTEGER INTA,INTB,ZCODE
+c$$$*     ..
+c$$$*
+c$$$*     Test if the characters are equal
+c$$$*
+c$$$      LSAME = CA .EQ. CB
+c$$$      IF (LSAME) RETURN
+c$$$*
+c$$$*     Now test for equivalence if both characters are alphabetic.
+c$$$*
+c$$$      ZCODE = ICHAR('Z')
+c$$$*
+c$$$*     Use 'Z' rather than 'A' so that ASCII can be detected on Prime
+c$$$*     machines, on which ICHAR returns a value with bit 8 set.
+c$$$*     ICHAR('A') on Prime machines returns 193 which is the same as
+c$$$*     ICHAR('A') on an EBCDIC machine.
+c$$$*
+c$$$      INTA = ICHAR(CA)
+c$$$      INTB = ICHAR(CB)
+c$$$*
+c$$$      IF (ZCODE.EQ.90 .OR. ZCODE.EQ.122) THEN
+c$$$*
+c$$$*        ASCII is assumed - ZCODE is the ASCII code of either lower or
+c$$$*        upper case 'Z'.
+c$$$*
+c$$$          IF (INTA.GE.97 .AND. INTA.LE.122) INTA = INTA - 32
+c$$$          IF (INTB.GE.97 .AND. INTB.LE.122) INTB = INTB - 32
+c$$$*
+c$$$      ELSE IF (ZCODE.EQ.233 .OR. ZCODE.EQ.169) THEN
+c$$$*
+c$$$*        EBCDIC is assumed - ZCODE is the EBCDIC code of either lower or
+c$$$*        upper case 'Z'.
+c$$$*
+c$$$          IF (INTA.GE.129 .AND. INTA.LE.137 .OR.
+c$$$     +        INTA.GE.145 .AND. INTA.LE.153 .OR.
+c$$$     +        INTA.GE.162 .AND. INTA.LE.169) INTA = INTA + 64
+c$$$          IF (INTB.GE.129 .AND. INTB.LE.137 .OR.
+c$$$     +        INTB.GE.145 .AND. INTB.LE.153 .OR.
+c$$$     +        INTB.GE.162 .AND. INTB.LE.169) INTB = INTB + 64
+c$$$*
+c$$$      ELSE IF (ZCODE.EQ.218 .OR. ZCODE.EQ.250) THEN
+c$$$*
+c$$$*        ASCII is assumed, on Prime machines - ZCODE is the ASCII code
+c$$$*        plus 128 of either lower or upper case 'Z'.
+c$$$*
+c$$$          IF (INTA.GE.225 .AND. INTA.LE.250) INTA = INTA - 32
+c$$$          IF (INTB.GE.225 .AND. INTB.LE.250) INTB = INTB - 32
+c$$$      END IF
+c$$$      LSAME = INTA .EQ. INTB
+c$$$*
+c$$$*     RETURN
+c$$$*
+c$$$*     End of LSAME
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE XERBLA( SRNAME, INFO )
+c$$$*
+c$$$*  -- LAPACK auxiliary routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      CHARACTER*6        SRNAME
+c$$$      INTEGER            INFO
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  XERBLA  is an error handler for the LAPACK routines.
+c$$$*  It is called by an LAPACK routine if an input parameter has an
+c$$$*  invalid value.  A message is printed and execution stops.
+c$$$*
+c$$$*  Installers may consider modifying the STOP statement in order to
+c$$$*  call system-specific exception-handling facilities.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  SRNAME  (input) CHARACTER*6
+c$$$*          The name of the routine which called XERBLA.
+c$$$*
+c$$$*  INFO    (input) INTEGER
+c$$$*          The position of the invalid parameter in the parameter list
+c$$$*          of the calling routine.
+c$$$*
+c$$$* =====================================================================
+c$$$*
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$      WRITE( *, FMT = 9999 )SRNAME, INFO
+c$$$*
+c$$$      STOP
+c$$$*
+c$$$ 9999 FORMAT( ' ** On entry to ', A6, ' parameter number ', I2, ' had ',
+c$$$     $      'an illegal value' )
+c$$$*
+c$$$*     End of XERBLA
+c$$$*
+c$$$      END

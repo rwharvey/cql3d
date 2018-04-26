@@ -1,0 +1,75 @@
+Re: cql3d_cswim_171124.1_InProgress.zip
+From: 
+petrov@compxco.com
+  To: 
+bobh@compxco.com
+  Date: 
+2018-01-03 18:20
+   
+Hi Bob,
+
+Yes, with lbndry=fixed,
+the peak of distr.func. is ~four orders of magnitude smaller
+than in lbdry=conscale,
+and the source is also ~four orders smaller.
+
+With lbdry=fixed, the positive jump at v~0 is also present -
+it is visible at time step 25, for example (in Cuts of f vs v). At later 
+time steps n>110, this jump disappears in
+lbdry=fixed run, but not in lbdry=consscal.
+
+BTW, the runs with lbdry=conserv are similar to consscal,
+so there is a positive jump at V~0, too.
+
+I am not clear yet why this jump occurs.
+I need to dig into it more.
+Yes, I would expect the distribution to behave good at V=0
+when lbdry=conserv.
+
+Yuri
+
+
+
+
+
+On 2018-01-03 18:27, Bob Harvey wrote:
+> Hi Yuri,
+> 
+> Your lbdry=fixed run gave me a bit of a heart attack,
+> in that the results were so different with consscal.
+> However, on a little more reflection, I am guessing
+> that "fixed" means the distribution f(v=0) is fixed
+> at the initial time, before the Te drop.   Thus, f(v=0) is
+> much smaller that the f(v=0) after the abrupt
+> drop in Te, as calculated in the lbdry=consscal case.
+> Thus this could account for the radical drop in
+> knockon source rate.   Could you check this out?
+> 
+> Another question in my mind: why is there such a
+> singular behavior near v=0, for lbdry=consscal?
+> Given that there is conservation of particles at v=0
+> in the conscal case  (except for smallish rescale),
+> why is there such a flux of particles?   Any thoughts
+> on this?
+> 
+> Thanks,
+> 
+> Bob
+> 
+> On Tuesday 02 January 2018, petrov@compxco.com wrote:
+>> Hi Bob,
+>> 
+>> On the plots of "Normalized V-flux"  --
+>> it seems the problem comes from lbdry="consscal" setting
+>> (in 2009 it was "scale").
+>> If I use lbdry="fixed", the plot looks ok,
+>> please have a look at the attached file.
+>> 
+>> With "consscal", there is an additional large positive peak
+>> at V~0 in the plot (very narrow, so it is not visible), and it masks 
+>> the
+>> rest of the plot.
+>> 
+>> Yuri
+>> P.S. Please see my previous message.
+>> 
