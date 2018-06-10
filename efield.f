@@ -11,7 +11,7 @@ c
 c..................................................................
 c     CQL3D mode:
 c     At the n.ge.0 time-step:
-c        Calculates sptzr, tauee, taueeh, starnue
+c        Calculates sptzr, tauee, taueeh, starnue=nue_eff/nue_bounce
 c     At n.ge.0:
 c        Calculates elecfld(lr_) according to various methods
 c        specified by efswtch and efswtchn.
@@ -48,7 +48,7 @@ c     Hinton-Hazeltine p.270 and 297 (same as ONETWO 4.2-20, 4.2-30)
      1      /(4.*sqrt(2.*pi)*denpar(kelec,ls_)*charge**4*
      1      gama(kelec,kelec))*3./zeff(lr_)
           starnue(ls_)=rgeom(lr_)*bmod0(lr_)/bthr0(lr_)/
-     !      vthpar(kelec,ls_)/taueeh(ls_)/eps(lr_)**1.5
+     1      vthpar(kelec,ls_)/taueeh(ls_)/eps(lr_)**1.5
         endif
 
       endif
@@ -97,7 +97,7 @@ c     Hinton-Hazeltine definition, Eq.(5.4), for e-i collisions.
 c     1./taueeh = 4/3 sqrt(2*pi) ne*zeff*charge**4*gamma/(sqrt(me)*Te**1.5)
 c     Thus: taueeh=3 sqrt(pi/2) / Zeff * tauee
 c     Note: taueeh and nuestar same as ONETWO 4.2-20 and 4.2-30
-c     (Eq. 4.2-29 and 4.2-40, in GA-A16178, Pfeiffer, Davidson, Miller, Waltz)
+c     (Eq. 4.2-28 and 4.2-39, in GA-A16178, Pfeiffer, Davidson, Miller, Waltz)
       if (cqlpmod .ne. "enabled") then
         taueeh(lr_)=tauee(lr_)*3.*sqrt(pi/2.)/zeff(lr_)
         starnue(lr_)=rgeom(lr_)*bmod0(lr_)/bthr0(lr_)/

@@ -1018,22 +1018,23 @@ cBH080910      exp5=>exm5(2:) !due different start extent
       allocate(bqlm(iy,jx),STAT=istat)
       call bcast(bqlm,zero,iyjx)
       
-      allocate(tem1(iyjx2),STAT=istat)
+      iyjx2l=max(iy+2,lrz)*(jx+2)
+      allocate(tem1(iyjx2l),STAT=istat)
       istat_tot=istat_tot+istat
       call bcast(tem1,zero,SIZE(tem1))
-      allocate(tem2(iyjx2),STAT=istat)
+      allocate(tem2(iyjx2l),STAT=istat)
       istat_tot=istat_tot+istat
       call bcast(tem2,zero,SIZE(tem2))
-      allocate(tem3(iyjx2),STAT=istat)
+      allocate(tem3(iyjx2l),STAT=istat)
       istat_tot=istat_tot+istat
       call bcast(tem3,zero,SIZE(tem3))
-      allocate(tem4(iyjx2),STAT=istat)
+      allocate(tem4(iyjx2l),STAT=istat)
       istat_tot=istat_tot+istat
       call bcast(tem4,zero,SIZE(tem4))
-      allocate(tem5(iyjx2),STAT=istat)
+      allocate(tem5(iyjx2l),STAT=istat)
       istat_tot=istat_tot+istat
       call bcast(tem5,zero,SIZE(tem5))
-      allocate(tem6(iyjx2),STAT=istat)
+      allocate(tem6(iyjx2l),STAT=istat)
       istat_tot=istat_tot+istat
       call bcast(tem6,zero,SIZE(tem6))
       

@@ -54,9 +54,9 @@ c..................................................................
 c     PARAMETERS CHOSEN BY USER FOLLOW
 
       character version*64
-      parameter(version="cql3d_cswim_180101.1")
+      parameter(version="cql3d_cswim_180101.2")
       character precursr*64
-      parameter(precursr="cql3d_cswim_180101.0")
+      parameter(precursr="cql3d_cswim_180101.1")
       parameter(machinea=2)
 cBH081218:  Present usage, machinea=2 works with 32- and 64-bit machines
       parameter(ngena=4)
@@ -225,6 +225,13 @@ c     YuP 101122: in urfsetup by reading rays\' data files.
                              !are not set for index larger than nmodsa.
 ccc      parameter (nharma=1,nharm2a=nharma+2)
 c     YuP 101208: nharma is not used anymore.
+c
+c..................................................................
+c     rdcmod related
+c..................................................................
+      parameter(nrdca=10)   !Max number of diffusion coeff files, 
+                          !for rdcmod="format1"
+c
 c..................................................................
 c     NPA related:
       parameter(npaproca=5)

@@ -5,8 +5,8 @@ c
 
 c..................................................................
 c     Set namelist input defaults for all namelist sections
-c     except frsetup.
-c     Warning: should not set variables read in setup0 namelist
+c     except setup0/fsetup and frsetup.
+c     Warning: should not set variables read in setup0/fsetup namelist
 c     as aindflt is called AFTER the first read(2,setup0).
 c     BH070305:  Some other constants derived from namelist
 c                variables have been moved to new subroutine aindlft1.
@@ -279,9 +279,20 @@ c     old way of integrating dens,cur in diaggnde
       adimeth="disabled"
       nonadi= 5
       updown="symmetry"
+
       rdcmod="disabled"
       rdc_clipping="disabled"
       rdc_upar_sign=+1.
+      nrdc=1
+      rdcfile(1)="du0u0_input"
+      nrdcspecies(1)=1
+      rdcscale(1)=1.d0
+      do i=2,nrdca
+         rdcfile(i)="notset"
+         nrdcspecies(i)=0
+         rdcscale(i)=1.d0
+      enddo
+
       urfmod="disabled"
       urfmult=1.0
       veclnth=1.0

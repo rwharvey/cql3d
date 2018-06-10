@@ -29,7 +29,7 @@ c.......................................................................
      1  machine,meshy,manymat,
      1  netcdfvecal,netcdfvecc,netcdfvece,netcdfvecrf,netcdfvecs,
      1  noplots,
-     1  psimodel,pltpowe,pltend,pltinput,pltlim,
+     1  psimodel,pltpowe,pltend,pltinput,pltlim,pltrdc,
      1  pltrst,plturfb,pltvflu,pltra,pltfvs,pltd,pltprpp,pltfofv,pltlos,
      1  pltdn,pltvecal,pltvecc,pltvecrf,pltvece,pltstrm,pltflux,
      1  pltsig,pltdnpos,
@@ -70,7 +70,7 @@ c.......................................................................
      1  nstop,ncoef,nchec,ncont,nrstrt,nstps,nfpld,
      1  noncntrl,nonel,noffel,nonvphi,noffvphi,nonloss,noffloss,
      1  numby,lnwidth,noplots,nmlstout,
-     1  psimodel,pltpowe,pltend,pltinput,pltlim,pltlimm,
+     1  psimodel,pltpowe,pltend,pltinput,pltlim,pltlimm,pltrdc,
      1  pltrst,plturfb,pltvflu,pltra,pltfvs,pltd,pltprpp,pltfofv,pltlos,
      1  pltdn,pltvecal,pltvecc,pltvecrf,pltvece,
      1  pltstrm,pltflux,pltmag,pltsig,profpsi,
@@ -233,8 +233,9 @@ c*****************************************************************
       character*8
      1  urfmod,
      1  vlfmod,vlfbes,vlfnpvar,vlhmod,vprprop,vlhplse,vlhprprp,
-     1  rfread,rdcmod,rdc_clipping
+     1  rfread,rdcmod,rdc_clipping,rdc_netcdf
       character*256 rffile
+      character*256 rdcfile
 
       common /params/
      1  nrf
@@ -243,7 +244,7 @@ c*****************************************************************
      1  vlhplse,vlhpon,vlhpoff,
      1  vlfmod,vlfmodes,
      1  vlfbes,vlfnpvar,rdc_upar_sign,
-     1  rfread,rdcmod,rdc_clipping
+     1  rfread,rdcmod,rdc_clipping,rdc_netcdf
 
       common /readvec/
      1  nonrf(ngena),noffrf(ngena),
@@ -257,7 +258,8 @@ c*****************************************************************
      1  vlfnperp(nmodsa),vlfdnorm(nmodsa),
      1  vlfparmn(nmodsa),vlfparmx(nmodsa),
      1  vlfprpmn(nmodsa),vlfprpmx(nmodsa),
-     1  rffile(nmodsa)
+     1  rffile(nmodsa),
+     1  rdcfile(nrdca)
 
 
 
@@ -391,7 +393,8 @@ c*********************************************************************
      1  nbssltbl,nondamp,nrfstep2,
      1  nrfpwr,nrfitr1,nrfitr2,nrfitr3,
      1  scaleurf,urfrstrt,urfwrray,
-     1  urfdmp,urfmult
+     1  urfdmp,urfmult,
+     1  nrdc
 
       common/readvec/
      1  pwrscale(nmodsa),wdscale(nmodsa),nrfstep1(nmodsa),
@@ -400,6 +403,10 @@ c*********************************************************************
 
       common/readvec/
      1  pwrscale1(nbctimea),urftime(nbctimea)
+
+      common/readvec/
+     1  rdcscale(nrdca),nrdcspecies(nrdca)
+
 
 c-----------------------------------------------------------------------
 c     BEGIN variables for WP... modules for CQLP case

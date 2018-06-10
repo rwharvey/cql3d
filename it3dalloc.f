@@ -587,8 +587,9 @@ CMG added 11/13/2017
               write(*,*)'it3dalloc dfvlle', istat
       if(ASSOCIATED(dfvlli)) deallocate(dfvlli,STAT=istat)
               write(*,*)'it3dalloc dfvlli', istat
-      if(ASSOCIATED(xperp)) deallocate(xperp,STAT=istat)
-              write(*,*)'it3dalloc xperp', istat
+cBH180430: Next statement causing Seg fault. Don't see why??
+!      if(ASSOCIATED(xperp)) deallocate(xperp,STAT=istat)
+!              write(*,*)'it3dalloc xperp', istat
 !              write(*,*)xl,jmaxxl
 !      if(ASSOCIATED(xl)) deallocate(xl,STAT=istat)
 !              write(*,*)'it3dalloc xl', istat

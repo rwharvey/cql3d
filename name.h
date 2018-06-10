@@ -57,7 +57,7 @@ c..................................................................
      1  pltdn,pltvecal,pltvecc,pltvecrf,pltvece,
      1  pltstrm,pltflux,pltmag,pltsig,pltlim,pltlimm,
      1  pltrst,plturfb,pltvflu,pltra,pltfvs,pltd,pltprpp,pltfofv,pltlos,
-     1  profpsi,
+     1  pltrdc,profpsi,
      1  psimodel,pltpowe,pltend,pltinput,pltview,
      1  qsineut,trapmod,trapredc,scatmod,scatfrac,
      1  ryain,radmaj,radmin,rmirror,relativ,
@@ -133,7 +133,7 @@ c..................................................................
      1  zbox
 
 c..................................................................
-c     Namelist (rfsetup) for "urf", "vlh", and "vlf" modules.
+c      Namelist (rfsetup) for "urf", "vlh", "vlf", rdcmod  modules.
 c..................................................................
 
       namelist/rfsetup/
@@ -143,7 +143,7 @@ c..................................................................
      1  ech, 
      1  fw,
      1  rftype,
-     1  rffile,rfread,
+     1  rffile,rdcfile,rfread,
      1  nharms,nharm1,nrfspecies,iurfcoll,iurfl,
      1  nbssltbl,nondamp,nrfstep1,nrfstep2,
      1  nrfpwr,nrfitr1,nrfitr2,nrfitr3,
@@ -156,8 +156,8 @@ c..................................................................
      1  vlhpolmx,vlfmod,vlfmodes,vlffreq,vlfnp,vlfdnp,vlfddnp,
      1  vlfeplus,vlfemin,vlfpol,vlfdpol,vlfddpol,vlfbes,vlfnpvar,
      1  vlfharms,vlfharm1,vlfnperp,vlfdnorm,
-     1  vlfparmn,vlfparmx,vlfprpmn,vlfprpmx,rdc_upar_sign,
-     1  rdcmod,rdc_clipping
+     1  vlfparmn,vlfparmx,vlfprpmn,vlfprpmx,rdc_upar_sign,nrdc,
+     1  rdcmod,rdc_clipping,nrdcspecies,rdcscale,rdc_netcdf
 
 
      

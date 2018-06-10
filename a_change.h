@@ -8,6 +8,18 @@ c     This file documents changes in the code
 c
 c***********************************************************************
 
+c[282] version=cql3d_cswim_180101.2
+c[282] For rdcmod="format1"/"aorsa", increased the number of input
+c[282] RF diffusion coefficient files that can be read, 
+c[282] and applied to the same or separate general species.  This
+c[282] modification also enables rdcmod with multiple general species.
+c[282] The mod is not (yet) introduced for rdcmod="format2", but
+c[282] is readily extended to this case as need arises.
+c[282] Namelist nrdc.ge.1 is the number of rdcmod files.  See
+c[282] cqlinput_help for additional new namelist variables,
+c[282] rdcfile(1:nrdc),nrdcspecies(1:nrdc),rdcscale(1:nrdc),
+c[282] rdc_plot,rdc_netcdf.   [BH180608].
+
 c[281] version=cql3d_cswim_180101.1
 c[281] Added capability to make plots in color, particularly 
 c[281] contour plots for distr.function, change of distr.func.

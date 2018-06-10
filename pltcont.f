@@ -142,7 +142,9 @@ C
      +    (itype.eq.2 .and. pltd.eq.'df_color'   )   .or. 
      +    (itype.eq.3 .and. pltso.eq.'color')  .or. 
      +    (itype.eq.3 .and. pltso.eq.'first_cl')  .or.
-     +    (itype.eq.4 .and. plturfb.eq.'color')     ) then 
+     +    (itype.eq.4 .and. plturfb.eq.'color')   .or.
+     +    (itype.eq.7 .and. pltrdc.eq.'onecolor')   .or.
+     +    (itype.eq.7 .and. pltrdc.eq.'allcolor')     ) then 
           !Other itype can be added later
      
       !YuP[2018-01-27] Added: interpolate f(i,j) to fparprp(npar,nprp)
@@ -333,7 +335,9 @@ c     equal to that defined for the distribution:
      +    (itype.eq.2 .and. pltd.eq.'df_color'   )   .or. 
      +    (itype.eq.3 .and. pltso.eq.'color')  .or. 
      +    (itype.eq.3 .and. pltso.eq.'first_cl')  .or.
-     +    (itype.eq.4 .and. plturfb.eq.'color')     ) then 
+     +    (itype.eq.4 .and. plturfb.eq.'color')   .or.
+     +    (itype.eq.7 .and. pltrdc.eq.'onecolor')   .or.
+     +    (itype.eq.7 .and. pltrdc.eq.'allcolor')     ) then 
           !Other itype can be added later
 
       !BH,YuP[2018-01-26] Version 2 for color map of distr.func.

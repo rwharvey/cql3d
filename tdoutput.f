@@ -5,6 +5,10 @@ c
 
 c..................................................................
 c     diagnostics on paper
+c     kopt=1 ==> printout before first time step, at end of ainitial
+c                (if lrzmax.eq.1) or end of tdinitl
+c     kopt=2 ==> printout after specified number of time steps,
+c                including at least the last time step.
 c..................................................................
 
       include 'param.h'
@@ -259,6 +263,8 @@ cdir$ nextscalar
               dt_scale(ll)= 1000*rmag ! just any large number [~Inf]
            endif
          enddo ! ll
+c        The NPA signal is derived by neutralization from ion general 
+c        species nnspec.
          if (ipronn.eq."disabled".or.jk.ne.nnspec) then
             if(kspeci(2,jk).eq.'general' .and. 
      +                  iprovphi.ne.'disabled') then

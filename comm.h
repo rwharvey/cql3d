@@ -5,14 +5,20 @@ c     There are a number of arrays intended for temporary storage
 c     in a subroutine, or for simple passes of data to
 c     associated subroutines:
 c
+cBH180527:  The equivalences listed for tem[1-6]/temp[1-6] are
+cBH180527:  have been removed (at some past time).
+c     iyjx2=(iy+2)*(jx+2)
 c     tem1(iyjx2) --> tem6(iyjx2)
 c     temp1(0:iyp1,0:jxp1) --> temp6(0:iyp1,0:jxp1), 
-c      "equivalenced" to tem1(iyjx) --> tem6(iyjx).
+c      "equivalenced" to tem1(iyjx2) --> tem6(iyjx2).
 c     item1(iyjx2) --> item6(iyjx2)
 c      "equivalenced" to tem1(iyjx2) --> tem6(iyjx2).
 c     iyjx2=(iy+2)*(jx+2)
 c     MOREOVER: We assume temp[1-6] are in contiguous storage,
 c               so we can reference the whole six arrays through tem1.
+cBH180527: Dimension of tem[1-6] modified to iyjx2l=max(iy+2,lrz)*(jx+2),
+cBH180527: to handle possible situation in netcdfrw2.
+c
 c     tam1(jx) --> tam30(jx)
 c     temc1(iy) --> temc4(iy)
 c     tz1(lza) --> tz2(lza)
@@ -236,7 +242,7 @@ cBH_YP090809  First dimension of choose should be larger of 2*mx,mx+2
      1                fctrl,choose,cog,pm
 
       pointer f
-      dimension f(:,:,:,:)
+      dimension f(:,:,:,:)  !f(0:iy+1,0:jx+1,ngen,lrors)
       common /dptr95/ f
       pointer favg
       dimension favg(:,:,:,:)
@@ -1711,16 +1717,16 @@ c     Here, we introduce f90 pointers, as they are easier
 c     to allocate.
 
       pointer rdcb
-      dimension rdcb(:,:,:)
+      dimension rdcb(:,:,:,:)
       common /dptr95/ rdcb
       pointer rdcc
-      dimension rdcc(:,:,:)
+      dimension rdcc(:,:,:,:)
       common /dptr95/ rdcc
       pointer rdce
-      dimension rdce(:,:,:)
+      dimension rdce(:,:,:,:)
       common /dptr95/ rdce
       pointer rdcf
-      dimension rdcf(:,:,:)
+      dimension rdcf(:,:,:,:)
       common /dptr95/ rdcf
 
 

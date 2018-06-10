@@ -586,6 +586,7 @@ c     related namelist names for backward compatibility.
 CMPIINSERT_IF_RANK_EQ_0
          WRITE(*,*)'For lossmode(k) banana losses, with NB it is '// 
      +   'ADVISEABLE to consistently use ndeltarho = enabled or freya'
+         WRITE(*,*)'Check cqlinput_help for updates on this'
 CMPIINSERT_ENDIF_RANK
           endif
           !YuP[01-2017] Adjusted/disabled simplbn1 and simplbn2 
@@ -731,8 +732,7 @@ CMPIINSERT_IF_RANK_EQ_0
           WRITE(*,404)
 CMPIINSERT_ENDIF_RANK
       enddo
- 404  format('WARNING: reset obsolete (as of 170630) lbdry="scale" to'
-     1        //' "consscal"')
+ 404  format('WARNING:reset (as of 170630) lbdry="scale" to "consscal"')
       if (kelecg.ne.0) then
          if (redenc(1,kelecg).ne.zero .and. 
      +    lbdry(kelecg).ne."scale") then
@@ -824,14 +824,14 @@ cBH131104:  for example, using with iterative electric field control.
          !do k=1,ngen
          if(soln_method.eq.'it3drv' .or. 
      +      soln_method.eq.'it3dv'      ) then
-            WRITE(*,*)'Warning: Setting soln_method=direct:'
+            WRITE(*,*)'Warning: Setting soln_method=direct: for ampfmod'
             WRITE(*,*)'      Code not presently set up for it3dv/it3drv'
             soln_method='direct'
          endif
          !enddo ! k=1,ngen
          if (lrz.ne.lrzmax) then
             WRITE(*,*)
-            WRITE(*,*)'STOP: Not a good to use lrz.ne.lrzmax'
+            WRITE(*,*)'STOP: Not good to use lrz.ne.lrzmax'
             WRITE(*,*)
             stop
          endif
@@ -870,6 +870,7 @@ cBH131104:  NEED to increase boundary options/include t-dep Vphib.
          write(*,*)
          stop
       endif
+         
 
       if (eseswtch.eq."enabled") then
          if (.not.(cqlpmod.eq."enabled".and. sbdry.eq."periodic")) then
@@ -1056,6 +1057,33 @@ CMPIINSERT_IF_RANK_EQ_0
          WRITE(*,*)'ainsetva:  STOP, rdcmod requires lrzdiff=disabled'
 CMPIINSERT_ENDIF_RANK
          stop
+      endif
+
+c     Make sure nrdc is not too large.
+      if (nrdc.gt.nrdca) then
+CMPIINSERT_IF_RANK_EQ_0
+         write(*,*) "STOP: Need to increase nrdca in param.h"
+CMPIINSERT_ENDIF_RANK
+         stop
+      endif
+
+c     Make sure nrdc=1, for rdcmod="format2"
+      if (rdcmod.eq."format2" .and. nrdc.ne.1) then
+CMPIINSERT_IF_RANK_EQ_0
+         write(*,*) "STOP: Need nrdc=1 for rdcmod=format2"
+         write(*,*) "      Else, need to recode"
+CMPIINSERT_ENDIF_RANK
+         stop
+      endif
+
+c     Adjusting rdcscale(1) for backwards compatibility
+      if (rdcscale(1).eq.1.d0) then
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*)'**** ainsetva: resetting rdcscale(1)=pwrscale(1) **'
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
+         rdcscale(1)=pwrscale(1)
       endif
 
 c     Soft X-ray

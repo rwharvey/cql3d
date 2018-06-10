@@ -148,7 +148,7 @@ c     nurftime,urftime(),pwrscale1()
 c..................................................................
 
          if (nurftime.le.0) then
-            pwrscalet=1.0
+            pwrscalet=one
          else
             itme=1
             do jtm=1,nurftime

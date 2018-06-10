@@ -33,22 +33,22 @@ c     Allocate rdc diffusion arrays on iy,jx,lrz grid
 c     (pointer statements in comm.h so can use variables elsewhere).
 c.................................................................
  
-      allocate (rdcb(iy,jx,lrz),STAT = istat)
+      allocate (rdcb(iy,jx,lrz,nrdc),STAT = istat)
       if(istat .ne. 0)
      .     call allocate_error("rdcb, sub rdc_multi",0,istat)
       call bcast(rdcb,zero,SIZE(rdcb))
       
-      allocate (rdcc(iy,jx,lrz),STAT = istat)
+      allocate (rdcc(iy,jx,lrz,nrdc),STAT = istat)
       if(istat .ne. 0)
      .     call allocate_error("rdcc, sub rdc_multi",0,istat)
       call bcast(rdcc,zero,SIZE(rdcc))
       
-      allocate (rdce(iy,jx,lrz),STAT = istat)
+      allocate (rdce(iy,jx,lrz,nrdc),STAT = istat)
       if(istat .ne. 0)
      .     call allocate_error("rdce, sub rdc_multi",0,istat)
       call bcast(rdce,zero,SIZE(rdce))
       
-      allocate (rdcf(iy,jx,lrz),STAT = istat)
+      allocate (rdcf(iy,jx,lrz,nrdc),STAT = istat)
       if(istat .ne. 0)
      .     call allocate_error("rdcf, sub rdf_multi",0,istat)
       call bcast(rdcf,zero,SIZE(rdcf))
@@ -62,14 +62,19 @@ c.................................................................
   309 format(10i10)
 
 c=======================================================================
+
+      do krf=1,nrdc  !Down to line 1020
+
       IF(rdcmod.eq.'format1'  .or.  rdcmod.eq.'aorsa') THEN
 
+
 CMPIINSERT_IF_RANK_EQ_0
+
       iunit=14
-      open(unit=iunit,file='du0u0_input',status='old',iostat=kode)
+      open(unit=iunit,file=rdcfile(krf),status='old',iostat=kode)
       if (kode.ne.0) then
          WRITE(*,*)
-     +        'File du0u0_input cannot be opened, rdcmod.ne.disabled'
+     +        'File rdcfile(krf) cannot be opened, rdcmod.ne.disabled'
          STOP
       endif
 
@@ -200,6 +205,7 @@ CMPIINSERT_BCAST_RDC
 
 c.......................................................................
       ELSE !(rdcmod.eq.'format2') ! READ diff.coeffs from separate files
+                                  ! Coding only set up for nrdc=1.
 c.......................................................................      
             
       write(i_psi_index(1:3),'(3I1)') 0,0,0  ! prepare i_psi_index='000'
@@ -353,7 +359,7 @@ c=======================================================================
 
 
 
-      write(*,*)'rdc_multi: after read of du0u0_input'
+      write(*,*)'rdc_multi: after read of rdcfile(krf), krf=',krf
 
 
 
@@ -681,22 +687,22 @@ c     +                       upar(ipar+1),uprp(iprp+1),dupdup
                   wsum=w00+w01+w10+w11
 c                  write(*,*)'ipar,iprp,w00,w01,w10,w11,wsum=',
 c    +                       ipar,iprp,w00,w01,w10,w11,wsum
-                  rdcb(i,j,ll)=(w00*rdc_cqlb(iprp,ipar,ll)
+                  rdcb(i,j,ll,krf)=(w00*rdc_cqlb(iprp,ipar,ll)
      +                     +w01*rdc_cqlb(iprp+1,ipar,ll)
      +                     +w10*rdc_cqlb(iprp,ipar+1,ll)
      +                     +w11*rdc_cqlb(iprp+1,ipar+1,ll))/symm
                   
-                  rdcc(i,j,ll)=(w00*rdc_cqlc(iprp,ipar,ll)
+                  rdcc(i,j,ll,krf)=(w00*rdc_cqlc(iprp,ipar,ll)
      +                     +w01*rdc_cqlc(iprp+1,ipar,ll)
      +                     +w10*rdc_cqlc(iprp,ipar+1,ll)
      +                     +w11*rdc_cqlc(iprp+1,ipar+1,ll))/symm
 
-                  rdce(i,j,ll)=(w00*rdc_cqle(iprp,ipar,ll)
+                  rdce(i,j,ll,krf)=(w00*rdc_cqle(iprp,ipar,ll)
      +                     +w01*rdc_cqle(iprp+1,ipar,ll)
      +                     +w10*rdc_cqle(iprp,ipar+1,ll)
      +                     +w11*rdc_cqle(iprp+1,ipar+1,ll))/symm
 
-                  rdcf(i,j,ll)=(w00*rdc_cqlf(iprp,ipar,ll)
+                  rdcf(i,j,ll,krf)=(w00*rdc_cqlf(iprp,ipar,ll)
      +                     +w01*rdc_cqlf(iprp+1,ipar,ll)
      +                     +w10*rdc_cqlf(iprp,ipar+1,ll)
      +                     +w11*rdc_cqlf(iprp+1,ipar+1,ll))/symm
@@ -717,11 +723,11 @@ c.................................................................
       do ll=1,lrz
       do j=1,jx
          do i=1,iy
-            rdcbmax=max(rdcbmax,rdcb(i,j,ll))
+            rdcbmax=max(rdcbmax,rdcb(i,j,ll,krf))
          enddo
       enddo
       enddo
-      write(*,*)'rdc_multi: rdcbmax.1 =',rdcbmax
+      write(*,*)'rdc_multi: krf=',krf,' rdcbmax.1 =',rdcbmax
 
 c.................................................................
 c     Scaling diffusion coeffs
@@ -730,10 +736,10 @@ c.................................................................
       do ll=1,lrz
          do j=1,jx
             do i=1,iy
-               rdcb(i,j,ll)=pwrscale(1)*rdcb(i,j,ll)
-               rdcc(i,j,ll)=pwrscale(1)*rdcc(i,j,ll)
-               rdcf(i,j,ll)=pwrscale(1)*rdcf(i,j,ll)
-               rdce(i,j,ll)=pwrscale(1)*rdce(i,j,ll)
+               rdcb(i,j,ll,krf)=rdcscale(krf)*rdcb(i,j,ll,krf)
+               rdcc(i,j,ll,krf)=rdcscale(krf)*rdcc(i,j,ll,krf)
+               rdcf(i,j,ll,krf)=rdcscale(krf)*rdcf(i,j,ll,krf)
+               rdce(i,j,ll,krf)=rdcscale(krf)*rdce(i,j,ll,krf)
             enddo
          enddo
       enddo
@@ -755,21 +761,21 @@ c.................................................................
       do j=1,jx
          do i=1,iy 
             sum_pos_duu= sum_pos_duu+cynt2(i,ll)*cint2(j)*
-     +           max(zero,rdcb(i,j,ll))
+     +           max(zero,rdcb(i,j,ll,krf))
             sum_neg_duu= sum_neg_duu+cynt2(i,ll)*cint2(j)*
-     +           min(zero,rdcb(i,j,ll))
+     +           min(zero,rdcb(i,j,ll,krf))
             sum_pos_dtt= sum_pos_dtt+cynt2(i,ll)*cint2(j)*
-     +           max(zero,rdcf(i,j,ll))
+     +           max(zero,rdcf(i,j,ll,krf))
             sum_neg_dtt= sum_neg_dtt+cynt2(i,ll)*cint2(j)*
-     +           min(zero,rdcf(i,j,ll))
+     +           min(zero,rdcf(i,j,ll,krf))
          enddo
       enddo
       enddo
 
-      write(*,*)'rdc_multi: sum_pos_duu,sum_neg_duu',
-     +                      sum_pos_duu,sum_neg_duu  
+      write(*,*)'rdc_multi: krf=',krf,' sum_pos_duu,sum_neg_duu',
+     +                      krf,sum_pos_duu,sum_neg_duu  
       write(*,*)'rdc_multi: sum_pos_dtt,sum_neg_dtt',
-     +                      sum_pos_dtt,sum_neg_dtt
+     +                      krf,sum_pos_dtt,sum_neg_dtt
 
 c$$$c     Non-symmetry of rdcc,rdce  [Visual exam shows
 c$$$c       this non-symmetry is general].
@@ -810,18 +816,18 @@ c..................................................................
         call tdnflxs(ll)
         do 56 j=1,jx
           do 57 i=itl,itu
-            temp1(i,j)=rdcb(i,j,indxlr_)
-            temp2(i,j)=rdcc(i,j,indxlr_)
-            temp3(i,j)=rdce(i,j,indxlr_)
-            temp4(i,j)=rdcf(i,j,indxlr_)
+            temp1(i,j)=rdcb(i,j,indxlr_,krf)
+            temp2(i,j)=rdcc(i,j,indxlr_,krf)
+            temp3(i,j)=rdce(i,j,indxlr_,krf)
+            temp4(i,j)=rdcf(i,j,indxlr_,krf)
  57       continue
  56     continue
         do 60 j=1,jx
           do 70 i=itl,itu
-            rdcb(i,j,indxlr_)=(temp1(i,j)+temp1(iy+1-i,j))*.5
-            rdcc(i,j,indxlr_)=(temp2(i,j)-temp2(iy+1-i,j))*.5
-            rdce(i,j,indxlr_)=(temp3(i,j)-temp3(iy+1-i,j))*.5
-            rdcf(i,j,indxlr_)=(temp4(i,j)+temp4(iy+1-i,j))*.5
+            rdcb(i,j,indxlr_,krf)=(temp1(i,j)+temp1(iy+1-i,j))*.5
+            rdcc(i,j,indxlr_,krf)=(temp2(i,j)-temp2(iy+1-i,j))*.5
+            rdce(i,j,indxlr_,krf)=(temp3(i,j)-temp3(iy+1-i,j))*.5
+            rdcf(i,j,indxlr_,krf)=(temp4(i,j)+temp4(iy+1-i,j))*.5
  70       continue
  60     continue
       enddo
@@ -840,42 +846,44 @@ c      goto 100 !!!!!!!!!!!!!!!!!!!!!!!! skip adjustments ----------------------
                ! rdcb= Duu*|upar|*taub*u^2 /vnorm^4  
                ! rdcf= Dtt*sin(theta)*|upar|*taub*u^2 /vnorm^2 
                ! Diagonal diffusion elements should not be negative:
-               rdcb(i,j,ll)=max(rdcb(i,j,ll),zero) 
-               rdcf(i,j,ll)=max(rdcf(i,j,ll),zero)
+               rdcb(i,j,ll,krf)=max(rdcb(i,j,ll,krf),zero) 
+               rdcf(i,j,ll,krf)=max(rdcf(i,j,ll,krf),zero)
                ! rdcc= Dut*|upar|*taub*u^2 /vnorm^3
                ! rdce= Dtu*sin(theta)|upar|*taub*u^2 /vnorm^3
                ! Where one is zero, another must also be zero:
-               if (rdcc(i,j,ll).eq.zero .and. rdce(i,j,ll).ne.zero) then
-                  rdce(i,j,ll)=zero
+               if (rdcc(i,j,ll,krf).eq.zero .and. 
+     +            rdce(i,j,ll,krf).ne.zero) then
+                  rdce(i,j,ll,krf)=zero
 c$$$                  write(*,*)'rdcc zero but rdce not,i,j,ll',
 c$$$     +                                              i,j,ll
                endif
-               if (rdce(i,j,ll).eq.zero .and. rdcc(i,j,ll).ne.zero) then
-                  rdcc(i,j,ll)=zero
+               if (rdce(i,j,ll,krf).eq.zero .and.
+     +            rdcc(i,j,ll,krf).ne.zero) then
+                  rdcc(i,j,ll,krf)=zero
 c$$$                  write(*,*)'rdce zero but rdce not,i,j,ll',
 c$$$     +                                              i,j,ll
                endif
                ! Dut=Dtu, so rdcc and rdce should have same sign: 
-               if (rdcc(i,j,ll)*rdce(i,j,ll).lt.zero) then
+               if (rdcc(i,j,ll,krf)*rdce(i,j,ll,krf).lt.zero) then
                   !-YuP: Which to reverse? C or E?
-                  rdcc(i,j,ll)=-1.*rdcc(i,j,ll) 
+                  rdcc(i,j,ll,krf)=-1.*rdcc(i,j,ll,krf) 
                   !-YuP: Another possibility (~ same result) -
                   !-YuP: set both C and E to zero:
-                  rdcc(i,j,ll)=zero 
-                  rdce(i,j,ll)=zero 
+                  rdcc(i,j,ll,krf)=zero 
+                  rdce(i,j,ll,krf)=zero 
 c$$$                  write(*,*)'Neg rdcc(i,j,ll)*rdce(i,j,ll),i,j,ll',
 c$$$     +                                                     i,j,ll
                endif
 c     Further ensuring have parabolic equations.
                ! Ensure that  rdcb*rdcf-rdcc*rdce =0 !-YuP: =0 or >0 ??
-               B0F0= rdcb(i,j,ll)*rdcf(i,j,ll)
-               C0E0= rdcc(i,j,ll)*rdce(i,j,ll)
+               B0F0= rdcb(i,j,ll,krf)*rdcf(i,j,ll,krf)
+               C0E0= rdcc(i,j,ll,krf)*rdce(i,j,ll,krf)
                if (B0F0 .ne. zero) then
                   !if (C0E0.ne.zero) then !-YuP: to enforce C0E0=B0F0
                   if (C0E0.gt.B0F0) then !-YuP: to enforce C0E0 =< B0F0
                      scaled=sqrt(B0F0/C0E0)
-                     rdcc(i,j,ll)=rdcc(i,j,ll)*scaled
-                     rdce(i,j,ll)=rdce(i,j,ll)*scaled
+                     rdcc(i,j,ll,krf)=rdcc(i,j,ll,krf)*scaled
+                     rdce(i,j,ll,krf)=rdce(i,j,ll,krf)*scaled
                   else ! C0E0=0 => Should have rdcb*rdcf=0.
                      !-YuP: Could be either rdcb=0 or rdcf=0
                      !-YuP: How to choose? Usually rdcf is small, 
@@ -884,8 +892,8 @@ c     Further ensuring have parabolic equations.
                   endif
                else ! B0F0=0 => Should have rdcc*rdce=0.
                   ! Dut=Dtu so that both should be zero:
-                  rdcc(i,j,ll)=zero
-                  rdce(i,j,ll)=zero
+                  rdcc(i,j,ll,krf)=zero
+                  rdce(i,j,ll,krf)=zero
                endif
                !rdce(i,j,ll)=zero ! Un-comment to set E0=0:
                !rdcc(i,j,ll)=-rdcc(i,j,ll) ! Un-comment to reverse C0
@@ -909,21 +917,21 @@ c..................................................................
       do ll=1,lrz
       do j=1,jx
          do i=1,iy
-            rdcbmax0=max(rdcbmax0,rdcb(i,j,ll))
+            rdcbmax0=max(rdcbmax0,rdcb(i,j,ll,krf))
          enddo
       enddo
       enddo
-      write(*,*)'rdc_multi: rdcbmax.2 =',rdcbmax0
+      write(*,*)'rdc_multi: krf=',krf,' rdcbmax.2 =',rdcbmax0
 
       if (ineg.eq."trunc_d") then
         if (jx.le.11) stop 'rdc_multi:  Need jx>11'
         do ll=1,lrz
         do 90 j=jx-11,jx
           do 91 i=1,iy
-            rdcb(i,j,ll)=truncd(j)*rdcb(i,j,ll)
-            rdcc(i,j,ll)=truncd(j)*rdcc(i,j,ll)
-            rdce(i,j,ll)=truncd(j)*rdce(i,j,ll)
-            rdcf(i,j,ll)=truncd(j)*rdcf(i,j,ll)
+            rdcb(i,j,ll,krf)=truncd(j)*rdcb(i,j,ll,krf)
+            rdcc(i,j,ll,krf)=truncd(j)*rdcc(i,j,ll,krf)
+            rdce(i,j,ll,krf)=truncd(j)*rdce(i,j,ll,krf)
+            rdcf(i,j,ll,krf)=truncd(j)*rdcf(i,j,ll,krf)
  91       continue
  90     continue
         enddo
@@ -935,11 +943,11 @@ c.................................................................
       do ll=1,lrz
       do j=1,jx
          do i=1,iy
-            rdcbmax=max(rdcbmax,rdcb(i,j,ll))
+            rdcbmax=max(rdcbmax,rdcb(i,j,ll,krf))
          enddo
       enddo
       enddo
-      write(*,*)'rdc_multi: rdcbmax.3 =',rdcbmax
+      write(*,*)'rdc_multi: krf=',krf,' rdcbmax.3 =',rdcbmax
 
 c.................................................................
 c     Plotting diffusion coefficient
@@ -948,17 +956,32 @@ c.................................................................
 
       do ll=1,lrz
          call tdnflxs(ll)
-         call rdc_bplt
+         if(pltrdc.ne."disabled") then
+            if (pltrdc.eq."one" .or. pltrdc.eq."enabled") then
+               call rdc_bplt(1)
+            else
+               call rdc_bplt(krf)
+            endif
+         endif
       enddo
-      write(*,*)' END of rdc_multi'
-c      write(*,*)'STOP: END of rdc_multi' 
-c      STOP
 
 c.................................................................
 c     Writing diffusion coefficient to netcdf file (comment out if
 c     don't need this any longer).
 c.................................................................
-      call netcdf_rdcb
+      
+      if(rdc_netcdf.ne."disabled") then
+         if (rdc_netcdf.eq."one" .or. rdc_netcdf.eq."enabled") then
+            call netcdf_rdcb(1)
+         else
+            call netcdf_rdcb(krf)
+         endif
+      endif
+
+      write(*,*)' END of rdc_multi'
+c      write(*,*)'STOP: END of rdc_multi' 
+c      STOP
+
 c.................................................................
 c     Dallocate local storage
 c.................................................................
@@ -970,6 +993,12 @@ c.................................................................
          WRITE(*,*)'rdc_multi: dallocation error'
          STOP
       endif
+
+c.................................................................
+c     enddo on krf=1,nrdc, line 66
+c.................................................................
+      
+      enddo
 
       return
       end

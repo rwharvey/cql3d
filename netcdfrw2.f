@@ -1770,7 +1770,7 @@ c        Do nothing: no storage defined.
             call ncaptc2(ncid,vid,'comment',NCCHAR,44,
      +           'Additional dimension added for multi-species',istatus)
          endif  !on ngen
-      else                      !Standard o/p: f at last time step
+      else     !disabled, Standard o/p: f at last time step
          if (ngen.eq.1) then    !maintaining backwards compatability
             vid=ncvdef2(ncid,'f',NCDOUBLE,3,dims,istatus)
             call ncaptc2(ncid,vid,'long_name',NCCHAR,21,
@@ -3110,6 +3110,7 @@ cBH011221: For now, simply stop.
      +               'nstop0.netcdfrw2/tavg=en ll,sumij(favg),sumij(f)',
      +                 ll,sum(temp1),sum(f(:,:,k,lrindx(ll)))
                   endif  !On tavg
+c                 temp1 dimensnd 0:iyp1,0,jxp1. Pack in to (1:iy,1:jx)
                   call pack21(temp1,0,iyp1,0,jxp1,wkpack,iy,jx)
                   start1(3)=ll
                 call ncvpt_doubl2(ncid,vid,start1,count1,wkpack,istatus)

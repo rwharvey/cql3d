@@ -25,7 +25,6 @@ c.......................................................................
 
       if (nlrestrt.ne."disabled") then
          ireturn=1
-c         if (l_.eq.1) call tdreadf(2)
          call tdreadf(2)
       endif
 

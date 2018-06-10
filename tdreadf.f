@@ -2,12 +2,15 @@ c
 c
       subroutine tdreadf(kopt)
       implicit integer (i-n), real*8 (a-h,o-z)
+      save
 
 c.......................................................................
 c     Read namelist, distribution function and spatial source from 
 c       a previous run.
-c     kopt = 1: Read namelists (should be first call, to place file
-c               pointer at beginning of f)
+c     kopt = 1: Read namelists from text file distrfunc (should be first
+c               call, to place file pointer at beginning of f). 
+c               Only called if nlrstrt="enabled", otherwise distrfunc
+c               not needed.
 c          = 2: Read f
 c.......................................................................
 
@@ -27,8 +30,9 @@ c --- (obtained from NetCDF distribution)
 CMPIINSERT_INCLUDE     
 
       integer ncid,istatus
-      integer xdim,ydim,rdim,vid
-      integer count(3),start(3)
+      integer xdim,ydim,rdim,gen_species_dim,vid
+cBH180517      integer count(3),start(3)
+      integer count(4),start(4)
       character*128 name
 
 c     Pointers for dynamic memory allocation, local usage:
@@ -46,7 +50,7 @@ c.......................................................................
 
       iunwrif=19
 
-      if (kopt .eq. 2) go to 200
+      if (kopt .eq. 2) go to 200  !line 109
 
       open(unit=iunwrif,file='distrfunc')
       rewind(iunwrif)
@@ -99,13 +103,13 @@ CMPIINSERT_ENDIF_RANK
       return
 
 c.......................................................................
-cl    2. Read f(i,j,k,l)
+cl    2. Read f(i,j,k,l) from text distfunc file.
 c     l_.eq.lrors clause detects first of l_=lrors,1,-1 calls
 c.......................................................................
 
  200  continue
 
-      if (nlrestrt.eq."enabled" .and. l_.eq.lrors) then
+      if (nlrestrt.eq."enabled" .and. l_.eq.lrors) then  !elseif, ln 145
          
 CMPIINSERT_IF_RANK_EQ_0
          WRITE(*,*)'tdreadf:  Reading distfunc (text f)'
@@ -138,19 +142,22 @@ c.......................................................................
 
 
 c.......................................................................
-c     Read netcdf distribution function, v-mesh unchanged
+c     Read distribution function from NetCDF file, v-mesh UNchanged
 c.......................................................................
 
       elseif (nlrestrt.eq."ncdfdist" .and. l_.eq.lrors) then
+                                                       !elseif, line 290
 
-         if (ngen.gt.1) then
-CMPIINSERT_IF_RANK_EQ_0
-            WRITE(*,*)'tdreadf: need ngen.gt.1 reading of distfunc.nc'
-CMPIINSERT_ENDIF_RANK
-            stop 'in tdreadf'
-         endif
+c$$$BH180517:
+c$$$         if (ngen.gt.1) then
+c$$$CMPIINSERT_IF_RANK_EQ_0
+c$$$            WRITE(*,*)'tdreadf: need ngen.gt.1 reading of distfunc.nc'
+c$$$CMPIINSERT_ENDIF_RANK
+c$$$            stop 'in tdreadf'
+c$$$         endif
          
-c     Open existing netCDF file
+c     Open existing netCDF file [Typically, the distrfunc.nc is linked
+c     to the mnemonic.nc file from an earlier cql3d run.]
 CMPIINSERT_IF_RANK_EQ_0
          WRITE(*,*)'tdreadf:  Reading distrfunc.nc (netcdf f)'
 CMPIINSERT_ENDIF_RANK
@@ -161,6 +168,8 @@ CMPIINSERT_ENDIF_RANK
 CMPIINSERT_IF_RANK_EQ_0
             WRITE(*,*)'tdreadf: distrfunc.nc missing/problem'
             WRITE(*,*)'tdreadf: CHECKING for mnemonic file : ',t_
+            WRITE(*,*)'tdreadf: BUT BE CAREFUL, the file will be '
+            WRITE(*,*)'tdreadf:     overwritten at end of present run. '
 CMPIINSERT_ENDIF_RANK
             ! YuP[03-01-2016] Added: if distrfunc.nc is missing, 
             ! try reading the mnemonic.nc file.
@@ -169,7 +178,11 @@ CMPIINSERT_ENDIF_RANK
             istatus = NF_OPEN(t_, 0, ncid) 
             if (istatus .NE. NF_NOERR) then 
 CMPIINSERT_IF_RANK_EQ_0
-               WRITE(*,*)'tdreadf: Cannot open/missing mnemonic.nc'
+               WRITE(*,*)
+               WRITE(*,*)'tdreadf: Cannot open/missing mnemonic.nc'//
+     +              ' for which opening has been attempted in lieu'//
+     +              ' of distrfunc.nc'
+               WRITE(*,*)
 CMPIINSERT_ENDIF_RANK
             endif
          endif                                     
@@ -179,20 +192,22 @@ c     read in dimension IDs and sizes
          istatus= NF_INQ_DIMID(ncid,'xdim',xdim) !-YuP: NetCDF-f77
          istatus= NF_INQ_DIMID(ncid,'ydim',ydim) !-YuP: NetCDF-f77
          istatus= NF_INQ_DIMID(ncid,'rdim',rdim) !-YuP: NetCDF-f77
+         istatus= NF_INQ_DIMID(ncid,'gen_species_dim',gen_species_dim)
 
 c     --- inquire about dimension sizes ---
          istatus= NF_INQ_DIM(ncid,ydim,name,iy_rstrt)  !-YuP: NetCDF-f77 
          istatus= NF_INQ_DIM(ncid,xdim,name,jx_rstrt)  !-YuP: NetCDF-f77 
          istatus= NF_INQ_DIM(ncid,rdim,name,lrz_rstrt) !-YuP: NetCDF-f77 
+         istatus= NF_INQ_DIM(ncid,gen_species_dim,name,ngen_rstrt)
          
          if (iy_rstrt.ne.iy
      1        .or. jx_rstrt.ne.jx
-     1        .or. lrz_rstrt.ne.lrz) then
+     1        .or. lrz_rstrt.ne.lrz .or. ngen_rstrt.ne.ngen) then
 CMPIINSERT_IF_RANK_EQ_0
             WRITE(*,*)'Problem with distrfunc.nc file'
-            WRITE(*,*)'  iy,jx,lrz=',iy,jx,lrz,
-     1           ' iy_rstrt,jx_rstrt,lrz_rstrt=',
-     1           iy_rstrt,jx_rstrt,lrz_rstrt
+            WRITE(*,*)'  iy,jx,lrz,ngen=',iy,jx,lrz,ngen,
+     1           ' iy_rstrt,jx_rstrt,lrz_rstrt,ngen_rstrt=',
+     1           iy_rstrt,jx_rstrt,lrz_rstrt,ngen_rstrt
 CMPIINSERT_ENDIF_RANK
             STOP ' in tdreadf'
          endif
@@ -205,34 +220,38 @@ c-YuP:         call ncvgt(ncid,vid,1,lrz,iy_,istatus)
          do ll=1,lrz
             if (iy_(ll).ne.iy) then
 CMPIINSERT_IF_RANK_EQ_0
-               WRITE(*,*)'tdreadf: Variable iy_(ll), only cnst setup'
+               WRITE(*,*)'tdreadf:Variable iy_(ll), but only cnst setup'
 CMPIINSERT_ENDIF_RANK
                stop 'in tdtreadf'
             endif
          enddo
 
-c-----distribution function f(i,j,ll) [vnorm**3/(cm**3*(cm/sec)**3)]
          start(1)=1
          start(2)=1
-         start(3)=1
+
          count(1)=iy
          count(2)=jx
          count(3)=1
-c-YuP:         vid=ncvid(ncid,'f',istatus)
+         count(4)=1
+
          istatus= NF_INQ_VARID(ncid,'f',vid)  !-YuP: NetCDF-f77 get vid
-         call bcast(f,zero,(iy+2)*(jx+2)*ngen*lrors)
+         call bcast(f,zero,(iy+2)*(jx+2)*ngen*lrors)  !This f is f_code
+
+         do k=1,ngen
          do ll=1,lrz
             start(3)=ll
-c-YuP:            call ncvgt(ncid,vid,start,count,tem1,istatus)
-            istatus= NF_GET_VARA_DOUBLE(ncid,vid,start,count,tem1) !-YuP: NetCDF-f77
+            start(4)=k
+            istatus= NF_GET_VARA_DOUBLE(ncid,vid,start,count,tem1)
             ij=0
             do j=1,jx
-               do i=1,iy_(ll)
+               do i=1,iy
                   ij=ij+1
-                  f(i,j,1,ll)=tem1(ij)
-               enddo
+                  f(i,j,k,ll)=tem1(ij)
+               enddo  
             enddo
-         enddo
+         enddo  !on ll
+         enddo  !on k=1,ngen
+
          
          istatus=NF_CLOSE(ncid)
 
@@ -252,26 +271,27 @@ c.......................................................................
 !need flux surface geometry quantities zmaxpsi(lr_) and tau(lr_)
 !which are also calculated one flux surface at a time.
 
-         elseif (nlrestrt.eq."ncregrid") then !re-grid mod option
+      elseif (nlrestrt.eq."ncregrid") then !re-grid mod option
+                                           !endif, line 645
                                         
-                                        
-         if (l_.eq.lrors) then
+         if (l_.eq.lrors) then  !That is, first l_ call of tdreadf
 
-         if (ngen.gt.1) then
-CMPIINSERT_IF_RANK_EQ_0
-            WRITE(*,*)
-            WRITE(*,*)'================================================'
-            WRITE(*,*)'tdreadf: Re-grid of rstrt distribution:'
-            WRITE(*,*)'requires ngen.le.1'
-            WRITE(*,*)'================================================'
-CMPIINSERT_ENDIF_RANK
-            stop
-         else
-            k=1
-         endif
+c$$$BH180518
+c$$$         if (ngen.gt.1) then
+c$$$CMPIINSERT_IF_RANK_EQ_0
+c$$$            WRITE(*,*)
+c$$$            WRITE(*,*)'================================================'
+c$$$            WRITE(*,*)'tdreadf: Re-grid of rstrt distribution:'
+c$$$            WRITE(*,*)'requires ngen.le.1'
+c$$$            WRITE(*,*)'================================================'
+c$$$CMPIINSERT_ENDIF_RANK
+c$$$            stop
+c$$$         else
+c$$$            k=1
+c$$$         endif
 
          
-c     Open existing netCDF file
+c     Open existing NetCDF file
 CMPIINSERT_IF_RANK_EQ_0
          WRITE(*,*)'tdreadf:  Reading distfunc.nc (netcdf f)'
 CMPIINSERT_ENDIF_RANK
@@ -288,21 +308,24 @@ c     read in dimension IDs and sizes
          istatus= NF_INQ_DIMID(ncid,'xdim',xdim)
          istatus= NF_INQ_DIMID(ncid,'ydim',ydim)
          istatus= NF_INQ_DIMID(ncid,'rdim',rdim)
+         istatus= NF_INQ_DIMID(ncid,'gen_species_dim',gen_species_dim)
          
 c     --- inquire about dimension sizes ---
-         istatus= NF_INQ_DIM(ncid,ydim,name,iy_rstrt)
          istatus= NF_INQ_DIM(ncid,xdim,name,jx_rstrt)
+         istatus= NF_INQ_DIM(ncid,ydim,name,iy_rstrt)
          istatus= NF_INQ_DIM(ncid,rdim,name,lrz_rstrt)
+         istatus= NF_INQ_DIM(ncid,gen_species_dim,name,ngen_rstrt)
          
 c        for nlrestrt.eq.'ncregrid', jx_rstrt can be different from jx
+c        Also enforce that ngen is .le. gen_species_dim.
          if (iy_rstrt.ne.iy
 c     1        .or. jx_rstrt.ne.jx
-     1        .or. lrz_rstrt.ne.lrz) then
+     1        .or. lrz_rstrt.ne.lrz .or. ngen_rstrt.ne.ngen) then
 CMPIINSERT_IF_RANK_EQ_0
             WRITE(*,*)'Problem with distrfunc.nc file'
-            WRITE(*,*)'  iy,lrz=',iy,lrz,
-     1           ' iy_rstrt,lrz_rstrt=',
-     1           iy_rstrt,lrz_rstrt
+            WRITE(*,*)'  iy,lrz,ngen=',iy,lrz,ngen,
+     1           ' iy_rstrt,lrz_rstrt,ngen_rstrt=',
+     1           iy_rstrt,lrz_rstrt,ngen_rstrt
 CMPIINSERT_ENDIF_RANK
             STOP ' in tdreadf'
          endif
@@ -322,8 +345,11 @@ CMPIINSERT_ENDIF_RANK
 c-----distribution function f(i,j,ll) [vnorm**3/(cm**3*(cm/sec)**3)]
 c-----to be obtained by extrapolation and interpolation onto new
 c-----x-grid, BH110121.
+c-----general species: for coding simplicity, all gen species read
+c                      in and restored.
 
 c     Allocate temporary space
+c         allocate (f_rstrt(iy,jx_rstrt,lrz,ngen),STAT = istat)   !Can't do this: f_rstrt has 3 dims
          allocate (f_rstrt(iy,jx_rstrt,lrz),STAT = istat)
          if(istat .ne. 0)
      .        call allocate_error("f_rstrt, sub tdreadf",0,istat)
@@ -415,16 +441,6 @@ CMPIINSERT_ENDIF_RANK
          enddo
 
          call bcast(f,zero,(iy+2)*(jx+2)*ngen*lrors)
- 
-c        Read f_rstrt at all flux surfaces
-         start(1)=1
-         start(2)=1
-         start(3)=1
-         count(1)=iy_rstrt   !=iy
-         count(2)=jx_rstrt   !possibly diff from jx
-         count(3)=lrz_rstrt  !=lrz
-         istatus= NF_INQ_VARID(ncid,'f',vid)
-         istatus= NF_GET_VARA_DOUBLE(ncid,vid,start,count,f_rstrt)
 
 c        Allocate space and read data for density calc below.
          allocate (tam2r(jx_rstrt),STAT = istat)
@@ -435,20 +451,44 @@ c        Allocate space and read data for density calc below.
          if(istat .ne. 0)
      .        call allocate_error("cint2r, sub tdreadf",0,istat)
          call bcast(cint2r,zero,jx_rstrt)
-
          istatus= NF_INQ_VARID(ncid,'cint2',vid)
          istatus= NF_GET_VARA_DOUBLE(ncid,vid,(1),(jx_rstrt),cint2r)
 
-         istatus=NF_CLOSE(ncid)
+         endif  !  On l_.eq.lrors
+ 
+c.......................................................................
+c        Read in and process f_rstrt one gen species at a time
+c        f_rstrt dimensioned (1:iy,1:jx,1:lrz)
+cBH180602:  Read does not exactly mirror the write in netcdfrw2.
+cBH180602:  Check that it is OK!
+c.......................................................................
+         do k=1,ngen   !down to line 692
+
+cBH180606         if (l_.eq.lrors) then  !That is, on first call tdreadf
+         start(1)=1
+         start(2)=1
+cBH180606         start(3)=1
+         start(3)=l_
+         start(4)=k
+         count(1)=iy_rstrt   !=iy
+         count(2)=jx_rstrt   !possibly diff from jx
+cBH180606         count(3)=lrz_rstrt  !=lrz
+         count(3)=1
+         count(4)=1
+         istatus= NF_INQ_VARID(ncid,'f',vid)
+         istatus= NF_GET_VARA_DOUBLE
+     1                            (ncid,vid,start,count,f_rstrt(1,1,l_))
+                                     !This netCDF 'f' is a 4D object,
+                                     !gen_species_dim, rdim, xdim, ydim.
+                                     !Read it in to 3D f_rstrt
+                                     !and process to code f(:,:,:,:), 
+                                     !one gen species at at time.
 
 c        Code distribution function is f_cgs_units*vnorm**3.
 c        The restart distribution is similarly normalized:
 c        f_cgs_units_rstrt*vnorm_rstrt**3.
 c        Thus, f_code=vnorm**3 * fcode_rstrt/vnorm_rstrt**3.
          renorm_f=(vnorm/vnorm_rstrt)**3
-
-         endif  !On l_.eq.lrors
-
 
 c        If vnorm_rstrt.lt.(vnorm+1d-10), will extrapolate beyond
 c        edge of vnorm_rstrt grid, or beyond point where f(v)/f(v=0)
@@ -457,9 +497,11 @@ c        versus v_rstrt, using j_rstrt values at 75% and 95% of
 c        jx_rstrt, separately for each pitch angle index i.
 c        For values of code grid x(j) on the x_rstrt()-grid, linearly
 c        interpolate in ln(f) vs v**2, to maintain a Maxwellian at
-c        low velocity.Do one flux surface at a time.
+c        low velocity. Do one flux surface at a time.
          
-         if ( l_.le.lrors ) then !Calc f, one flux surface per call
+cBH180606         endif  !On l_.eq.lrors)
+
+cBH180606         if ( l_.le.lrors ) then !Calc f, one flux surface per call
 
 c......................................................................
 c        Cutoff ratio for extended distribution function, measured
@@ -524,19 +566,19 @@ c
                   if (v2(j).lt.v_rstrt2(j2)) then
                      call terp1(j2,v_rstrt2,f_rstrt_ln,d2fparr,v2(j),
      1                    1,tab,itab)  !interpolate
-                     f(i,j,1,ll)=renorm_f*exp(tab(1))
+                     f(i,j,k,ll)=renorm_f*exp(tab(1))
                   else  !extrapolate
 cBH110525                     f(i,j,1,ll)=renorm_f*exp(aa(i)*v2(j)+bb(i))
-                     f(i,j,1,ll)=renorm_f*exp(aa(i)*v(j)+bb(i))
+                     f(i,j,k,ll)=renorm_f*exp(aa(i)*v(j)+bb(i))
                   endif
                   !Set floor on extrapolated/interp'd f:
-                  if (f(i,j,1,ll).lt.em100) f(i,j,1,ll)=em100
+                  if (f(i,j,k,ll).lt.em100) f(i,j,k,ll)=em100
                enddo
 
             enddo  !On i
 
 c.......................................................................
-c     Calculate FSA density in rstrt distribution and in code
+c     Calculate FSA density/energy in rstrt distribution and in code
 c     distribution after interpolation and extrapolation.
 c     Renormalize code distribution to rstrt FSA density.
 c     Follow coding in diaggnde.f.
@@ -554,10 +596,14 @@ c.......................................................................
                enddo
             enddo
             hnr=zero
+            snr=zero
             do j=1,jx_rstrt
                hnr=hnr+tam2r(j)*cint2r(j)
+               snr=snr+tam2r(j)*cint2r(j)*x_rstrt(j)**2  !NonRel Energy
             enddo
             redenr=hnr/zmaxpsi(lr_)  !FSA density from f_rstrt
+            senergyr=snr/hnr*fions(k)*vnorm_rstrt**2/vnorm2
+                                       !FSA energy density from f_rstrt
 
             call bcast(tam2,zero,jx)
             do i=1,iy
@@ -567,15 +613,24 @@ c.......................................................................
                enddo
             enddo
             hn=zero
+            sn=zero
             do j=1,jx
                hn=hn+tam2(j)*cint2(j)
+               sn=sn+tam2(j)*cint2(j)*x(j)**2  !NonRel
             enddo
             reden_code=hn/zmaxpsi(lr_) !FSA density from code f, after 
                                        !interpolation and extrapolation.
             reden_eps=(reden_code-redenr)/redenr
+            senergy_code=sn/hn*fions(k)
+                                           !FSA en density from code f.
+            senergy_eps=(senergy_code-senergyr)/senergyr
 CMPIINSERT_IF_RANK_EQ_0
-            WRITE(*,*)'tdreadf: l_=',l_, 
-     1           '  Fractional density chng, reden_eps_=', reden_eps
+            WRITE(*,*)'tdreadf:k=',k,', l_=',l_,' reden_code=',
+     1           reden_code, 
+     1           ' Fractional density chng, reden_eps_=',reden_eps
+            WRITE(*,*)'tdreadf: senergy_code=',
+     1           senergy_code, 
+     1          ' Fractional en density chng, senergy_eps_=',senergy_eps
 CMPIINSERT_ENDIF_RANK
 c           Renormalize code f to FSA density of restart f:
             reden_rat=redenr/reden_code
@@ -585,19 +640,26 @@ c           Renormalize code f to FSA density of restart f:
                enddo
             enddo
 
-         endif  !On l_.le.lrors
+cBH180606         endif  !On l_.le.lrors
 
-         if (l_.eq.1) then
+
+      enddo  !On k=1,ngen
+
+
+      if (l_.eq.1) then
+
+         istatus=NF_CLOSE(ncid)
          deallocate(f_rstrt,f_rstrt_ln,x_rstrt,v_rstrt,v_rstrt2,
      1        y_rstrt,jf_rstrt,aa,bb,d2fparr,workk,v,v2,
      1        tam2r,cint2r,STAT=ist1)
          if (ist1.ne.0) then
-CMPIINSERT_IF_RANK_EQ_0
+C     MPIINSERT_IF_RANK_EQ_0
             WRITE(*,*)'rdc_multi: dallocation error'
-CMPIINSERT_ENDIF_RANK
+C     MPIINSERT_ENDIF_RANK
             STOP
          endif
-         endif  !On l_.eq.1
+
+      endif  !On l_.eq.1
 
       endif  !On nlrestrt
 

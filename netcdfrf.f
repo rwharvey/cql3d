@@ -1463,7 +1463,10 @@ c --- endif --- (kopt = 2  or  3  or  4)
 
 
 C==========================================================================
-      subroutine netcdf_rdcb
+
+
+
+      subroutine netcdf_rdcb(krf)
       implicit integer (i-n), real*8 (a-h,o-z)
       save
 
@@ -1477,7 +1480,8 @@ c     (Had a problem with linking to netCDF-3 subroutines
 c      on account of embedded underscores in their names). 
 c
 c     This subroutine writes an DC file of urfb0 diffusion coeffs.
-c       into a netCDF file with name "mnemonic"_rf.nc,
+c       into a netCDF file with name "mnemonic"_rdc."krf".nc,
+c       where "krf" is numeric value of krf.
 c
 c --- include file for netCDF declarations 
 c --- (obtained from NetCDF distribution)
@@ -1496,17 +1500,19 @@ c --- some stuff for netCDF file ---
       
 CMPIINSERT_IF_RANK_NE_0_RETURN
 
-      WRITE(*,*)'Begin of netcdf_rdc'
+      WRITE(*,*)'Begin of netcdf_rdc, krf=',krf
 
-C-----------------------------------------------------------------------
-C     Only set up for cqlpmod.ne."enabled",ngen=1, for the time being.
-C-----------------------------------------------------------------------
+c$$$C-----------------------------------------------------------------------
+c$$$C     Only set up for cqlpmod.ne."enabled",ngen=1, for the time being.
+c$$$C-----------------------------------------------------------------------
+c$$$
+c$$$      if (ngen.ne.1) then
+c$$$         WRITE(*,*) 'WARNING: netcdf_rdcb subroutine not implemented'
+c$$$         WRITE(*,*) '         for ngen.gt.1'
+c$$$         return
+c$$$      endif
 
-      if (ngen.ne.1) then
-         WRITE(*,*) 'WARNING: netcdf_rdcb subroutine not implemented'
-         WRITE(*,*) '         for ngen.gt.1'
-         return
-      endif
+cBH180515:  Valid for multiple rdc files and ngen.ge.1
 
 c     Following counting vectors set up to facilitate writing
 c     of the various arrays. Set up here to ensure initialization
@@ -1535,8 +1541,8 @@ c     Ref to page 46 of NetCDF-2 manual.
 c     CLOBber old file, if it exists.
 c     istatus is 0, if no errors.
 
-      write(t_,100) mnemonic(1:length_char(mnemonic))
- 100  format(a,"_rf.nc")
+      write(t_,100) mnemonic(1:length_char(mnemonic)),krf
+ 100  format(a,"_rdc.",i1,".nc")
       WRITE(*,*)'netcdf_rdcb:t_ = ',t_(1:length_char(t_))
 c-YuP:      ncid=nccre(t_,NCCLOB,istatus)
       istatus = NF_CREATE(t_, NF_CLOBBER, ncid) !-YuP: NetCDF-f77
@@ -1798,8 +1804,8 @@ c-YuP:      vid=ncvid(ncid,'rdcb',istatus)
       istatus= NF_INQ_VARID(ncid,'rdcb',vid)  !-YuP: NetCDF-f77 get vid
       do ll=1,lrz
          start1(3)=ll
-         call ncvpt_doubl2(ncid,vid,start1,count1,rdcb(1,1,lrindx(ll)),
-     +              istatus)
+         call ncvpt_doubl2(ncid,vid,start1,count1,rdcb(1,1,lrindx(ll),
+     +              krf),istatus)
          if (istatus.ne.NF_NOERR) WRITE(*,*) 'netcdf_rdc, ll= :',ll
          call check_err(istatus)
       enddo
@@ -1810,8 +1816,8 @@ c     Additional rfc.... coefficients write
       istatus= NF_INQ_VARID(ncid,'rdcc',vid)  !-YuP: NetCDF-f77 get vid
       do ll=1,lrz
          start1(3)=ll
-         call ncvpt_doubl2(ncid,vid,start1,count1,rdcc(1,1,lrindx(ll)),
-     +              istatus)
+         call ncvpt_doubl2(ncid,vid,start1,count1,rdcc(1,1,lrindx(ll),
+     +              krf),istatus)
          if (istatus.ne.NF_NOERR) WRITE(*,*) 'netcdf_rdc, ll= :',ll
          call check_err(istatus)
       enddo
@@ -1819,8 +1825,8 @@ c     Additional rfc.... coefficients write
       istatus= NF_INQ_VARID(ncid,'rdce',vid)  !-YuP: NetCDF-f77 get vid
       do ll=1,lrz
          start1(3)=ll
-         call ncvpt_doubl2(ncid,vid,start1,count1,rdce(1,1,lrindx(ll)),
-     +              istatus)
+         call ncvpt_doubl2(ncid,vid,start1,count1,rdce(1,1,lrindx(ll),
+     +              krf),istatus)
          if (istatus.ne.NF_NOERR) WRITE(*,*) 'netcdf_rdc, ll= :',ll
          call check_err(istatus)
       enddo
@@ -1828,8 +1834,8 @@ c     Additional rfc.... coefficients write
       istatus= NF_INQ_VARID(ncid,'rdcf',vid)  !-YuP: NetCDF-f77 get vid
       do ll=1,lrz
          start1(3)=ll
-         call ncvpt_doubl2(ncid,vid,start1,count1,rdcf(1,1,lrindx(ll)),
-     +              istatus)
+         call ncvpt_doubl2(ncid,vid,start1,count1,rdcf(1,1,lrindx(ll),
+     +              krf),istatus)
          if (istatus.ne.NF_NOERR) WRITE(*,*) 'netcdf_rdc, ll= :',ll
          call check_err(istatus)
       enddo

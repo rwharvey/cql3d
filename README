@@ -51,3 +51,12 @@ Also, ran a KSTAR EC test. Edc_full_eps ==> six fig agreement on current.
 180425
 ======
 Put cql3d_cswim_180101.1 under git version control.
+
+
+180610:180101.2 Version Committed
+=======================
+MultiRDC for multi-general-species.
+Test cases:
+/home/bobh/cql3d/cql3d_cvs/code/00_CQL3D_TESTS/test_multiRDC_multiSpecies/
+==
+/home/bobh/cql3d/jaegeref/JET/6_ITERATIONS_HARVEY/180515_cql3d_rerun

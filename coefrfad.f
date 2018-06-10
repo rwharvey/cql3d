@@ -128,18 +128,50 @@ c         enddo
 c         write(*,*)'coefrfad: Before rdcmod add, rdcbmax ,indxlr_=',
 c     &        rdcbmax,indxlr_
          
-         do j=1,jx
-            do i=1,iy
-              dbb(i,j)=dbb(i,j)+rdcb(i,j,indxlr_)
-              dff(i,j)=dff(i,j)+rdcf(i,j,indxlr_)
-              db(i,j)=db(i,j)+rdcb(i,j,indxlr_)
-              dc(i,j)=dc(i,j)+scatfrac*rdcc(i,j,indxlr_)
-              de(i,j)=de(i,j)+scatfrac*rdce(i,j,indxlr_)
-              df(i,j)=df(i,j)+scatfrac*rdcf(i,j,indxlr_)
-           enddo
-        enddo
-        xrf=1.
-      endif
+c$$$         do j=1,jx
+c$$$            do i=1,iy
+c$$$              dbb(i,j)=dbb(i,j)+rdcb(i,j,indxlr_)
+c$$$              dff(i,j)=dff(i,j)+rdcf(i,j,indxlr_)
+c$$$              db(i,j)=db(i,j)+rdcb(i,j,indxlr_)
+c$$$              dc(i,j)=dc(i,j)+scatfrac*rdcc(i,j,indxlr_)
+c$$$              de(i,j)=de(i,j)+scatfrac*rdce(i,j,indxlr_)
+c$$$              df(i,j)=df(i,j)+scatfrac*rdcf(i,j,indxlr_)
+c$$$           enddo
+c$$$        enddo
+c$$$        xrf=1.
+
+        l=indxlr_
+        do 40 krf=1,nrdc
+c         Check if this rf mode is to applied to the current species k:
+          if (nrdcspecies(krf) .eq. k) then
+          do 42 j=1,jx
+            do 43 i=1,iy
+             delb0= rdcb(i,j,l,krf)
+             if(delb0.ne.0.d0)then 
+c$$$                !YuP[03/18/2015] urfe,urff are expr.through urfb,urfc
+c$$$                !urfR23,urfR33 are expr.through urfb,urfc,urfR13
+c$$$                !It can be shown that if the local delB=0, then also
+c$$$                ! delC=0, delE=0, delF=0, and then all urfR** coeffs are zero.
+                delc0=  rdcc(i,j,l,krf)
+c$$$            BH180511: Could try following, as an alternative to direct calc.
+c$$$                dele0=  delc0*sinn(i,l_)   ! urfe ! valid for ZOW&FOW
+c$$$                delf0= (delc0*dele0)/delb0 ! urff ! valid for ZOW&FOW
+                dele0=rdce(i,j,l,krf)
+                delf0=rdcf(i,j,l,krf)
+                dbb(i,j)= dbb(i,j)+delb0
+                dff(i,j)= dff(i,j)+delf0
+                db(i,j)=  db(i,j) +delb0
+                dc(i,j)=  dc(i,j) +scatfrac*delc0
+                de(i,j)=  de(i,j) +scatfrac*dele0
+                df(i,j)=  df(i,j) +scatfrac*delf0
+             endif
+ 43        continue
+ 42     continue
+          endif  ! on nrfspecies
+ 40     continue ! krf
+      xrf=1.
+
+      endif  !On rdcmod
 
       return
       end

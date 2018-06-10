@@ -160,12 +160,13 @@ cBH170927:  But, this correction made a significant difference in the
 cBH170927:  calculation of the wh80 test case, to the distribution.
 cBH170927:  and the knockon rate. It apparently lead to the somewhat
 cBH170927:  unphysical looking "ledge" on f near the runaway velocity.
-c20180416BH: Temporarily reverting this fix     dsinth=1.0/(i0param-1.)
-         dsinth=0.5*pi/(i0param-1.) !Fix below increases accuracy abit
-	 write(*,*)
-	 write(*,*) 'souceko: Temporary reversion of dsinth=. NEEDS
-	 write(*,*) '        INVESTIGATION, 180416 !!!!'
-	 write(*,*)
+cBH180416: Temporarily reverting this fix dsinth=1.0/(i0param-1.) !This is corrected value
+cBH180416:         dsinth=0.5*pi/(i0param-1.)
+         dsinth=1.0d0/(i0param-1)
+cBH180416:	 write(*,*)
+cBH180416:	 write(*,*) 'souceko: Temporary reversion of dsinth=. NEEDS'
+cBH180416:	 write(*,*) '         INVESTIGATION, 180416 !!!!'
+cBH180416:	 write(*,*)
          dsinthi=1./dsinth
          do ir=1,lrz
             do il=1,lz

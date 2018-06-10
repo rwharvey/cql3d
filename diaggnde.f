@@ -189,11 +189,15 @@ c..................................................................
           ! universal procedure: through reconstruction of local f(R,Z).
 cBH080502          wpar(k,lr_)=wpar_*fions(k)/zmaxpsi(lr_)*ergtkev
 cBH080502          wperp(k,lr_)=wperp_*fions(k)/zmaxpsi(lr_)*ergtkev
+cBH180531:  Following wpar/wperp (diaggnde2 also) needs clarification..
           wpar(k,lr_)=wpar_*fions(k)/hn
           wperp(k,lr_)=wperp_*fions(k)/hn
         endif
-c        write(*,*)'diaggnde, k,lr_,l_,en,hn,fions(k),energy(k,lr_)',
-c     +                       k,lr_,l_,en,hn,fions(k),energy(k,lr_)
+CMPIINSERT_IF_RANK_EQ_0   
+        write(*,*)
+     + 'diaggnde: k,lr_,l_,en,hn,fions(k),energym(k,l_),energy(k,lr_)',
+     +            k,lr_,l_,en,hn,fions(k),energym(k,l_),energy(k,lr_)
+CMPIINSERT_ENDIF_RANK
 
 c..................................................................
 c     At timet=0. scale the

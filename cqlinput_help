@@ -157,7 +157,7 @@
 **               reading namelist from &setup and others (except %setup0),
 **               ensuring compatibility of grids, etc.  (Can change
 **               mnemonic in &setup0.)
-**               Reading of distrfunc for nlrestrt='ncdfdist' or
+**               Reading of text distrfunc for nlrestrt='ncdfdist' or
 **               'ncregrid' discontinued (BH110201).
 **          ='ncregrid', same as 'ncdfdist', except the momentum-per-
 **               mass grid can be reset from that used in distrfunc.nc,
@@ -1259,7 +1259,8 @@
 **    F is multiplied by scatfrac, thus scatfrac=0. shuts off
 **    the collisional scattering.
 **    (default: scatmod="disabled").
-**  scatfrac= multiplier of collisional F coeff.
+**  scatfrac= multiplier of collisional C,E,F coeff, for testing purposes.
+*     Also applied to rf coefficients.
 **    (default: scatfrac=1.  Also, reset to 1. if scatmod.eq."disabled:).
 **
 ********************************************************************
@@ -1823,10 +1824,18 @@
 **  pltvs="psi"
 **    default: pltvs="rho"
 **
+**  pltrdc=.ne."disabled", then
+**    rdcb diffusion coeffs are plotted for all flux surfaces.
+**          ="one", or "enabled", plots first of nrdc diff coeff sets.
+**          ="all", plot all diff coeff sets, 1:nrdc.
+**          ="onecolor" Same as "one" but color plots.
+**          ="allcolor" Same as "all" but color plots.
+**          (default="all")
+**
 **  plturfb.ne."disabled" give plotting of QL B coefficient when
 **          urfmod.ne."disabled" or rdcmod="enabled"
 **          default:  plturfb="enabled"
-**          ![2018-02-07] New: 'color' for color contour plots
+**          ![2018-02-07] New: plturfb='color' for color contour plots.
 **
 **  pltrays='enabled'  (ACTUALLY, not presently namelist, but automatic
 **                     when urfmod.eq.'enabled')
@@ -1874,9 +1883,10 @@
 **    (default: netcdfnm="disabled").
 **
 **  netcdfshort="enabled", flag to make shorter mnemonic//'.nc' 
-**             and mnemonic//'_rf.nc'(if urfmod.ne."disabled")  
+**             and mnemonic//'_rf.nc'(if urfmod.ne."disabled")
+**             and mnemonic//'_rdc.n.nc'(if urfmod.ne."disabled")  
 **             netcdf files, omitting standard f(i,j,k,l) and
-**             urfb QL coeff at last time step.  
+**             urfb/rdcb QL coeff at last time step.  
 **             ="longer_f", i.e., not short, gives f at every
 **                          time step (and urfb at last time step).
 **             ="longer_b", i.e., not short, give urfb coeff at
@@ -1885,8 +1895,10 @@
 **                          power pwrrf(u,r) and current currf(u,r)
 **                          at each step (else only a last time step).
 **             ='long_urf", urfa,urfb,urfc,urfd,urfe,urff into
-**                          _rf.nc file at last time step, otherwise
-**                           like netcdfshort="disabled".
+**                          _rf.nc file at last time step;
+**                          simularly for rdcb,rdcc,rdce,rdcf,
+**                          into files _rdc.n.nc, n=1:nrdc.
+**                          Otherwise, like netcdfshort="disabled".
 **             default="disabled"
 **
 **  netcdfvecc=.ne."disabled" .and. .ne."x-theta", then at time step 
@@ -2480,7 +2492,7 @@
 **                and source directly from MR expression, averaged
 **                over pitch angle and interpolated on to code u,theta grid,
 **                as suggested by SCChiu.
-**                Presently, this is the only choice, so komodel has
+**                Presently, this is the only choise, so komodel has
 **                no effect (bh: 980501).
 **  nonko=the on cycle for the source.
 **  noffko=the off cycle for the source.
@@ -2494,7 +2506,7 @@
 **            where E_c=2*E_Dreicer (see Fuchs et al, Phys. Fl. 29, 2931 
 **            (1986).
 **          (default: soffvte=3.0)
-**    isoucof==1:
+**  isoucof==1:
 **    Per sc:
 **      soffvte=(.gt.0.)a minimum value for source cutoff and defn. of runaways
 **            given as a factor of vthe(lr_)/vnorm.
@@ -2933,22 +2945,61 @@
 **    specified by lrz, then the data set is reduced by omitting
 **    data for every second flux surface.
 **
-**    "format2" reads in velocity space diffusion coefficient from
-**    files du0u0_grid and du0u0_rnnn, where nnn=[001-n_psi], and
-**    n_psi is number of radii given in du0u0_grid.  Thus,
+**   Multi-file "aorsa"/"format1" set up. Can input multiple diffusion
+**     coeff files and ql diffuse separate or
+**     the same general species depending on setting of
+**     nrdcspecies(1:nrdc).  [BH110608]
+**    
+**   nrdc=number of "aorsa"/"format1" files to be read (must be .le.
+**     parameter nrdca, presently set = 10). Default nrdc=1 (gives backwards 
+**     compatibility); that is, the default input file is named du0u0_input.
+**     It is assumed that the velocity and radial grids 
+**     are the same in each of the input diff coeff files.
+**   
+**   rdcfile(1:nrdc)=file path for each file (up to 256 characters).
+**             default: rdcfile(1)=du0u0_input, rdcfile(2:nrdca)="notset"
+**   
+**   nrdcspecies(1:nrdc)=general species index to which the respective
+**     diffusion coefficient files are applied.
+**     Default: nrdcspecies(1:nrdca)=1
+**   
+**   rdcscale(1:nrdc)=scaling of each of the diffusion coefficient files.
+**     Default: rdcscale(1:nrdca)=1.
+**           If nrdc=1 and namelist rdcscale(1).ne.1., then use this value.
+**           However, if nrdc=1 and rdcscale(1).eq.1.(e.g., the default)
+**           then set rdcscale(1)=pwrscale(1).
+**           (This maintains backwards compatibility.)
+**
+**   rdcmod="format2" reads in velocity space diffusion coefficient 
+**    from files du0u0_grid and du0u0_rnnn, where nnn=[001-n_psi], 
+**    and n_psi is number of radii given in du0u0_grid.  Thus,
 **    the set of velocity-space diffusion coeffs are given in a
 **    separate file for each radius, as provided by the DC diffusion
 **    coefficient code.   Formats are otherwise
 **    similar to "format1".  Note restriction re rya()!
-**
-**
-**    rdcb diffusion coeffs are plotted for all flux surfaces.
-**    rdcb written into a netcdf file mnemonic//'_rf.nc'.
+**    Presently not set up for multiple radial sets of diffusion coefficient
+**    files (as in rdcmod="format1" case, but this feature can readily be 
+**    added if there is a need,  BH180507).
 **
 **    default:  rdcmod="disabled"
 **
+**  plturfb (in namelist section setup, see plot controls above) gives
+**    plots of urfb diff coeff.
+**
+**  rdc_netcdf=ne."disabled", then
+**    rdcb,etc.,  written into a netcdf file mnemonic//'_nn_rdc.nc', 
+**    where nn=number of diffusion coefficient input file.
+**          ="one", or "enabled", write first set of diff coeff
+**            to mnemonic//'_rdc.1.nc'
+**          ="all", write mnemonic//'_rdc.n.nc', n=1:nrdc
+**          (default="all")
+**    The rdcb, rdcc, rdce, rdcf are on the cql3d vel space grid.
+**    Amount of output affected according to netcdfshort='long_urf'.
+**
 **  pwrscale(1) [from urf section of code, presently used to
-**               scale input value of diffusion coeffs.]
+**               scale input value of diffusion coeffs, but
+**               can be superceded by rdcscale(1),
+**               (above) for rdcmod="format1"]
 **
 **  rdc_upar_sign=+1. to maintain u_par sign convention of du0u0_input,
 **                -1., to reverse order.   This should be used for DC
@@ -3092,6 +3143,9 @@
 **  call_fw="enabled", call and utilize Brambilla code (xbr) for
 **    fast waves. (Since polarizations come from the ray data file
 **    this option can also be used for lh.
+**
+**  plturfb (described under plot controls above) gives plots 
+**    of urfb diff coeff.
 **
 **  pwrscale(1:mrf)=scale factor to be applied to the power entering
 **    the plasma as given in the ray data files, applied to each of

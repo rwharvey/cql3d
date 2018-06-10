@@ -4,8 +4,12 @@ c
       implicit integer (i-n), real*8 (a-h,o-z)
 
 c..................................................................
-c     Set defaults for input of variables in first namelist setup.
-c     Warning: should set only variables read in first namelist setup.
+c     Set defaults for input of variables in first namelist setup,
+c     now (as of 2007) also explicitly named setup0.
+c     As of 2017, also can denote the first setup as namelist fsetup.
+c     (fsetup worked around a problem with the pathscale compiler.)
+c     Warning: In this subroutine, should set only variables read 
+c     in first namelist setup/setup0/fsetup.
 c     This also shows which variables belong to the 1st namelist setup.
 c..................................................................
 
