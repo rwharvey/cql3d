@@ -1,10 +1,23 @@
-/home/bobh/cql3d/git_genray/
+/home/bobh/cql3d/git_cql3d/
 
-180410
+180425
 ======
-Puting genray under git version control, starting
-from files in genray_v10.11_180410.zip.
+Puting ZOW cql3d under git version control, starting
+from files in cql3d_cswim_180101.1.zip, and pruning some unnecessary files.
 
 git init
 git add *
-git commit -m 'Committing genray_v10.11_180410, the initial project version'
+git commit -m 'Committing cql3d_cswim_180101.1, the initial project version'
+
+
+Useful git command: git gui
+(or access through Menu: Programming)
+
+180616
+======
+git push https://github.com/compxco/cql3d.
+worked.
+
+180621
+======
+Add LICENSE file.
