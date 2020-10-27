@@ -45,7 +45,7 @@ ln -s ../../../genray/00_Genray_Regression_Tests/test10/genray.nc genray_test4.n
 time $XCQL3D > log_test4   #32s on compx2
 cd ..
 
-#test5
+#test5  multiURF_multiSpecies+NBI test case with D+H plasma in DIII-D
 mkdir test5
 cp cqlinput_H0.short_mmsv8_adjust.4 test5/cqlinput
 cd test5/
