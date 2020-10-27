@@ -7,11 +7,19 @@ c
       include 'comm.h'
 CMPIINSERT_INCLUDE
 
-      REAL RILIN
-      REAL RPG1,RPG2, RPGmin, RPGmax
-      REAL RLRZAP1(0:LRZA),RLRZAP11(0:LRZA),RLRZAP12(0:LRZA),
+      REAL*4 RILIN
+      REAL*4 RPG1,RPG2, RPGmin, RPGmax
+      REAL*4 RLRZAP1(0:LRZA),RLRZAP11(0:LRZA),RLRZAP12(0:LRZA),
      +     RLRZAP13(0:LRZA),RLRZAP14(0:LRZA)
       REAL*4 RLRZAP(0:LRZA)
+      !YuP[2019-09] REAL*4 LNWIDTH ! It is integer, in name_decl.h
+
+      REAL*4 :: R40=0.,R41P44=1.44,R42P5=2.5,R4P5=.5
+      REAL*4 :: R41=1.,R42=2.,R43=3.,R44=4.,R45=5.,R46=6.,R41P8=1.8
+      REAL*4 :: R47=7.,R48=8.
+      REAL*4 :: R4P2=.2,R4P8=.8,R4P6=.6,R4P9=.9
+      REAL*4 :: R4P05=.05,R4P95=.95,R41P3=1.3
+
       character*16 t_horiz
 
 c..................................................................
@@ -131,10 +139,10 @@ cyup they are designated as "bs_e" and "bs_i" in the plots.
         CALL PGPAGE
         
         ! FIRST PANEL: profiles vs rho
-        CALL PGSVP(.2,.8,.6,.9)
+        CALL PGSVP(R4P2,R4P8,R4P6,R4P9)
         CALL PGSAVE
-        CALL PGSCH(1.44)
-        CALL PGMTXT('T',2.5,0.5,0.5,'CURRENT (AMPS/CM\u2\d)')
+        CALL PGSCH(R41P44)
+        CALL PGMTXT('T',R42P5,R4P5,R4P5,'CURRENT (AMPS/CM\u2\d)')
         CALL PGUNSA
 c..................................................................
 c     currents, printed and plotted next
@@ -142,63 +150,75 @@ c..................................................................
  4012 format("fi [solid]=  ",1pe10.3,5x,"fi+e[--]= ",  1pe10.3)
  4013 format("bs_e[-.-]= ",1pe10.3,5x,"bs_i[.....]= ", 1pe10.3, " Amps")
         write(t_,4012) currtza,currtpza
-        CALL PGMTXT('T',2.,0.,0.,t_)
+        CALL PGMTXT('T',R42,R40,R40,t_)
         write(t_,4013) bscurma(1,kke),bscurma(2,kki) ! (e,*), (i,*)
-        CALL PGMTXT('T',1.,0.,0.,t_)
+        CALL PGMTXT('T',R41,R40,R40,t_)
         IF ( RPG2-RPG1 .le. 1.e-16 ) THEN ! YuP [02-23-2016]
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RPGmin,RPGmax,RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         ! fi (general ions):
+        CALL PGSLS(1) !solid line
+        CALL PGSCI(1) !black color
         CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP11(1))
         ! fi+e [can be general ions (if any) + general electrons, 
         ! or general ions + screening current from e; see eleccomp='enabled' option]:
         CALL PGSLS(2) ! ---
+        CALL PGSCI(2) !red color
         CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP12(1))
         ! Bootstrap for e, based on jhirsh88/99 models:
         CALL PGSLS(3) ! -.-
+        CALL PGSCI(3) !green color
         CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP13(1))
         ! Bootstrap for ions, based on jhirsh88/99 models:
         CALL PGSLS(4) ! ...
+        CALL PGSCI(4) !blue color
         CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP14(1))
         CALL PGSLS(1) ! Restore solid line
+        CALL PGSCI(1) !black color restored        
 cyup        ! Total: [YuP: do not plot anymore]
 cyup        DO I=1,LRZMAX
 cyup           RLRZAP13(I)=totcurz(i)
 cyup        ENDDO
 cyup        CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP13(1))
         CALL PGSAVE
-        CALL PGSCH(1.44)
+        CALL PGSCH(R41P44)
         CALL PGLAB(' ','curr density (A/cm\u2\d)',' ')
-        CALL PGMTXT('B',1.8,0.5,0.5,t_horiz)
+        CALL PGMTXT('B',R41P8,R4P5,R4P5,t_horiz)
         CALL PGUNSA
 
         ! SECOND PANEL: same profiles vs R
-        CALL PGSVP(.2,.8,.2,.5)
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P5)
         RPGmin=min(RLRZAP(1),rmag)
         IF ( RPG2-RPG1 .le. 1.e-16 ) THEN ! YuP [02-23-2016]
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RPGmin,RLRZAP(lrzmax),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         ! fi (general ions):
+        CALL PGSLS(1) ! solid
+        CALL PGSCI(1) ! color
         CALL PGLINE(lrzmax,RLRZAP(1),RLRZAP11(1))
         ! fi+e [can be general ions (if any) + general electrons, 
         ! or general ions + screening current from e; see eleccomp='enabled' option]:
         CALL PGSLS(2) ! ---
+        CALL PGSCI(2) !red color
         CALL PGLINE(lrzmax,RLRZAP(1),RLRZAP12(1))
         ! Bootstrap for e, based on jhirsh88/99 models:
         CALL PGSLS(3) ! -.-
+        CALL PGSCI(3) !green color
         CALL PGLINE(lrzmax,RLRZAP(1),RLRZAP13(1))
         ! Bootstrap for ions, based on jhirsh88/99 models:
         CALL PGSLS(4) ! ...
+        CALL PGSCI(4) !blue color
         CALL PGLINE(lrzmax,RLRZAP(1),RLRZAP14(1))
         CALL PGSLS(1) ! Restore solid line
+        CALL PGSCI(1) !black color restored
         CALL PGSAVE
-        CALL PGSCH(1.44)
+        CALL PGSCH(R41P44)
         CALL PGLAB(' ','curr density (A/cm\u2\d)',' ')
-        CALL PGMTXT('B',1.8,0.5,0.5,'R (=rpcon)  (cm)')
+        CALL PGMTXT('B',R41P8,R4P5,R4P5,'R (=rpcon)  (cm)')
         CALL PGUNSA
 
 
@@ -208,13 +228,13 @@ c     Partially integrated in rho (or psi)
 c..................................................................
 
         CALL PGPAGE
-        CALL PGSVP(.2,.8,.2,.6)
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P6)
 
         CALL PGSAVE
-        CALL PGSCH(1.44)
-        CALL PGMTXT('T',6.,0.5,0.5,
+        CALL PGSCH(R41P44)
+        CALL PGMTXT('T',R48,R4P5,R4P5,
      +              'CURRENT (AMPS)')
-        CALL PGMTXT('T',5.,0.5,0.5,
+        CALL PGMTXT('T',R47,R4P5,R4P5,
      +              '(INTEGRATED UP TO RHO or PSI)')
         CALL PGUNSA
 
@@ -223,18 +243,6 @@ c     plots of partial integration of currents
 c..................................................................
 
 
-C%OS  call gscpvs(.5,.95)
-C%OS  call gstxjf("center","top")
-C%OS  call gstxno(43.)
-C%OS  call gitxft(ift)
-C%OS  if (ift .ne. ift07a) call gstxft(ift07a)
-C%OS  call gptx2d("CURRENT (AMPS/CM**2);$")
-C%OS  call gscpvs(.5,.9)
-C%OS  call gptx2d("(INTEGRATED UP TO RHO OR PSI);$")
-C%OS  call gitxft(ift)
-C%OS  if (ift.ne.ift21a) call gstxft(ift21a)
-C%OS  call gstxno(100.)
-C%OS  call gscvlb(1)
       fmin=0.
       fmax=0.
 
@@ -264,14 +272,31 @@ cyup      if (fmax.lt.gmax) fmax=gmax
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RPGmin,RPGmax,RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
+
+        CALL PGSLS(4) ! dotted 
+        CALL PGSLW(lnwidth)  ! thin line
+        CALL PGSCI(4) ! blue color
+        CALL PGMTXT('T',R46,R40,R40,
+     &   'Blue/dotted: using currz(k,lr) over ionic general species') !YuP[2019-12-20]
         DO I=1,LRZMAX
-           RLRZAP11(I)=currtzi(i)
+           RLRZAP11(I)=currtzi(i) 
+           !currtzi(ll)=currtzi(ll-1)+darea(ll)*currtz(ll)
+           !where currtz(lr_)=currt(lr_)/3.e+9 
+           ! is the sum over ionic general species.
         ENDDO
         CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP11(1))
-        CALL PGSLS(2)
+        
+        CALL PGSLS(2) !dashed --
+        CALL PGSLW(lnwidth*2)  ! bold line
+        CALL PGSCI(2) ! red color
+        CALL PGMTXT('T',R45,R40,R40,
+     &   'Red/dashed: using curr(k,lr) over all general species') !YuP[2019-12-20]
         DO I=1,LRZMAX
            RLRZAP12(I)=currtpzi(i)
+           !currtpzi(ll)=currtpzi(ll-1)+darea(ll)*currtpz(ll)
+           !where currtpz(lr_)=currtp(lr_)/3.e+9 
+           ! is the sum over general species k of curr(k,lr_)
         ENDDO
         CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP12(1))
 cyup        CALL PGSLS(3)
@@ -279,11 +304,13 @@ cyup        DO I=1,LRZMAX
 cyup           RLRZAP13(I)=totcurzi(i)
 cyup        ENDDO
 cyup        CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP13(1))
-        CALL PGSLS(1)
+        CALL PGSLS(1) ! restore solid line
+        CALL PGSLW(lnwidth) ! restore
+        CALL PGSCI(1) ! black color restored
         CALL PGSAVE
-        CALL PGSCH(1.44)
+        CALL PGSCH(R41P44)
         CALL PGLAB(' ','current  (Amps)',' ')
-        CALL PGMTXT('B',1.8,0.5,0.5,t_horiz)
+        CALL PGMTXT('B',R41P8,R4P5,R4P5,t_horiz)
         CALL PGUNSA
 
 
@@ -307,23 +334,23 @@ C%OS
       ! PRINT OUT OF SOURCE POWER (WATTS/CC): 
       ! sorpwt(l),sorpw_nbi(kfrsou,l),sorpw_rf(1,l),sorpw_rf(2,l),sorpw_rf(3,l)
       CALL PGPAGE  
-      CALL PGSVP(.05,.95,.05,.95)
+      CALL PGSVP(R4P05,R4P95,R4P05,R4P95)
       RILIN=0.
       CALL PGSAVE
-      CALL PGSCH(1.44)
-      CALL PGMTXT('T',-RILIN,.5,.5,
+      CALL PGSCH(R41P44)
+      CALL PGMTXT('T',-RILIN,R4P5,R4P5,
      +     'SOURCE POWER: (WATTS/CC)')
       RILIN=RILIN+3.
-      CALL PGSCH(1.)
+      CALL PGSCH(R41) !(1.)!YuP[2019-10-28]
       write(t_,6013) pltvs
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       RILIN=RILIN+2.
       write(t_,6014) pltvs
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       RILIN=RILIN+2.
 
- 6013 format(4x,a8,"   NBI+RF      NBI",
-     +  "         RF(1)      RF(2)       RF(3)")
+ 6013 format(4x,a8,"NBI(orKO)+RF  NBI(or KO)",
+     +  "   RF(1)      RF(2)       RF(3)")
  6014 format(4x,a8,"   (sorpwt)   (sorpw_nbi)",
      +  "      (sorpw_rf for gen.species 1,2,3)")
 
@@ -339,14 +366,14 @@ c     Start printing results on first page
           write(t_,6017) tr(l),sorpwt(l),sorpw_nbi(kfrsou1,l),
      1      sorpw_rf(1,l),sorpw_rf(2,l),sorpw_rf(3,l)
         endif
-        CALL PGMTXT('T',-RILIN,0.,0.,t_)
+        CALL PGMTXT('T',-RILIN,R40,R40,t_)
         RILIN=RILIN+1.
  10   continue
 
 c     Continue printing results on second page, if lrzmax.gt.40
       if (lrzmax.gt.40) then
          CALL PGPAGE
-         CALL PGSVP(.05,.95,.05,.95)
+         CALL PGSVP(R4P05,R4P95,R4P05,R4P95)
          RILIN=0.+3.
          do l=41,lrzmax
             if (ngen.eq.1) then
@@ -359,7 +386,7 @@ c     Continue printing results on second page, if lrzmax.gt.40
                write(t_,6017) tr(l),sorpwt(l),sorpw_nbi(kfrsou1,l),
      1              sorpw_rf(1,l),sorpw_rf(2,l),sorpw_rf(3,l)
             endif
-            CALL PGMTXT('T',-RILIN,0.,0.,t_)
+            CALL PGMTXT('T',-RILIN,R40,R40,t_)
             RILIN=RILIN+1.
          enddo
       endif
@@ -371,30 +398,30 @@ c     Continue printing results on second page, if lrzmax.gt.40
 
       RILIN=RILIN+2.
       write(t_,6022) sorpwtza !sorpwtza=sorpwti(lrzmax) !NBI+RF, all gen.species
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       RILIN=RILIN+1.
       write(t_,6023) sorpw_nbii(kfrsou1,lrzmax)     ! NBI only
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       RILIN=RILIN+1.
       if (ngen.ge.1) then
          write(t_,6024) sorpw_rfi(1,lrzmax) ! RF(1st gen.species) only
-         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+         CALL PGMTXT('T',-RILIN,R40,R40,t_)
          RILIN=RILIN+1.
       endif
       if (ngen.ge.2) then
          write(t_,6025) sorpw_rfi(2,lrzmax) ! RF(2nd gen.species) only
-         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+         CALL PGMTXT('T',-RILIN,R40,R40,t_)
          RILIN=RILIN+1.
       endif
       if (ngen.ge.3) then
          write(t_,6026) sorpw_rfi(3,lrzmax) ! RF(3rd gen.species) only
-         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+         CALL PGMTXT('T',-RILIN,R40,R40,t_)
          RILIN=RILIN+1.
       endif
       CALL PGUNSA      
- 6022 format("Power integr. over radius (RF+NBI, all gen.species)=",
+ 6022 format("Power integr.over rad. (RF+NBI(or KO), all gen.species)=",
      ~       1pe12.4,"Watts")
- 6023 format("Power from NBI (sorpw_nbii)=",1pe12.4,"Watts")
+ 6023 format("Power from NBI(or KO) (sorpw_nbii)=",1pe12.4,"Watts")
  6024 format("Power from RF  (sorpw_rfi) Gen.species no.1 =",
      ~       1pe12.4,"Watts")
  6025 format("Power from RF  (sorpw_rfi) Gen.species no.2 =",
@@ -407,19 +434,19 @@ c     Continue printing results on second page, if lrzmax.gt.40
       ! PRINT OUT OF DEPOSITED POWER (WATTS/CC): 
       ! powrft(l), powrf(l,1),...,powrf(l,5)
       CALL PGPAGE
-      CALL PGSVP(.05,.95,.05,.95)
+      CALL PGSVP(R4P05,R4P95,R4P05,R4P95)
       RILIN=0.
       CALL PGSAVE
-      CALL PGSCH(1.3) !PGSCH(1.44) ! set character size; default is 1.
-      CALL PGMTXT('T',-RILIN,.5,.5,
+      CALL PGSCH(R41P3) !PGSCH(R41P44) ! set character size; default is 1.
+      CALL PGMTXT('T',-RILIN,R4P5,R4P5,
      +     'DEPOSITED POWER: (WATTS/CC)')
       RILIN=RILIN+3.
-      CALL PGSCH(1.) ! set character size; default is 1.
+      CALL PGSCH(R41) !(1.) ! set character size; default is 1. !YuP[2019-10-28]
       write(t_,6113) pltvs
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       RILIN=RILIN+2.
       write(t_,6114) pltvs
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       RILIN=RILIN+2.
 
  6113 format(1x,a8,"TOTAL",
@@ -443,14 +470,14 @@ c     Start printing results on first page
           write(t_,6119) tr(l),powrft(l),powrf(l,1),powrf(l,2),
      ~                         powrf(l,3),powrf(l,4),powrf(l,5)
         endif
-        CALL PGMTXT('T',-RILIN,0.,0.,t_)
+        CALL PGMTXT('T',-RILIN,R40,R40,t_)
         RILIN=RILIN+1.
       enddo
 
 c     Continue printing results on second page, if lrzmax.gt.40
       if (lrzmax.gt.40) then
          CALL PGPAGE
-         CALL PGSVP(.05,.95,.05,.95)
+         CALL PGSVP(R4P05,R4P95,R4P05,R4P95)
          RILIN=0.+3.
          do l=41,lrzmax
            if (mrfn.eq.1) then
@@ -467,7 +494,7 @@ c     Continue printing results on second page, if lrzmax.gt.40
              write(t_,6119) tr(l),powrft(l),powrf(l,1),powrf(l,2),
      ~                            powrf(l,3),powrf(l,4),powrf(l,5)
            endif
-           CALL PGMTXT('T',-RILIN,0.,0.,t_)
+           CALL PGMTXT('T',-RILIN,R40,R40,t_)
            RILIN=RILIN+1.
          enddo
       endif
@@ -480,15 +507,15 @@ c     Continue printing results on second page, if lrzmax.gt.40
       
       RILIN=RILIN+2.
       write(t_,6122) sorpwtza
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       RILIN=RILIN+1.
       write(t_,6123) powurf(0)
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       RILIN=RILIN+1.
       
       do krf=1,mrfn ! Print-out for all harmonics now (was 5 only)
          write(t_,6131) krf,nharm(krf),powurf(krf)
-         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+         CALL PGMTXT('T',-RILIN,R40,R40,t_)
          RILIN=RILIN+1.
       enddo
  6131 format("      mode/harmonic krf, nharm(krf), powurf(krf)=",
@@ -496,35 +523,35 @@ c     Continue printing results on second page, if lrzmax.gt.40
  
 !      if (mrfn.ge.1) then
 !         write(t_,6124) powurf(1)
-!         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+!         CALL PGMTXT('T',-RILIN,R40,R40,t_)
 !         RILIN=RILIN+1.
 !      endif
 !      if (mrfn.ge.2) then
 !         write(t_,6125) powurf(2)
-!         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+!         CALL PGMTXT('T',-RILIN,R40,R40,t_)
 !         RILIN=RILIN+1.
 !      endif
 !      if (mrfn.ge.3) then
 !         write(t_,6126) powurf(3)
-!         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+!         CALL PGMTXT('T',-RILIN,R40,R40,t_)
 !         RILIN=RILIN+1.
 !      endif
 !      if (mrfn.ge.4) then
 !         write(t_,6127) powurf(4)
-!         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+!         CALL PGMTXT('T',-RILIN,R40,R40,t_)
 !         RILIN=RILIN+1.
 !      endif
 !      if (mrfn.ge.5) then
 !         write(t_,6128) powurf(5)
-!         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+!         CALL PGMTXT('T',-RILIN,R40,R40,t_)
 !         RILIN=RILIN+1.
 !      endif
       
       write(t_,6129) powurfc(0)
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       RILIN=RILIN+1.
       write(t_,6130) powurfl(0)
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
 
       CALL PGUNSA      
 
@@ -564,19 +591,19 @@ c..................................................................
       enddo
 
       CALL PGPAGE ! START FSA SOURCE POWER DEN
-      CALL PGSVP(.2,.8,.2,.6)
+      CALL PGSVP(R4P2,R4P8,R4P2,R4P6)
       CALL PGSAVE
-      CALL PGSCH(1.44) ! set character size; default is 1.
-      CALL PGSLW(lnwidth) ! line thickness/width
-      CALL PGMTXT('T',6.,0.5,0.5,
+      CALL PGSCH(R41P44) ! set character size; default is 1.
+      CALL PGSLW(LNWIDTH) ! line thickness/width
+      CALL PGMTXT('T',R46,R4P5,R4P5,
      +              'FSA SOURCE POWER DEN: (WATTS/CM\u3\d)')
-      CALL PGMTXT('T',5.,0.,0.,
-     ~   "Solid line: NBI+RF for all gen.species [sorpwt]")
-      CALL PGMTXT('T',4.,0.,0.,
-     ~   "Dashed: NBI (beam ions) [sorpw_nbi]")
-      CALL PGMTXT('T',3.,0.,0.,
+      CALL PGMTXT('T',R45,R40,R40,
+     ~   "Solid: NBI(or KO)+RF for all gen.sp.[sorpwt]")
+      CALL PGMTXT('T',R44,R40,R40,
+     ~   "Dashed: NBI (or KO) [sorpw_nbi]")
+      CALL PGMTXT('T',R43,R40,R40,
      ~   "Solid-bold: total absorbed RF power [powrft]")
-      CALL PGMTXT('T',2.,0.,0.,
+      CALL PGMTXT('T',R42,R40,R40,
      ~   "Other: RF general species (each) [sorpw_rf]")
       CALL PGUNSA
  
@@ -592,7 +619,7 @@ c..................................................................
          RPG2= RPG1+1.e-16
       ENDIF
       CALL PGSWIN(RPGmin,RPGmax,RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGSLS(1) ! 1-> solid
         DO I=1,LRZMAX
            RLRZAP11(I)=sorpwt(i) ! solid: NBI+RF(all gen.species)
@@ -612,17 +639,17 @@ c..................................................................
       enddo ! k=1,ngen
       !
       CALL PGSLS(1) ! solid
-      CALL PGSLW(lnwidth+1) ! bold
+      CALL PGSLW(LNWIDTH+1) ! bold
       DO I=1,LRZMAX
          RLRZAP13(I)=powrft(i)
       ENDDO
       CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP13(1)) !solid bold: total rf
       CALL PGSLS(1)
-      CALL PGSLW(lnwidth) !
+      CALL PGSLW(LNWIDTH) !
       CALL PGSAVE
-      CALL PGSCH(1.44)
+      CALL PGSCH(R41P44)
       CALL PGLAB(' ','power density (W/cm\u3\d)',' ')
-      CALL PGMTXT('B',1.8,0.5,0.5,t_horiz)
+      CALL PGMTXT('B',R41P8,R4P5,R4P5,t_horiz)
       CALL PGUNSA
       ! DONE FSA SOURCE POWER 
 
@@ -630,15 +657,15 @@ c..................................................................
       !YuP[08-2017] Make a separate page for only RF-power density
       !(because, if the power level is too small, the curve can be too low)
       CALL PGPAGE ! START RF-only POWER DEN
-      CALL PGSVP(.2,.8,.2,.6)
+      CALL PGSVP(R4P2,R4P8,R4P2,R4P6)
       CALL PGSAVE
-      CALL PGSCH(1.44) ! set character size; default is 1.
-      CALL PGSLW(lnwidth) ! line thickness/width
-      CALL PGMTXT('T',6.,0.5,0.5,
+      CALL PGSCH(R41P44) ! set character size; default is 1.
+      CALL PGSLW(LNWIDTH) ! line thickness/width
+      CALL PGMTXT('T',R46,R4P5,R4P5,
      +              'FSA RF POWER DEN: (WATTS/CM\u3\d)')
-      CALL PGMTXT('T',3.,0.,0.,
+      CALL PGMTXT('T',R43,R40,R40,
      ~   "Solid-bold: total absorbed RF power [powrft]")
-      CALL PGMTXT('T',2.,0.,0.,
+      CALL PGMTXT('T',R42,R40,R40,
      ~   "Other: RF general species (each) [sorpw_rf]")
       CALL PGUNSA
       ! If the horizontal coord is rho, set the limits to [0.,1.]
@@ -655,7 +682,7 @@ c..................................................................
          RPG2= RPG1+1.e-16
       ENDIF
       CALL PGSWIN(RPGmin,RPGmax,RPG1,RPG2)
-      CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+      CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
       do k=1,ngen ! rf sources for general species
          DO I=1,LRZMAX
             RLRZAP12(I)=sorpw_rf(k,I) 
@@ -665,17 +692,17 @@ c..................................................................
       enddo ! k=1,ngen
       !
       CALL PGSLS(1) ! solid
-      CALL PGSLW(lnwidth+1) ! bold
+      CALL PGSLW(LNWIDTH+1) ! bold
       DO I=1,LRZMAX
          RLRZAP13(I)=powrft(i)
       ENDDO
       CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP13(1)) !solid bold: total rf
       CALL PGSLS(1)
-      CALL PGSLW(lnwidth) !
+      CALL PGSLW(LNWIDTH) !
       CALL PGSAVE
-      CALL PGSCH(1.44)
+      CALL PGSCH(R41P44)
       CALL PGLAB(' ','power density (W/cm\u3\d)',' ')
-      CALL PGMTXT('B',1.8,0.5,0.5,t_horiz)
+      CALL PGMTXT('B',R41P8,R4P5,R4P5,t_horiz)
       CALL PGUNSA
       ! DONE RF-only POWER 
 
@@ -700,18 +727,18 @@ c..................................................................
       RPG1=min(fmin,0.) !Make lower limit 0 when fmin>0 
       
         CALL PGPAGE
-        CALL PGSVP(.2,.8,.2,.6)
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P6)
         CALL PGSAVE
-        CALL PGSCH(1.44)
-        CALL PGMTXT('T',6.,0.5,0.5,
+        CALL PGSCH(R41P44)
+        CALL PGMTXT('T',R46,R4P5,R4P5,
      +              'SOURCE POWER (integr. up to rho or psi) (WATTS)')
-        CALL PGMTXT('T',5.,0.,0.,
-     ~   "Solid line: NBI+RF for all gen.species [sorpwti]")
-        CALL PGMTXT('T',4.,0.,0.,
-     ~   "Dashed: NBI (beam ions) [sorpw_nbii]")
-        CALL PGMTXT('T',3.,0.,0.,
+        CALL PGMTXT('T',R45,R40,R40,
+     ~   "Solid: NBI(or KO)+RF for all gen.sp.[sorpwti]")
+        CALL PGMTXT('T',R44,R40,R40,
+     ~   "Dashed: NBI(or KO) [sorpw_nbii]")
+        CALL PGMTXT('T',R43,R40,R40,
      ~   "Solid-bold: total absorbed RF [powurfi(*,0)]")
-        CALL PGMTXT('T',2.,0.,0.,
+        CALL PGMTXT('T',R42,R40,R40,
      ~   "Other: RF general ions (each) [sorpw_rfi]")
         CALL PGUNSA
  
@@ -729,10 +756,10 @@ c..................................................................
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RPGmin,RPGmax,RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGSLS(1) ! 1-> Solid line
         DO I=1,LRZMAX
-           RLRZAP11(I)=sorpwti(i) ! solid: NBI+RF(all gen.species)
+           RLRZAP11(I)=sorpwti(i) !solid: NBI(or KO)+RF(all gen.species)
         ENDDO
         CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP11(1))
         CALL PGSLS(2) ! 2-> dashed
@@ -748,17 +775,17 @@ c..................................................................
          CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP12(1))
       enddo ! k=1,ngen
       CALL PGSLS(1) ! solid
-      CALL PGSLW(lnwidth+1) ! bold
+      CALL PGSLW(LNWIDTH+1) ! bold
       DO I=1,LRZMAX
          RLRZAP13(I)=powurfi(i,0) ! = SUM_harmonics{powurfi(l,harmonics)}
       ENDDO
       CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP13(1)) !solid bold: total rf
       CALL PGSLS(1) ! restore: solid line
-      CALL PGSLW(lnwidth) ! restore
+      CALL PGSLW(LNWIDTH) ! restore
       CALL PGSAVE
-      CALL PGSCH(1.44)
+      CALL PGSCH(R41P44)
       CALL PGLAB(' ','Int power: 0 to psi (or rho)',' ')
-      CALL PGMTXT('B',1.8,0.5,0.5,t_horiz)
+      CALL PGMTXT('B',R41P8,R4P5,R4P5,t_horiz)
       CALL PGUNSA ! restore
 
 
@@ -775,14 +802,14 @@ c..................................................................
       RPG1=min(gmin,0.) !Make lower limit 0 when gmin>0 
       
         CALL PGPAGE
-        CALL PGSVP(.2,.8,.2,.6)
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P6)
         CALL PGSAVE
-        CALL PGSCH(1.3)
-        CALL PGMTXT('T',6.,0.5,0.5,
+        CALL PGSCH(R41P3)
+        CALL PGMTXT('T',R46,R4P5,R4P5,
      +              'RF POWER (integr. up to rho or psi) (WATTS)')
-        CALL PGMTXT('T',3.,0.,0.,
+        CALL PGMTXT('T',R43,R40,R40,
      ~   "Solid-bold: total absorbed RF [powurfi(*,0)]")
-        CALL PGMTXT('T',2.,0.,0.,
+        CALL PGMTXT('T',R42,R40,R40,
      ~   "Other: RF general species (each) [sorpw_rfi]")
      
         CALL PGUNSA
@@ -797,7 +824,7 @@ c..................................................................
           RPG2= RPG1+1.e-16
       ENDIF
       CALL PGSWIN(RPGmin,RPGmax,RPG1,RPG2)
-      CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+      CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
       CALL PGSLS(1) ! 1-> Solid line
       !
       do k=1,ngen ! rf sources for general species
@@ -808,17 +835,17 @@ c..................................................................
          CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP12(1))
       enddo ! k=1,ngen
       CALL PGSLS(1) ! solid
-      CALL PGSLW(lnwidth+1) ! bold
+      CALL PGSLW(LNWIDTH+1) ! bold
       DO I=1,LRZMAX
          RLRZAP13(I)=powurfi(i,0) ! = SUM_harmonics{powurfi(l,harmonics)}
       ENDDO
       CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP13(1)) !solid bold: total rf
       CALL PGSLS(1) ! restore: solid line
-      CALL PGSLW(lnwidth) ! restore
+      CALL PGSLW(LNWIDTH) ! restore
       CALL PGSAVE
-      CALL PGSCH(1.44)
+      CALL PGSCH(R41P44)
       CALL PGLAB(' ','Int power: 0 to psi (or rho)',' ')
-      CALL PGMTXT('B',1.8,0.5,0.5,t_horiz)
+      CALL PGMTXT('B',R41P8,R4P5,R4P5,t_horiz)
       CALL PGUNSA ! restore
 
 c..................................................................

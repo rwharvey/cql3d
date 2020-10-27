@@ -64,8 +64,7 @@ c      write(*,*)'tdtrvtor: ipacktp', ipacktp
  10   continue
 
       elseif (ipacktp.ne.0) then
-         write(*,*)'STOP in tdtrvtor:  Check ipacktp'
-         stop
+         stop 'STOP in tdtrvtor:  Check ipacktp'
       endif
 
       call tdtrchkd(f2,vpint_,denrad)

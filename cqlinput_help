@@ -55,6 +55,10 @@
 **              is depracated.   PLACE above variables in 
 **              separated namelist &setup0.
 **              [Modification for SWIM Integrated Plasma Simulator.]
+**              Nov/2017: First setup namelist can now also be
+**              be referred to as "fsetup" in the cqlinput namelist
+**              file.  [An accomodation for a pathscale compiler limitation,
+**              and for users who modified cql3d to accept fsetup.]
 **
 **   Descriptions follow immediately below.
 **
@@ -67,7 +71,17 @@
 **    Used as prefix to output PS and netCDF files.
 **    default: mnemonic="mnemonic"
 **
-**  ioutput determines graphical o/p (PS only at moment, so no effect.)
+**  ioutput(1)  [After 2020-10-21]
+**    ioutput(1)=0  means the printout to screen is reduced to a minimum,
+**                  leaving namelist printout, warning messages,
+**                  and physics-related values used or computed by code.
+**    ioutput(1)=1  The above, and more printout - 
+**                  values of arrays for diagnostic purpose.
+**    ioutput(1)=2 (or .ge.2) The above, and even more diagnostic printout.
+**                  (default value ioutput(1)=0).
+**  ioutput(2)=0 ! No usage at present [2020]
+**    default: ioutput(1:2)=0  NOTE: Old cqlinput files could have 
+**                                   ioutput.ne.0.
 **
 **  iuser ="name" of user or "number" of user (no present use).
 **
@@ -134,22 +148,30 @@
 **                allowed on some systems.
 **               ="external", then files uname_output and pwd_output
 **                are used to printout.  These many be created with
-**                and external script containing
+**                an external script containing
 **                uname -a > uname_output
 **                pwd > pwd_output
-**               ="disabled", then no system calls and not reference
+**               ="disabled", then no system calls and no reference
 **                to uname_output and pwd_output files.
 **                This gets around lack of some special functions,
-*                 e.g., second(), with some compilers.
+**                e.g., second(), with some compilers.
+**               default="enabled"
 **
 **  nlwritf="enabled"  saves the distribution function at the end of 
 **               the run (in file distrfunc).   default="disabled"
 **         ="ncdfdist", don't write distn function into text file
 **               distrfunc, since can use mnemonic.nc save of f.
+**               This file also contains much additional data, some
+**               of which is needed with some restart options.
 **               Text distrfunc will contain only namelist and profiles
 **               at the end of the run.
+**               Don't use netcdfshort.ne."disabled", if going to 
+**               use nlrestrt.
 **  nlrestrt="enabled" reads the initial distribution function in 
 **               text file 'distrfunc'.           default="disabled"
+**               The general restart idea is that only data from end
+**               of the previous run which is not specified in the
+**               continuing namelist file, needs to be restored.
 **          ="ncdfdist" reads the distribution function from a
 **               netcdf file, 'distrfunc.nc'.  This file can be
 **               the mnemonic.nc file from a previous run.
@@ -159,6 +181,10 @@
 **               mnemonic in &setup0.)
 **               Reading of text distrfunc for nlrestrt='ncdfdist' or
 **               'ncregrid' discontinued (BH110201).
+**               BH181023: If ampfmod="enabled" then also read in prior 
+**               ending value of elecfld().
+**               BH+YuP191029: If iprozeff='curr_fit', then also restore 
+**               prior ending value of the zeff profile.
 **          ='ncregrid', same as 'ncdfdist', except the momentum-per-
 **               mass grid can be reset from that used in distrfunc.nc,
 **               by changing enorm, jx and xfac (only enabled changes
@@ -174,6 +200,10 @@
 **               the value in the distrfunc.nc file.
 **               Reading of distrfunc text file for nlrestrt='ncdfdist' or
 **               'ncregrid' discontinued (BH110201).
+**               BH181023: If ampfmod="enabled" then also read in prior 
+**               ending value of elecfld().
+**           NB: The nlrestrt option is presently (181023) setup only
+**               for a single general species (ngen=1).
 **
 ************************************************************************
 **  BH070414: Variables nlwritf and nlrestrt have been changed from   **
@@ -206,7 +236,7 @@
 **    dtr= 1. --> 10. is a typical choice if implct="enabled".
 **    This allows code to "jump" to steady state (for linear problems).
 **    transp="enabled"/soln_method='direct' cases will require dtr 
-**    values less than or  of order the collision time of the nonthermal
+**    values less than or of order the collision time of the nonthermal
 **     particles, to get accurate results, to prevent oscillations
 **     between the velocity and radial space solutions.
 **    default: dtr=5.
@@ -230,9 +260,15 @@
 **    BH100517:  Defunct functionality.  Only possibility is
 **               default case, nrstrt=1.
 **
-**  nplot(1:nplota) gives time steps for plotting of data for
-**    individual flux surfaces. 
-**    default: nplot(1:nplota)=0
+**  nplot(1:nplota) gives time steps in increasing order for plotting 
+**    of data for individual flux surfaces.  nplot(1)=0 is OK.
+**    Also used for netcdfshort='lngshrtf' for output of distributions f.
+**    default: nplot(1:nplota)=-10000
+**
+**  nsave(1:nsavea) For netcdfshort='lngshrtf', gives time steps in 
+**    increasing order for saving the ngen particle distributions
+**    to the .nc output file.  nsave(1)=0 is OK.
+**    default: nsave(1:nsavea)=-10000
 **
 **  iactst="enabled" means certain debugging diagnostics are called:
 **     subroutines diagimpd, exsweepx, and exsweept are utilized.
@@ -405,7 +441,7 @@
 **            of radcoord.  Additional choices below are for no radial 
 **            transport.]
 **          ="sqarea" square root of flux surface area,
-**          ="sqvolume" square root of flux surface volume,
+**          ="sqvol" square root of flux surface volume,
 **          ="rminmax" 0.5*(max. major radius - 
 **                          min. major radius) of flux surface
 **          "polflx"  normalized poloidal flux from magnetic
@@ -503,7 +539,7 @@
 **    and is useful for single flux surface calculations where the
 **    core space used for the factorization is not overwritten
 **    as the code moves from flux surface to flux surface.
-**      default: manymat="enabled".   Only implemented for
+**      default: manymat="disabled".   Only implemented for
 **      soln_method="direct"
 **
 **  soln_method="direct"[default],  use lapack dgbtrf/dgbtrs direct
@@ -900,15 +936,15 @@
 **      equatorial distribution functions, at time step nfpld.
 **      This set of options was instituted for purposes of study of the
 **      electron knock-on runaway problem. 
-**        It can also be used for INITIALIZING the 
+**      It can also be used for INITIALIZING the 
 **      Fokker-Planck'd distribution (ngen=1)
 **      from externally generated distributions (see, for example,
 **      the IDL procedure make_input_distn.pro, BobH, 001124).
-**        (The default, fpld(1,1:ngena)=0.0,
+**      (The default, fpld(1,1:ngena)=0.0,
 **      gives no  loading of distribution functions beyond initial
 **      (relativistic) Maxwellians derived from the specified density, 
 **      temp. and zeff.)  
-**        The additional loading 
+**      The additional loading 
 **      is in the form of a internally generated vel-space-constant
 **      plus a shifted "Maxwellian" distribution which is localized in
 **      pitch angle, or,  distributions read in from file "fpld_dsk".
@@ -986,10 +1022,21 @@
 **  nbctime=number of times at which profile data given.
 **     Set nbctime=0 for no time-dependent profiles, else
 **     specify time dependent profiles.  (default=0)
+**
 **  bctime(1:nbctime)=times at which data given (seconds).
 **    (default= 0, 1., 2., ..., float(nbctimea-1))
 **    If code time .lt. bctime(1), use bctime(1) profiles.
 **    If code time .gt. bctime(nbctime), use bctime(nbctime) profiles.
+**
+**  bctshift=time shift of bctime(array), to facilitate the present
+**    configuration of cql3d which starts each run at time=0, even
+**    for restarts.  Can lookup previous end time(s) in the time()
+**    varaible of the  previous .nc o/p file.  Future work should 
+**    enable time to be continuous, with restart.  (default=0.d0)
+**
+**  bctimescal=scale factor for bctime, for convenience of stretching
+**    background plasma time variation.  Applied after any bctshift.
+**    (default: bctime_scale=1.d0)
 **
 **  Setting central values =0. at the first time step
 **    turns off profile generation through this namelist variable.
@@ -1012,14 +1059,14 @@
 **  tempc(1:nbctime,k), tempb(1:nbctime,k) central and edge values
 **    for each species k (keV).  npwr(1:ntotal), mpwr(1:ntotal ) 
 **    as for temp( ,k).
-**  zeffc(1:nbctime),zeffb(1:nbctime), with npwrzeff,mpwrzeff,
+**  zeffc(1:nbctime),zeffb(1:nbctime), with real*8 npwrzeff,mpwrzeff,
 **    specify zeff profiles as described above.
 **  NOTE: if using this option (i.e., zeffc(1).ne.0.), need to have 
 **        iprozeff="prbola-t"  (see iprozeff above).
 **        Also, can specify two maxwellian ion species,  one
 **        with high enough Z, or the code will will add a second
 **        ion species with Z=50.
-**  elecc(1:nbctime),elecb(1:nbctime), with npwrelec(real),mpwrelec(real)
+**  elecc(1:nbctime),elecb(1:nbctime), with real*8 npwrelec,mpwrelec
 **    specify electric field profiles, unless current profile
 **    control is enabled (volts/cm).  See below, D.C. ELECTRIC FIELD TERM.
 **  vphic,vphib,npwrvphi,mpwrvphi similarly, specify toroidal rot (cm/sec).
@@ -1037,7 +1084,7 @@
 **    (amps) according to a profile given by xjc,xjb,npwrxj,mpwrxj.
 **  NOTE: if using this option (i.e., xjc(1).ne.0.), need to have 
 **        iprocur="prbola-t" (default = 'disabled').
-**        (However, iprocur is not in ZOW version of cql3d.)
+**        (However, iprocur is not in ZOW version of cql3d.) (Now it is? Needs testing)
 **
 **  (B) a series of spline profiles
 **  ===============================
@@ -1115,10 +1162,10 @@
 **    electric field if efswtch.eq."method2" or "method4", and
 **    (xjin_t(1).ne.0., or totcrt.ne.0.):
 **  xjin_t(1:njene,1:nbctime) specifies target current density profiles.
-**    If the following totcrt=0., but xjin_t(1).ne.0., 
+**    If the following totcrt(1)=0., but xjin_t(1).ne.0., 
 **    then these profiles are absolute (amps/cm**2).  
 **    If totcrt(1).ne.0, then these give the current density profile,
-**      normalized to totcrt total plasma current. 
+**      normalized to totcrt() total plasma current. 
 **  totcrt(1:nbctime) .ne.0., then total plasma current is specified (amps)
 **    according to a profile given by xjc,xjb,npwrxj,mpwrxj, or xjin_t.
 **  NOTE: if using this option (i.e., xjc(1).ne.0.), need to have 
@@ -1146,9 +1193,17 @@
 **  ===> NOTE:  The default value is colmodl=1 <===
 **              Be careful to specify the value you want in cqlinput:
 **              colmodl=3 is the common setting.
-**  colmodl=0 means fully nonlinear collisional coefficients (general
-**    species and background species included).  Applied power gives
-**    continual energy growth (in absence of nonlinear losses).
+**  colmodl=0 means fully nonlinear self-collisional coefficients for
+**    the general species and with the background species specified
+**    in the namelist input).  Applied power can give continual energy
+**    growth (in absence of collisional losses with other species,
+**    or other losses such as radiation or radial transport).
+**    The self-collisions conserve energy perfectly, 
+**    in the limit of small grid spacing.
+**    Only include background species for which it is desired to
+**    include general species collsions on the background Maxwellians.
+**    Thus for colmodl=0, normally, do not include a background 
+**    species for the (possible multiple) general species.
 **  colmodl=1 means only contributions from background included
 **    in the Fokker Planck collision term.
 **  colmodl=2 means only contributions from the general species are
@@ -1165,10 +1220,10 @@
 **    distribution against thermal runaway.
 **        This option (colmodl=3) can be useful for runaway electron 
 **    and resistivity calculations.  Unlike the colmodl=0 case, 
-**    which would keeps accurate track of momentum
+**    which keeps accurate track of momentum
 **    transfer but would allow the distribution to run away in a tau_e
-**    time or so, this option would keep the bulk at the background
-**    electron temperature, but still calculate momentum transfer
+**    time or so, this option keeps the bulk at the background
+**    electron temperature, but still calculates momentum transfer
 **    accurately. 
 **        Use of colmodl=1 keeps the bulk from running away but
 **    the momentum computed from the solution f will be wrong. 
@@ -1182,6 +1237,7 @@
 **        Note that the p0 component referred to above applies
 **    to the contribution from a Maxwellian species at a fixed
 **    temperature of the same type. For electron runaway calculations
+**    or other calculations with colmodl=3,
 **    one would have both general species electrons and background
 **    electrons. The colmodl=3 option would "see" the contribution
 **    from the background electrons as the p0'th component and the
@@ -1190,17 +1246,44 @@
 **    default: colmodl=1
 **
 **  kfield(k)="enabled" means that species "k" is included as a field
-**    species in the calculation of the collision integral coefficients.
-**    kfield(k)="disabled" means it is excluded.
+**    (background) species in the calculation of the collision integral
+**    coefficients.  kfield(k)="disabled" means it is excluded.
+**    Usually, the background species are in the namelist data, in order
+**    to be used as field particles in the collision operator, and 
+**    thus will want to be included.
 **    default: kfield(k)="enabled"
 **
-**  gamaset .ne. 0. means that all Coulomb logarithms are set to
-**    gamaset. gamaset = 0. means that the log is computed internally.
-**    default: gamaset=0. **However, need to use gamaset.ne.0 for ions.
-**                        **This needs attention.
+**  cfp_integrals='enabled' [Option added in 2020-07]
+**    This option specifies how certain integrals are computed
+**    which are used in subr. cfpcoefn.
+**    These integrals describe contribution to BA coll. coeffs
+**    from collisions of general species with the background 
+**    Maxwellian species; the integrals only depend on mass
+**    and local temperature of Maxwellian species.
+**    Instead of calculating them over and over again
+**    [as it was done originally; now accessed 
+**    with cfp_integrals='disabled'], 
+**    calculate them as a table over temperature grid 
+**    and then reuse them by matching a local T
+**    with the nearest values in the T-grid
+**    [accessed with cfp_integrals='enabled'].
+**    These integrals are updated if the temp() of 
+**    the Maxwellian species is changed in time. 
+**    Maxwellian species also include impurity ions 
+**    with all ionization states [see description for 
+**    namelist variable imp_depos_method].
+**    This option can give some speedup in case of high-Z impurity.
+**    Default is 'disabled' for backward compatibility. 
+**
+**  gamaset .gt. 0. means that all Coulomb logarithms are set to
+**    gamaset. gamaset=0. means that the log is computed internally.
+**    default: gamaset=0. **However, need to use gamaset.ne.0 for ion
+**                        **general species.  This needs attention.
+**  !YuP[2020-06-23] New option:
+**  gamaset=-1.  means: use NRL definitions for gama(kk,k). 
 **
 **  gamafac = "enabled", then for electrons as (only) general species, 
-**    multiply the Coulomb logrithms (e-e and e-i) in the
+**    multiply the Coulomb logarithms (e-e and e-i) in the
 **    collision FP coefficients by and energy dependence as follows:
 **     The energy dependent Coulomb log will be
 **       alog(flamcql + min(sqrt(gamma-1),1)*(flamrp-flamcql)),
@@ -1211,7 +1294,7 @@
 **       the energy factor in the the CQL Coulomb log
 **       (cf., Killeen et al. book.  The CQL Coulomb log
 **       reduces to the NRL, Te.gt.10eV expression).  
-**       This factor become significant at electron energies 
+**       This factor becomes significant at electron energies 
 **       of order of greater than me*c**2.
 **
 **  qsineut = "enabled" or "maxwel" forces background electron density to
@@ -1341,7 +1424,7 @@
 **   They are set in the same manner as reden is set, by specifying
 **   eparc(0,k) and if lrz.gt.1 eparc(1,k) also.  Similarly, eperc.
 **
-** (2)The torloss(k) series provides an loss term -f/taulos,
+** (2)The torloss(k) series provides a loss term -f/taulos,
 **    treated time-implicitly (for numerical stability).
 **  nonloss, and noffloss give time steps for start and stop
 **      of these loss terms.  (defaults: nonloss=0, noffloss=10000).
@@ -1518,11 +1601,28 @@
 **
 **  efrelax= relaxation parameter used in efswtch.ne."method1" or
 **           efiter="enabled".
-**           (efld ==> efld*(1.-efrelax*(curr-currxj)/(amax(curr,currxj), 
+**           (efld ==> efld*( 1.-efrelax*(curr-currxj)/max(|curr|,|currxj|) ), 
 **                     where currxj is the parallel flux surface area average 
 **                     target current density). 
-**            (See efield.f file).
+**                    ([2020-04-03] For "method4", this is generalized 
+**                     using the new namelist variable efrelax_exp, see below.)
+**            (See efield.f file).    
 **            (default=0.5)
+** 
+**  efrelax_exp= power in a generalized procedure for relaxation of E field,
+**            added in [2020-04-03].
+**            The generalized procedure is 
+**            elecfld==> elecfld*(1.-efrelax*sign(djrel*currxj)*
+                                  |djrel|**efrelax_exp)
+**            where djrel= (curr-currxj) / max(|curr|,|currxj|)
+**            Presently this generalized procedure is only available for 
+**            efswtch="method4", but could be extended to other "method#".
+**            Default value is efrelax_exp=1.d0, which gives
+**            the original procedure. (See efield.f file).
+**            Recommended alternative value: efrelax_exp=0.5
+**            which gives a faster convergence to the target current,
+**            although sometimes produces "jiggles" in E(t).
+**            
 **
 **  noncntrl= time step at which current control is turned on,
 **            for efswtch.eq."method2" and "method3".
@@ -1544,7 +1644,7 @@
 **
 **  iproelec="spline", then set elecfld using splines of
 **            elecin(1:njena) (in manner of enein,...). 
-**          ="parabola", set elecfld using elecfdl(0),elecfld(1),
+**          ="parabola", set elecfld using elecfld(0),elecfld(1),
 **           npwrelec,mpwrelec.               default: iproelec="parabola".
 **          ="prbola-t" or "spline-t", time-dependent profiles
 **
@@ -1595,7 +1695,7 @@
 **                     The initial electric field in the plasma is
 **                     specified through methods specified through
 **                     above D.C. ELECTRIC FIELD TERM (efswtch=method1 is
-**                     the only valid choise at this time).  The Amp-Faraday
+**                     the only valid choice at this time).  The Amp-Faraday
 **                     solution is turned on at nonampf.
 **                     General species must include electrons.
 **                     (Presently, only commissioned for 1st gnrl species.)
@@ -1622,7 +1722,8 @@
 **    calculated according to the Ampere-Faraday equations. 
 **    (default: nonampf=0)
 **
-**
+**  
+**  
 ***************************************************************
 **
 **  TOROIDAL ROTATION:
@@ -1848,7 +1949,7 @@
 **      (Also for plots of UrfB if plturfb.ne."disabled".)
 **    For such time steps,
 **    and plt3d="enabled", the quantity/radius plots will appear.
-**    default: nplt3d(1:nplota)=0
+**    default: nplt3d(1:nplota)=-10000
 **    Also gives print out (tdoutput) for these steps.
 **
 **  idskf.ne."disabled", then at final time step,
@@ -1889,11 +1990,24 @@
 **             urfb/rdcb QL coeff at last time step.  
 **             ="longer_f", i.e., not short, gives f at every
 **                          time step (and urfb at last time step).
+**                         NB: Presently (181023) code not set up for
+**                             restart with this setting.
+**             ="lngshrtf" (added in 2018) Save f at selected time steps
+**                         only; The steps are set by specifying nplot()
+**                         values in cqlinput.  The values of time
+**                         are recorded into 'time_select' array 
+**                         in the nc file.
+**                         NB: Presently (181023) code not set up for
+**                             restart with this setting.
 **             ="longer_b", i.e., not short, give urfb coeff at
 **                          every time step (and f at last time step).
 **             ="long_jp", i.e., not short, give specific rf
-**                          power pwrrf(u,r) and current currf(u,r)
-**                          at each step (else only a last time step).
+**                          power pwrrf(u,r) and current currv(u,r)
+**                          at each step (else only at last time step).
+**                          YuP[2020-04-07]: Also added (for this option)
+**                          saving favr_thet0(u,r) array, which is the value
+**                          of INTEGR{f*2pi*sin(theta0)dtheta0} /4pi
+**                          (Distr function at midplane averaged over pitch angle).
 **             ='long_urf", urfa,urfb,urfc,urfd,urfe,urff into
 **                          _rf.nc file at last time step;
 **                          simularly for rdcb,rdcc,rdce,rdcf,
@@ -2351,8 +2465,12 @@
 **            (S.P. Hirshman, Phys. Fl. 31, p. 3150-2 (1988).)
 **        (default=0, to maintain backwards compatibility).
 **
-**        =99,use Sauter, Angioni, and Lin-Liu, PoP, 2834 (1999)
-**            in banana limit.
+**        =99,use Sauter, Angioni, and Lin-Liu, PoP, 2834 (1999).
+**            Corrected according to Erratum in Phys.Plasmas 2002,v.9,p.5140;
+**            good now for any collisionality (coded by YuP 2019-12)
+**            aspect ratios, general eqdsk data. For details,
+**            see comments in subr. tdboothi.
+**            This is the best jhirsh option.
 **
 **        jhirsh=88/99 give calc of bscurm for electrons and/or
 **               ions,  based upon thermal or nonthermal 
@@ -2376,7 +2494,7 @@
 **      ITER type current drive. 
 **    partner="bramb" means that CQL3D will dump an eqdsk for
 **      use by a ray tracing code.
-**    partner="lsc" and lh="eneabled",  then the  sign of n_parallel 
+**    partner="lsc" and lh="enabled",  then the  sign of n_parallel 
 **      is changed when input ray data is read in.
 **    partner="disabled" None of the above.
 **      default="disabled"
@@ -2395,7 +2513,7 @@
 **                   variables with index m below will be referenced.
 **
 **  nsou is the number of cycles (time steps) between recomputing the source
-**    The source is recomputed if mod(n,nsou)=1.
+**    The source is recomputed if mod(n,nsou)=0.
 **    Except:  Freya is only called from tdinitl, and re-calc'd if
 **             (n+1).eq.nonvphi or noffvphi.
 **             Thus, presently, if nsou.lt.nstop and n doesn't pass 
@@ -2492,7 +2610,7 @@
 **                and source directly from MR expression, averaged
 **                over pitch angle and interpolated on to code u,theta grid,
 **                as suggested by SCChiu.
-**                Presently, this is the only choise, so komodel has
+**                Presently, this is the only choice, so komodel has
 **                no effect (bh: 980501).
 **  nonko=the on cycle for the source.
 **  noffko=the off cycle for the source.
@@ -2619,8 +2737,39 @@
 **    by the Princeton (S. Jardin) TSC transport code...this file
 **    provides more than magnetic geometry information. Density and
 **    temperature profiles for species are also provided by this
-**    file. This file is called 'tscinp'. (Must have lrzmax.gt.1).
+**    file. This file is called 'tscinp'. (Must have lrzmax.gt.1).  
+**  eqsource="miller"    !New option added in 2020
+**    Analytically defined equilibrium, D-shape. 
+**    REF: R.L. Miller et al., "Noncircular, finite aspect ratio, local
+**    equilibrium model", Phys. Plasmas, Vol. 5, No. 4, April 1998,
+**    See Eqs.36-37.  
+**    All related namelist variables start with "eq_miller_" prefix.
+**    Set in cqlinput: 
+**     eq_miller_rmag= ! Magnetic axis: major radius coord [cm]
+**     eq_miller_zmag= ! Magnetic axis: vertical coord [cm]
+**     eq_miller_btor= !Tor field at Geom. center of LCFS [Gauss], with sign.
+**       !Note: the sign of eq_miller_btor will be saved 
+**       ! as bsign variable (stored in comm.h)
+**     eq_miller_radmin= ! Plasma minor radius [cm]
+**     eq_miller_cursign=![+1. or -1.] Sign of Plasma Current in phi-direction,  
+**       ! will be saved and used as cursign variable. 
+**     eq_miller_psimag= ! Pol.flux at magn.axis [cgs] Set as positive.
+**     eq_miller_psilim= ! Pol.flux at LCFS: Set smaller than psimag.
+**     eq_miller_psi_n=  ! n and m powers for PSI(r) profile as in 
+**     eq_miller_psi_m=  !  PSI(r)= psilim+(psimag-psilim)*(1-(r/a)^n)^m
+**     eq_miller_deltaedge= ! Triangularity of LCFS (at r=radmin)[e.g., 0.4]
+**     eq_miller_kappa=  ! Vertical elongation (const for all surfaces).
+**     eq_miller_drr0= ! dR0/dr [e.g., -0.3]. We assume Shafr.shift=-drr0*r 
+**    The equations for the (Rs,Zs) coordinates that define flux surfaces
+**    can be found in subr. eq_miller(), see these lines:
+**    Rs= rmag + drr0*r + r*dcos(tpbs)  !we assume Shafr.shift=-drr0*r
+**    Zs= zmag + akappa*r*sint ! Vertical coord [cm] along magnetic surface
+**    Other related values:  
+**    Set eqsym='none' ! The only option for "miller" equilibrium. 
+**    Also use  eqmod='enabled' for "miller" equilibrium case.
 **
+**  For file-based eqsource, set:
+**  
 **  eqdskin= character*512 name of input eqdsk file.  Default="eqdsk".
 **
 **  bsign=Multiplier of toroidal B-field terms read from eqdsk(btor,f,ff'),
@@ -3028,15 +3177,16 @@
 **    utilizing data ray tracing.  EC includes EBW. Must have iy.le.255.
 **    default: urfmod="disabled"
 **
-**  Diffusion coefficents from up to nmodsa (parameter, typically = 20) 
-**    wave types may be simultaneously treated with damping from
-**    several harmonics from each wave type.  The sum of the
-**    number of harmonics (including the 0th) of the wave types
+**  Diffusion coefficents for up to nmodsa (parameter, presently = 155) 
+**    wave types(rftype, defn'd below) may be simultaneously treated 
+**    with damping from several harmonics from each wave type.  The sum
+**    of the number of harmonics (including the 0th) of the wave types
 **    must be .le.nmodsa.
 **
 **  In the cql3d source (not namelist, but for programming considerations):
 **    mrf= number of rf "types" (and is determined from rftype(), below).
-**         Each rf type is read in from one of mrf RF data files.  
+**         Each rf type is read in from one of mrf RF data files.
+**         Different frequency waves must be read in as separate types. 
 **    mrfn= number of rf "modes" (sum over mrf of the nharms())
 **          It is required that mrfn.le.nmodsa, nmodsa being a 
 **          parameter set in param.h.
@@ -3053,12 +3203,17 @@
 **     reset to "disabled", except as more recently specified in the
 **     following paragraph.)  Alternatively, if urfmod="disabled" then
 **     calculations as in this section are turned off.)
+**     Each wave type can have a different wave frequency, however
+**     can have only one wave frequency for each wave type.
 **
 **  Alternatively, wave types can be input as rftype(1:mrf).
 **    [This is the more general, preferred input method for wave types.]
 **    Wave ray tracing data for each wave type is specified through a
 **    file format designator rfread, and file name rffile(1:mrf),
 **    as given below.
+**    The method can be used for inputing ray data for the same wave
+**    mode but at a different frequency, using a separate rffile.
+**    [Only put ray data for one wave frequency in each rffile.]
 **    The rftype(1:mrf) namelist input is a generalization of the above
 **    ech/fw/lh method;  the older method is retained for backward
 **    compatibility of namelist input.
@@ -3222,7 +3377,7 @@
 **      power (1/2)**(nrfpwr-1), (1/2)**(nrfpwr-2),.... (1/2)**0. 
 **      (This step is a no-op if nrfpwr=0). 
 **   4. Iterate step 2 with full input power for next nrfitr1 calls.
-**      (This step is a no-op if nrfitr1=0). 
+**      (This step is a no-op if nrfitr1=0.  Usually want .gt.(nstop-nonrf)). 
 **   5. Extend extendable rays by nrfstep2 steps.
 **   6. Re-calc damping from ray data and then quasilinear diffusion 
 **      coeffs.  Iterate this step nrfitr2 additional calls.
@@ -3308,7 +3463,8 @@
 **        case with ndeltarho='disabled', the urfdmp='firstd' and
 **        'second' results were quite close [BH110617]. 
 **
-**  urfrstrt="enabled"  => "do not update delpwr" option
+**  urfrstrt="enabled"  => Option to "do not update delpwr power flowing 
+**     along the ray".
 **     For convergence studies with previously calculated ray data files...
 **     (default="disabled")
 **
@@ -3320,7 +3476,11 @@
 **                        rftype()/rffile() data specification system.
 **          ="krf_op", then output the rf mode ("krfx-xx") files.
 **          ="enbl+krf", then both re-write ray data into ray data file
-**                       and output the "krfx-xx" files. 
+**                       and output the "krfx-xx" files.
+**          BH191201: Updated ray data is written in to netcdf output file
+**                    mnemonic_krfnnn.nc, where nnn= "wave type" number
+**                    at the last time step.
+**                    
 **
 ***************************************************************
 **
@@ -4011,7 +4171,7 @@
 **    BEGIN NAMELIST INPUT
 **
 ********************************************************************
- $setup
+ $setup0
  ibox="box c08",
  iuser="mccoy",
  ioutput=6,

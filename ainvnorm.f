@@ -87,12 +87,25 @@ c..................................................................
       r0=2.82e-13
       gacon2=2.*alp/(r0*fmass(kelec)*clight)
       do 10 i=1,ntotal
-CDIR$ NEXTSCALAR
         do 11 k=1,ntotal
           gamt(i,k)=fmass(i)*fmass(k)*gacon2/(fmass(i)+fmass(k))
+          !YuP[2019-07-25] Just a comment: This factor, m(i)*m(k)/(m(i)+m(k))
+          !is from Killeen book, Eq.(2.1.5). 
+          !For e-on-e Coulomb logarithm,
+          !it will give me*me/(2*me) = me/2.
+          !For e-on-ion, it will give me*mi/mi = me.
+          ! The difference between these two types of interaction is
+          ! a factor of 2, and ln(2)=0.7, 
+          ! so that ln(L_ei) is larger than ln(L_ee) by 0.7.
+          ! In NRL Formulary, and in Hesslow-JPP2018, they are almost same.
+          ! It seems this factor, m(i)*m(k)/(m(i)+m(k)), 
+          ! was only used in the Killeen book. The origin is unclear.
+          !We can get a match with NRL if we use me/2 instead of me
+          !in equation for ln(L_ei)
+          ! In such a case,gamt(i,k)= (fmass(kelec)/2)*gacon2 = 
+          ! = alp/(r0*clight)= 0.86348152303068
  11     continue
  10   continue
-CDIR$ NEXTSCALAR
       do 40 k=1,ngen
         gam1=4.*pi*(charge*bnumb(k))**4/fmass(k)**2
         tnorm(k)=vnorm**3/(gam1*one_)

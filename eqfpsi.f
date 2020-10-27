@@ -4,18 +4,29 @@ c
       implicit integer (i-n), real*8 (a-h,o-z)
       include 'param.h'
       include 'comm.h'
+      character*8 eqmirror
 
 c..................................................................
 c     This routine provides f(psi) to model the toroidal
 c     magnetic field. For cases that eqsource="ellipse"
 c     the f is ad-hoc and is determined through the namelist
-c     model, fpsimodel. In the case that eqsource="filename", then
-c     a file exists on disk which provides f and the equilibrium
-c     psi. As of 9/21/88 filename=eqdsk or topeol.
+c     model, fpsimodel. In the case that eqsource="eqdsk", then a file
+c     (eqdskin) exists on disk which provides f(psi) and the 
+c     equilibrium psi. As of 9/21/88 eqsource=eqdsk or topeol.
+c     As if March/2016, eqsource has five possible values.
+!     (eqsource.eq."mirror1" is not accessible in this CQL3D version)
 c     Also provided is the derivative df/dpsi, fppsi.
 c..................................................................
 
-      if (eqsource.eq."ellipse") then
+      eqmirror="disabled"
+      if( eqsource.eq."eqdsk".and.machine.eq."mirror") then
+         eqmirror="enabled"
+      else
+         eqmirror="disabled"
+      endif
+      if ( (eqsource.eq."ellipse")  .or. 
+     +     (eqsource.eq."miller")   .or.
+     +     (eqsource.eq."mirror1" .or. eqmirror.eq."enabled") ) then
         if (fpsimodl.eq."constant") then
           fpsi__=btor*radmaj
           fppsi__=0.
@@ -40,6 +51,7 @@ c
       implicit integer (i-n), real*8 (a-h,o-z)
       include 'param.h'
       include 'comm.h'
+      character*8 eqmirror
 
 c..................................................................
 c     This routine provides p(psi) to model the plasma
@@ -50,7 +62,15 @@ c     psi. As of 9/21/88 filename=eqdsk or topeol.
 c     Also provided is the derivative dp/dpsi, pppsi.
 c..................................................................
 
-      if (eqsource.eq."ellipse") then
+      eqmirror="disabled"
+      if( eqsource.eq."eqdsk".and.machine.eq."mirror") then
+         eqmirror="enabled"
+      else
+         eqmirror="disabled"
+      endif
+      if ( (eqsource.eq."ellipse")  .or. 
+     +     (eqsource.eq."miller")   .or.
+     +     (eqsource.eq."mirror1" .or. eqmirror.eq."enabled") ) then
          ppsi__=0.
          pppsi__=0.
       else

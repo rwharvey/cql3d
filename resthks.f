@@ -1,13 +1,13 @@
 c
 c
       subroutine resthks(kl_,klr_,klmdpln,preshin,preskim,pressau1,
-     !  pressau2)
+     +  pressau2)
       implicit integer (i-n), real*8 (a-h,o-z)
 c     ------------------------------------------------------------------
 c
 c     Compute resistivity ratios (to Spitzer Z=1 value), xxxBH,010807
 c     BH,010807: Spitzer with Zeff.ne.1 to be used with HH...,below.
-c                Olivier evidently adjusted the other ratios also.
+c               Olivier Sauter evidently adjusted the other ratios also.
 c       
 c     including collisionality and Zeff, according to
 c     Hinton and Hazeltine (1976), Kim-Hirshman (1988) and Sauter (1993)
@@ -17,6 +17,20 @@ c     preskim=Kim (Hirshman-Sigmar) ratio
 c     pressau1=Sauter1
 c     pressau1=Sauter2
 c
+! YuP[2020-02] Notes: 
+! 1. Value of starnue only affects the values of pressau2 and preshin.
+!    Values of pressau1 and preskim do not depend on starnue.
+! 2. From printout: Value of preshin is smaller when starnue>0 
+!    (comparing to its value at starnue=0); Similarly for pressau2.
+! 3. From printout: Usually the values of pressau2 are slightly higher
+!    than the values of preshin (at starnue=0, and at starnue>0, too).
+! 4. It is suggested to call this subroutine with starnue>0,
+!    and use pressau2 as the value corresponding to starnue>0,
+!    while pressau1 corresponds to starnue=0 
+!    (so, no need to call this subr. twice, 
+!    when we want to find delta_sigma that gives the correction for
+!     collisional-vs-noncollisional neoclassical conductivity)
+!
 c     Assume restcon called just before, i.e. xconn corresponds to kl_
 c
       save

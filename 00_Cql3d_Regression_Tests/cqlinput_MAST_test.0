@@ -1,0 +1,401 @@
+ &setup0
+ ibox='box g35',
+ iuser='CompX',
+ ioutput=6,
+ noplots='disabled',
+ lrz=15  !31
+ mnemonic='MAST_test.0'
+ &end
+ 
+ &setup
+ bnumb(1)=-1.,
+ bnumb(2)= 1.,
+ bnumb(3)=-1.,
+ bootcalc='disabled',
+ bootsign=+1.
+ !bootupdt='enabled'
+ bootst='disabled',
+ !bth=1.00e+3,
+ !btor=1.032e+4,
+ chang='enabled' !----'noneg' is not compatible with restart option
+
+ colmodl=3,
+ contrmin=1.e-12,
+ dtr=.005
+ eegy(1,1,1,1)=0.,
+ eegy(1,2,1,1)=2.,
+ eegy(2,1,1,1)=0.,
+ eegy(2,2,1,1)=6.,
+ efiter='disabled'
+ elecfld(0)=+1.e-14,
+ elecfld(1)=+1.e-14,
+ enloss(1)=200.,
+ !enmax=100., 
+ !enmin=5.,
+ enorm=400., !---------- keV
+ eoved=.00,
+ ephicc=1.,
+ fds=0.2,
+ fmass(1)=9.1095e-28,
+ fmass(2)=3.34e-24,
+ fmass(3)=9.1095e-28,
+ gamaset=-1. ! -1.  means: use NRL definitions for Coulomb log [gama(kk,k)]
+ gsla=270.,gslb=35.,
+ iactst='disabled',
+ idskf='disabled',
+ idskrf='disabled',
+ implct='enabled',
+ ineg='disabled',
+ iprone='spline',  !-----------------
+ iprote='spline',
+ iproti='spline',
+ iprozeff='disabled' !'parabola', 
+ irzplt(1)=2,
+ irzplt(2)=12,
+ irzplt(3)=15,
+! irzplt(3)=11,
+! irzplt(4)=15,
+ iy=80! 120  160,
+ izeff='ion' !'backgrnd',
+ jx=120 ! 200 160,
+ kfrsou=0,
+ kpress(2)='enabled',
+ kspeci(1,1)='e',kspeci(2,1)='general',
+ kspeci(1,2)='d',kspeci(2,2)='maxwell',
+ kspeci(1,3)='e',kspeci(2,3)='maxwell',
+ lbdry(1)='conserv' !'consscal' !---------------
+ locquas='disabled',
+ lossmode(1)='disabled',
+ lz=30,
+ machine='toroidal',
+ manymat='disabled'
+ meshy='fixed_y',
+ mpwr=1.00, 1.00, 1.00, 1.00
+ mx=5, !3,   !------ TRY 5?  Almost same
+ nchec=1,
+ ncoef=1,
+ ncont=20,
+ nen=30,
+ netcdfnm='enabled', !----------disabled writing into *krf.nc file
+ netcdfshort="long_jp"
+ nfpld=10000, !Large, To avoid additional loading of f
+ ngen=1,
+ njene=20,  !----------- radial grid size for tabulated n
+ njte=20,
+ njti=20,
+ nmax=2,
+ noffel=10000,
+ nonel=10000,
+ nplot=2,
+ nplt3d=2
+ npwr=2.,2.,2.,2.,
+ nrskip=0,
+ nrstrt=1,
+ nstop=3 !10 !4,   !----------(check when RF starts) 
+ numby=30,
+ nv=20,
+ partner='bramb',
+ !---------------
+ plt3d='enabled',
+ pltd='color',
+ pltdn='disabled',
+ pltend='enabled',
+ pltfvs='enabled',
+ pltinput='enabled',
+ pltmag=1., !YuP: Not used?
+ pltpowe='last',
+ pltprpp='enabled',
+ pltrst='disabled',
+ pltstrm='disabled',
+ plturfb='color' !'enabled' ! disabled - to skip plots of URFB coeffs
+ pltvecal='enabled', ! also see veclnth
+ pltvecc='enabled',
+ pltvece='disabled',
+ pltvecrf='enabled',
+ pltvflu='disabled',
+ pltvs='rho',
+ !----------------
+ profpsi='disabled',
+ psimodel='axitorus',
+ radcoord='sqtorflx'  !----------------
+ qsineut='disabled',
+ radmaj=150.,
+ radmin=50.,
+ rd=90.0,
+ !reden(1,0)=6.0e13
+ !reden(1,1)=1.0e13
+ !reden(2,0)=6.0e13
+ !reden(2,1)=1.0e13
+ !reden(3,0)=6.0e13
+ !reden(3,1)=1.0e13
+ relativ='enabled',
+ rfacz=1.,
+ rmirror=7.5,
+ rovera=1.e-2,
+ roveram=1.e-2,
+ !rya(1)= 0.01,0.03,0.05,0.07,0.09,0.11,0.13,0.15,0.17,0.19,
+ !        0.21,0.23,0.25,0.27,0.29,0.31,0.33,0.35,0.37,
+ !        0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,
+ !        0.85,0.90,0.95
+rya(1)= 0.03,0.07,0.11,0.15,0.19,
+         0.23,0.27,0.31,0.35,
+         0.40,0.50,0.60,0.70,0.80,
+         0.90
+ rzset='enabled', ! Set rya values in the above list
+ softxry='disabled',
+ syncrad='disabled',
+ taunew="enabled"   !------------- The only option for eqsym='none'
+ tauloss(1,1)=0.,
+ tauloss(2,1)=0.,
+ tauloss(3,1)=0.,
+ tbnd=.002,
+ !temp(1,0)=3.0
+ !temp(1,1)=0.05
+ !temp(2,0)=3.0
+ !temp(2,1)=0.05
+ !temp(3,0)=3.0
+ !temp(3,1)=0.05
+ tfac=0.75,
+ tfacz=1.,
+ thetd=0.0
+ torloss(1)='disabled',
+ veclnth=1.5,  !---------- for vector flux plots. 1.0 - mesh scale size
+ xfac=0.1 !+1.,
+ xlwr=.085,
+ xmdl=.25,
+ xpctlwr=.1,
+ xpctmdl=.4,
+ ylower=1.22,
+ yreset='disabled',
+ yupper=1.275,
+ zmax=408.
+ 
+ !------ From rho_toroidal.txt
+ryain(1)=
+2.500000037252902985e-02
+7.500000298023223877e-02
+1.250000000000000000e-01
+1.749999970197677612e-01
+2.249999940395355225e-01
+2.750000059604644775e-01
+3.249999880790710449e-01
+3.750000000000000000e-01
+4.250000119209289551e-01
+4.749999940395355225e-01
+5.249999761581420898e-01
+5.749999880790710449e-01
+6.250000000000000000e-01
+6.750000119209289551e-01
+7.250000238418579102e-01
+7.749999761581420898e-01
+8.249999880790710449e-01
+8.750000000000000000e-01
+9.250000119209289551e-01
+9.750000238418579102e-01 
+
+!From file "ne (1).txt" [cm^-3]
+ enein(1,1)=
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.445827934617600000e+13
+3.237609052569600000e+13
+2.883335906918400000e+13
+2.344100036608000000e+13
+1.661569964441600000e+13
+9.582749417472000000e+12
+4.545942913024000000e+12 
+
+!Assume n_i = n_e [cm^-3]
+ enein(1,2)=
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.445827934617600000e+13
+3.237609052569600000e+13
+2.883335906918400000e+13
+2.344100036608000000e+13
+1.661569964441600000e+13
+9.582749417472000000e+12
+4.545942913024000000e+12 
+
+!Maxwellian [background] n_e [cm^-3], for L0 term
+ enein(1,3)=
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.553095162265600000e+13
+3.445827934617600000e+13
+3.237609052569600000e+13
+2.883335906918400000e+13
+2.344100036608000000e+13
+1.661569964441600000e+13
+9.582749417472000000e+12
+4.545942913024000000e+12 
+
+!From file "Te (1).txt", converted to keV
+ tein(1)= 
+2.082186035156250000d0
+2.082186035156250000d0
+2.082186035156250000d0
+2.082186035156250000d0
+2.082186035156250000d0
+2.071483886718750000d0
+2.035390991210937500d0
+1.966239013671875000d0
+1.874931030273437500d0
+1.761156005859375000d0
+1.630584960937500000d0
+1.493336059570312500d0
+1.340047973632812500d0
+1.158807983398437500d0
+0.955797302246093750d0
+0.755858215332031250d0
+0.580330810546875000d0
+0.437357696533203125d0
+0.331838897705078125d0
+0.257023712158203125d0 
+tescal=1.0 !----------------------- Set As in GENRAY run
+
+!From file "Te (1).txt", converted to keV; Assume Ti=Te
+ tiin(1)=
+2.082186035156250000d0
+2.082186035156250000d0
+2.082186035156250000d0
+2.082186035156250000d0
+2.082186035156250000d0
+2.071483886718750000d0
+2.035390991210937500d0
+1.966239013671875000d0
+1.874931030273437500d0
+1.761156005859375000d0
+1.630584960937500000d0
+1.493336059570312500d0
+1.340047973632812500d0
+1.158807983398437500d0
+0.955797302246093750d0
+0.755858215332031250d0
+0.580330810546875000d0
+0.437357696533203125d0
+0.331838897705078125d0
+0.257023712158203125d0 
+tiscal=1.0 !------------------------
+
+ zeffin(0)=1.0 !central value, 
+ zeffin(1)=1.0 !edge, as in (center-edge)*(1-(r/a)**npwr)**mpwr +edge
+ npwrzeff=2.0,
+ mpwrzeff=1.0 
+ &end
+ 
+ &trsetup
+ difusr=2.e5,
+ pinch='simple',
+ relaxden=1.,
+ relaxtsp='enabled',
+ transp='disabled',
+ advectr=1.
+ &end
+ 
+ &sousetup
+ asor(1,1,1)=.25e+13,asor(1,2,1)=3.25e+13,
+ noffso(1,1)=21,noffso(1,2)=21,
+ nonso(1,1)=10000,nonso(1,2)=10000,
+ nso=0,
+ nsou=1000,
+ pltso='disabled',
+ scm2(1,1)=.001,scm2(1,2)=10000.,
+ sellm1(1,1)=1.,sellm1(1,2)=1.,
+ sellm2(1,1)=1.,sellm2(1,2)=1.,
+ sem1(1,1)=1600.,sem1(1,2)=0.,
+ sem2(1,1)=.5,sem2(1,2)=25.,
+ seppm1(1,1)=1.,seppm1(1,2)=1.,
+ seppm2(1,1)=1.,seppm2(1,2)=1.,
+ soucoord='polar',
+ sthm1(1,1)=5.,sthm1(1,2)=0.,
+ szm1(1,1)=0.,szm1(1,2)=0.,
+ szm2(1,1)=1.e+5,szm2(1,2)=1.e+5
+ &end
+ 
+ &eqsetup
+ eqdskin="eqdsk_MASTU"  !-------------------- it has Btor<0
+ bsign=-1.0
+ eqmod='enabled'
+ eqsym="none" ! Although for MAST, surfaces look up-down symmetric
+ &end
+ 
+ &rfsetup
+ call_lh='disabled',
+ call_ech='disabled',
+ call_fw='disabled',
+ lh='disabled',
+ ech='enabled',
+ fw='disabled',
+ iurfl='disabled',
+ iurfcoll='disabled',
+ nbssltbl=2000,
+ nharms=4, !3,  !Will be using  nharm1 to nharm1+(nharms-1) harmonics
+ nharm1=1,
+ nrfitr1=1000,
+ nrfitr2=0,
+ nrfitr3=1,
+ nrfpwr=0,
+ nrfstep1(1)=600,
+ nrfstep1(2)=600,
+ nrfstep2=000,
+ noffrf(1)=100000,
+ nonrf(1)=0,     !---------- n step when RF starts
+ nrf=0,
+ pwrscale(1)=1.0d0  !--------------------------
+ rfread="netcdf"
+ rffile(1)="genray_test4.nc"
+ scaleurf='enabled',
+ urfdmp='firstd'  !DO NOT USE 'secondd' (see comments in urfavg)
+ urfmod='enabled', !------------------ RF
+ urfwrray='disabled',
+ vlfmod='disabled',
+ vlhmod='disabled',
+ vparmax=.7956,
+ vparmin=.1768,
+ vprprop='disabled'
+ wdscale(1)=1.d0 !0.1 ! 0.025 ?
+ wdscale(2)=1.d0 !0.1
+ &end
+ 
+ &frsetup
+ frmod='disabled'
+ &end
+end
+end
+end
+LEAVE
+THESE
+HERE!

@@ -138,10 +138,12 @@ c     Unpack stored data - see subroutine urfpack
 c..................................................................
           !if(urfb_version.eq.1)then ! 2 is the new version developed by YuP
              ! if 1, it will use the original version
-             call unpack(ilowp(locatn,krf),8,ilim1(1),jjx)
-             call unpack(iupp(locatn,krf),8,ilim2(1),jjx)
-             call unpack16(ifct1_(locatn16,krf),8,ifct1(1),jjx)
-             call unpack16(ifct2_(locatn16,krf),8,ifct2(1),jjx)
+             jjxl=jjx+locatn-1
+             call unpack(ilowp(locatn:jjxl,krf),8,ilim1(1:jjx),jjx)
+             call unpack( iupp(locatn:jjxl,krf),8,ilim2(1:jjx),jjx)
+             jjxl=jjx+locatn16-1
+             call unpack16(ifct1_(locatn16:jjxl,krf),8,ifct1(1:jjx),jjx)
+             call unpack16(ifct2_(locatn16:jjxl,krf),8,ifct2(1:jjx),jjx)
           !endif
           
 c..................................................................

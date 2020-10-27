@@ -36,15 +36,6 @@ c
  588    format("Loss due to lossmode(k) and torloss(k), k=",i5)
         CALL PGPAGE
         call pltcont(k,1,t_,8) ! itype=8 for pltlosc
-        !call GSCPVS(.5,.4)
-c$$$        call gxglfr(0)
-c$$$        call gscpvs(.15,.85)
-c$$$        write(t_,560)
-c$$$        call gptx2d(t_)
-c$$$ 560    format("Contour values:")
-c$$$        write(t_,570) (temp2(jc,1),jc=1,(ncont/2)*2)
-c$$$        call gptx2d(t_)
-c$$$ 570    format((1x,e16.6,5x,e16.6),"$")
 92003   continue
  100  continue
       return

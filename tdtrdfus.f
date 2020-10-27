@@ -33,7 +33,7 @@ c%OS
 
 c      write(*,*)'tdtrdfus: difus_type(),',(difus_type(k),k=1,ngen)
 
-      if (difus_io(1).ne."drr_in") then
+      if (difus_io(1).ne."drrin") then
 
       do k=1,ngen
 
@@ -76,17 +76,24 @@ c      write(*,*)'tdtrdfus: difus_type(),',(difus_type(k),k=1,ngen)
                enddo
             endif
               
-         enddo
+         enddo ! j
 c     c        Checking calc of d_rr vel dependence against seperate 
 c     c        tdtrdfus calc of d_rr_b  ==> OK
          eighty=80.             ! getting consistent precision
-         jkev=luf(eighty,enerkev,jx)
+         jkev=luf(eighty,enerkev(1:jx,k),jx) !YuP[2020-10-20] corrected: index k
          jkev=jkev-1
-      if ( l.eq.0) write(*,*)'tdtrdfus: enerkev',
-     +   (enerkev(j,k),j=1,jx) !YuP[2018-01-08] added 2nd index (k)
-      if ( l.eq.0) write(*,*)'tdtrdfus: d_rr',(d_rr(iyh,j,k,ilr),j=1,jx)
-      write(*,*)'tdtrdfus: jkev,d_rr(iyh,1,k,ilr),d_rr(iyh,jkev,k,ilr) '
-     1        ,jkev,d_rr(iyh,1,k,ilr),d_rr(iyh,jkev,k,ilr)
+         
+         if (ioutput(1).ge.2) then !YuP[2020] diagnostic printout
+           if ( l.eq.0) then
+            write(*,*)'tdtrdfus: enerkev',
+     +       (enerkev(j,k),j=1,jx) !YuP[2018-01-08] added 2nd index (k)
+            write(*,*)'tdtrdfus: d_rr',(d_rr(iyh,j,k,ilr),j=1,jx)
+            write(*,*)
+     &       'tdtrdfus: jkev,d_rr(iyh,1,k,ilr),d_rr(iyh,jkev,k,ilr) '
+     1       ,jkev,d_rr(iyh,1,k,ilr),d_rr(iyh,jkev,k,ilr)
+           endif
+         endif
+              
       enddo  !  on l
 
       endif  ! on difus_type
@@ -183,7 +190,7 @@ c$$$      elseif (difus_io(1).eq."drrdrin") then
 c$$$
 c$$$         call diffus_io(4) !Reads d_rr and d_r for k=1 from .nc file
          
-      endif
+      endif  !On difus_io(1).ne."drrin"
 
       return
       end
@@ -299,6 +306,11 @@ c     for the radial diffusion coefficient.
 c     Coefficients in the following expression are input
 c       throught the namelist variable difus_vshape(1:4).
 c     The shape function is stored in temp1.
+c     BH180921:
+c     Note that apart from the coll_cutoff and gamm factor,
+c     that the velocity dependence is in terms of velocity
+c     (not momentum-per-mass) normalized to central thermal
+c     velocity vth(k,1), with value 1.0 at the thermal vel.
 c.......................................................................
 
       include 'param.h'
@@ -862,9 +874,7 @@ c     Number of general species treated by the _difus_io.nc file
 c     Check the data dimensions in the input file
       
       if (jx*iy*lrz*n_d_rr.ne.jx_file*iy_file*lrz_file*n_d_rr_file) then
-         write(*,*)  
-         write(*,*)'  WRONG DIMENSIONS IN _difus_io.nc file: STOP'  
-         STOP
+         STOP '  WRONG DIMENSIONS IN _difus_io.nc file: STOP'
       endif
 
 c     Could check rya, etc., in the _difus_io.nc file (but not yet done).

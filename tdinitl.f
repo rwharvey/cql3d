@@ -19,6 +19,7 @@ CMPIINSERT_INCLUDE
       character*8 icall,iplotsxr
       character*128 filenm ! template for file name with data 
       real*8 a_new(njene)  ! working array
+      real*8 ZDISTR(100) ! local, for subr. ADCDO()
 
       if (n.gt.0) return
 
@@ -72,6 +73,21 @@ c      iprozeff.ne.'disabled').
 c.......................................................................
 
       call ainsetva
+      
+      !------- General data on impurity ions; All ionization states ----
+      !YuP[2020-07-02] Earlier, this subr. was part of set_gscreen_hesslow.
+      ! Now separated, for better logic flow.
+      nstates=0 !Initialize; To be found in subr.set_impurity_data below.
+      ! If no suitable impurity is present 
+      ! (example: imp_type is set to 0 in cqlinput),
+      ! then nstates remains 0 ==> Effectively, no impurities.
+      if(imp_depos_method.ne.'disabled')then
+         call set_impurity_data !-> bnumb_imp(0:nstates),excit_enrgy(0:nstates),etc
+         !Some arrays that depend on nstates 
+         ! are allocated in subr.set_impurity_data.
+         !Other could be allocated in ainalloc, e.g. those that depend on 
+         ! combination of nmax+nstates.
+      endif
 
 c.......................................................................
 c     Allocate arrays and radial transport arrays, if required
@@ -137,14 +153,24 @@ c.....................................................................
       if(lrzmax.gt.1) call tdxinitl
 
 c.....................................................................
-c     Call routines to initialize any time-dependent (parabolic)   
+c     Call routines to initialize any time-dependent (parabolic,...)   
 c     profiles, and to set them up in place of profiles 
 c     otherwise set up in tdxinitl.
 c.....................................................................
 
-      if (nbctime.gt.0) then
-         call profiles
+      if(nbctime.gt.0 .and. iprozeff.eq."curr_fit")then
+           !If nbctime.gt.0, and this is a restart case, then for
+           !iprozeff.eq."curr_fit, need to restore the zeff(ll)
+           !from end of the previous run (from distrfunc.nc).
+           if(nlrestrt.eq."ncdfdist")then
+              call tdreadf(3)  !kopt=3 restores zeff profile
+           endif  !On nlrestrt.eq."ncdfdist"
+           !YuP[2020-02-11] Moved this part from profiles to tdinitl
       endif
+
+      !if(nbctime.gt.0)then !YuP[2019-09-18] This logic is inside subr.
+         call profiles
+      !endif
 
 c.....................................................................
 c     Determine mesh normalization constant vnorm.
@@ -201,10 +227,13 @@ c..................................................................
 
  110  continue ! ll=lrzmax,1,-1
 
-c      do ir=1,lrz
-c         WRITE(*,'(a,i3,4e13.5)')'ir,rya,rpcon,rmcon,equilpsi=',
-c     +                ir,rya(ir),rpcon(ir),rmcon(ir),equilpsi(ir)
-c      enddo
+CMPIINSERT_IF_RANK_EQ_0      
+      do ir=1,lrz
+         WRITE(*,'(a,i3,4e13.5)')'ir,rya,rpcon,rmcon,equilpsi=',
+     +                ir,rya(ir),rpcon(ir),rmcon(ir),equilpsi(ir)
+      enddo
+       !pause
+CMPIINSERT_ENDIF_RANK
              
  
 
@@ -307,9 +336,31 @@ cYuP      if (lossmode(1).eq.'simplban' .or. lossmode(1).eq.'simplbn1'
 cYuP      +     .or.ndeltarho.ne.'disabled') 
 cYuP      +     call deltar
 cYuP[07-2017] exclude simplban  - deltar is not needed.
-      if (lossmode(1).eq.'simplbn1'
-     +     .or.ndeltarho.ne.'disabled') 
-     +     call deltar
+      if(ndeltarho.ne."disabled")then 
+         !YuP[2020-10-20] Removed lossmode from if() below. 
+         !deltarho-related arrays are not used in sub.losscone, for now.
+!YuP      if (lossmode(1).eq.'simplbn1'.or.ndeltarho.ne.'disabled') 
+          call deltar
+      endif
+
+
+      !------------------------- contribution from partially ionized ions -----
+      !YuP[2019-07-29] Set gscreen(p) function (of normalized momentum p) 
+      !that describes the effect of partially screened ions 
+      !on enhanced scattering of electrons (fast electrons can "probe" 
+      !the inner structure of a partially ionized ion).
+      !Also, set hbethe(p) function that describes the slowing down
+      !of free electron on bound electrons in partially ionized ion
+      !or neutral atom.
+      !See Hesslow et al, JPP-2018,vol.84, Eq.(2.25) and (2.31).
+      if(gamafac.eq."hesslow" .and. kelecg.eq.1)then
+         call set_gscreen_hesslow !(imp_type is in namelist)
+         !This subroutine requires x(j) mesh, gamma(j) values,
+         !so it should be called AFTER micxinil.
+         !It uses data for different chemical elements,
+         !with different ionization states.
+      endif !(gamafac.eq."hesslow" .and. kelecg.eq.1)
+
 
 c.....................................................................
 cl    1.2 Loop over spatial variable index for which the equations will be
@@ -505,8 +556,200 @@ c..................................................................
 c     print initial output and plot equilibrium surfaces
 c..................................................................
       call tdoutput(1)
-      if (noplots.ne."enabled1" .and. eqmod .eq. "enabled") call tdplteq
+      if (noplots.ne."enabled1") then
+      if((eqmod.eq."enabled") .or.
+     &   (eqmod.eq."disabled" .and. psimodel.eq."spline") )then
+      !In case of eqmod='disabled', solr() and solz() can be empty,
+      ! so tdplteq would fail.
+      !Actually, with psimodel='spline', they are set now !YuP[2020-01-29]      
+         call tdplteq(0) !'0' means no rays (Here, no data on rays yet)
+      endif
+      endif
 c$$$      if (eqmod .eq. "enabled") call tdplteq
-c
+
+!------------------------- contribution from partially ionized ions -----
+      if((imp_depos_method.ne.'disabled').and.(kelecg.eq.1))then
+         !YuP[2020-06-24] Changed (gamafac.eq."hesslow") to (imp_depos_method.ne.'disabled')
+         !   [a more general logic]
+         !YuP[2020-06-22]call set_gscreen_hesslow !(imp_type is in namelist)
+         !YuP[2020-06-22] Moved this call to set_gscreen_hesslow,
+         !about 300 lines up, BEFORE call ainitial(which calls diaggnde),
+         !because diaggnde calculates zeff() 
+         !and zeff4() (at each n, including n=0).
+         !-------------------------------------------------------
+         !--- Setup arrays/table for calculation of <Z> and <Z^2> 
+         !    for a given impurity (imp_type)
+         kopt=0 !Read data file, find value of nstates, setup arrays/table
+         ! Note: INPUT argument imp_type is obtained from namelist.
+         temp_Te=0.d0 ! Not needed during setup
+         dens_nD0=0.d0 ! Not needed during setup
+         dens_ne=0.d0 ! Not needed during setup
+         tau_r=0.d0 ! Not needed during setup
+         if(adpak.eq.'enabled')then
+            call set_get_ADPAK(kopt,imp_type, 
+     &                         temp_Te,dens_nD0,dens_ne,tau_r,
+     &                         z1av,z2av) 
+           !(INPUT: kopt,imp_type,temp_Te,dens_nD0,dens_ne,tau_r)
+         endif ! if adpak.ne.enabled, subr.ADCDO will be used.
+         
+         !------------- FOR TESTS ONLY (example of usage):
+!         kopt=1 ! To get <Z> and <Z^2> 
+!         dens_ne=1.d13 !Should get from reden(kelecg,lr_)
+!         dens_nD0= 7.d-3*dens_ne !Should get dens_nD0 from namelist var
+!         !Tested: 2.0*dens_ne ! above 1.0 is treated as 1.0 case.
+!         !1.d-8*dens_ne , 1.d-7*dens_ne , 7.d-3*dens_ne All tested ok
+!         !(run, copy/paste the printout of 'temp_Te,z1av,z2av' below
+!         ! into Matlab script test_Z_vs_Te.m, make plots)
+!         tau_r=2.154d12/dens_ne !Should get tau_r(rho) from namelist.
+!         do itemp=1,100 ! 100 points in log10 scale for Te values
+!           temp_Te= log10(0.4d-3) 
+!     &             +(itemp-1)*(log10(10.0)-log10(0.4d-3))/(100-1) ! kev
+!           temp_Te= 10.0**temp_Te 
+!           call set_get_ADPAK(kopt,imp_type, 
+!     &                         temp_Te,dens_nD0,dens_ne,tau_r,
+!     &                         z1av,z2av) 
+!           !(INPUT: kopt,imp_type,temp_Te,dens_nD0,dens_ne,tau_r)
+!           !WRITE(*,*) temp_Te,z1av,z2av
+!           iZatom=INT(bnumb_imp(nstates)) !should be integer as an argument to this subr.
+!           !Could simply use iZatom=nstates
+!           call get_distr_charge_states(iZatom,z1av,z2av, fz) 
+!           !          INPUT: iZatom,z1av,z2av   OUTPUT: fz(0:Zatom)
+!           ! Alternatively: 
+!           INUCZ=INT(bnumb_imp(nstates)) !atom nuclear charge
+!           ZTE= temp_Te*1d3 ! ZTE is Te in eV
+!           ZNE= dens_ne  ! electron density in cm-3
+!           ZNA= dens_nD0 ! density of hydrogen atoms in cm-3
+!           ZTA= temp_Te*1d3 !T= Timp/Mimp +Ta/Ma ~Ta/Ma. For D: Ti/2 (Ma=2)
+!           !ZTA is relative temperature for charge exchange of ions with
+!           !hydrogen atoms which is Tz/Mz+Th/Mh
+!           CALL ADCDO(INUCZ,ZTE,ZNE,ZTA,ZNA,
+!     &           ZS, ZS2, EZRAD, EZLOSS, ZDISTR)
+!           !output:
+!           ! ZS is <z>
+!           ! ZS2 is <z^2>
+!           ! EZRAD is the radiation power W*cm3
+!           ! EZLOSS is the ionization energy losses, W*cm3
+!           ! ZDISTR is array for distribution function of excited states with
+!           ! sum(ZDISTR)=1
+!           ! For printout/verification:
+!           sum_fz_Z1=0.d0
+!           sum_fz_Z2=0.d0
+!           sum_ZDISTR_Z1=0.d0
+!           sum_ZDISTR_Z2=0.d0
+!           do iz=0,iZatom
+!             !write(*,*) iz,fz(iz),ZDISTR(iz+1)
+!             sum_fz_Z1= sum_fz_Z1 +fz(iz)*iz
+!             sum_fz_Z2= sum_fz_Z2 +fz(iz)*iz*iz
+!             sum_ZDISTR_Z1= sum_ZDISTR_Z1 +ZDISTR(iz+1)*iz
+!             sum_ZDISTR_Z2= sum_ZDISTR_Z2 +ZDISTR(iz+1)*iz*iz
+!           enddo
+!           !write(*,*)'Above: z,fz(z),ZDISTR(z) over all charge states z'
+!           write(*,*)'Te_keV, ZTE,ZNE,ZTA,ZNA=',temp_Te,ZTE,ZNE,ZTA,ZNA
+!           write(*,*)'z1av, ZS =',z1av,ZS
+!           !write(*,*)'z2av, ZS2=',z2av,ZS2
+!           write(*,*)'sum_fz_Z1, sum_ZDISTR_Z1=',sum_fz_Z1,sum_ZDISTR_Z1
+!           !write(*,*)'sum_fz_Z2, sum_ZDISTR_Z2=',sum_fz_Z2,sum_ZDISTR_Z2
+!         enddo ! itemp
+!         !WRITE(*,*)'Above: Te[keV], z1av, z2av'
+!         pause !----------- TESTS ONLY (done)
+         
+         !---> For pellet propagation/ablation model:
+         if(imp_depos_method.eq.'pellet') then
+           write(*,*)'--- CALLING set_get_pellet(kopt=0...) ---'
+           kopt=0 ! to setup some arrays and calc. pellet_Cablation
+           pellet_rho=2.0 !For plots, will be found at t>pellet_tstart.
+           pellet_Mrem=pellet_M0 !For plots, remaining mass; here: t=0
+           temp_t0(kelecg,1:lrz)=temp(kelecg,1:lrz) ! before pellet starts
+           reden_t0(kelecg,1:lrz)=reden(kelecg,1:lrz) ! before pellet starts
+           temp_wk(1:lrz)=temp(kelecg,1:lrz)
+           reden_wk(1:lrz)=reden(kelecg,1:lrz)
+           call set_get_pellet(kopt, timet, lrz, rmag, 
+     &           rpcon(1:lrz), rmcon(1:lrz), dvol(1:lrz), 
+     &           temp_wk(1:lrz), reden_wk(1:lrz),
+     &           pellet_V, pellet_M0, pellet_Rstart, pellet_tstart,
+     &           pellet_rcloud1, pellet_rcloud2, pellet_rp0,
+     &           pellet_pn, pellet_pt, pellet_pm,
+     &           ipellet_method, pellet_fract_rem, 
+     &           ipellet_iter_max, pellet_iter_accur, pellet_Cablation,
+     &              Gablation,dMpellet_sum, dMpellet_dvol_sum(1:lrz) )
+           ! To calculate particle density, use  convert= Avogadro/atw 
+           ! where atw is the atomic weight (40 g/mol for Argon), or simply
+           ! (Avogadro*proton)/(atw*proton) = 1.0/fmass_imp
+           ! where fmass_imp=atw*proton (in comm.h)
+CMPIINSERT_IF_RANK_EQ_0
+           WRITE(*,*)'--- just after set_get_pellet(kopt=0...) ---'
+           WRITE(*,*)'timet=',timet, ' Raxis,rmag=',Raxis,rmag
+           WRITE(*,*)'pellet_Cablation=',pellet_Cablation
+CMPIINSERT_ENDIF_RANK
+           ! Note: At given instant t=timet, pellet is at 
+           ! Rpellet(t)= pellet_Rstart -pellet_V*(timet-pellet_tstart)
+           ! It means that a given flux surface at R=rpcon(lr) 
+           ! is reached by pellet at instant
+           ! t= pellet_tstart +(pellet_Rstart-rpcon(lr))/pellet_V
+           ! We use this t as the onset time for the 
+           ! exp(-(t-tstart)/tau) temperature drop, 
+           ! i.e. as the value for 
+           ! temp_expt_tstart(lr) in case of iprote='prb-expt' option.
+           dtdelay= 0.d0 !1.0*((rpcon(lrz)-rmag)/lrz)/pellet_V
+           do ll=1,lrz
+              if(temp_expt_tstart(ll).eq.0.d0)then
+               temp_expt_tstart(ll)= pellet_tstart +dtdelay+
+     &                    (pellet_Rstart-rpcon(ll))/pellet_V
+               temp_expt_T1(:,ll)=temp(:,ll) ! save the initial T 
+               !for the start of fast drop. It will be reset in profiles.f
+CMPIINSERT_IF_RANK_EQ_0
+               WRITE(*,*)'ll,temp_expt_tstart(ll)',
+     &         ll,temp_expt_tstart(ll)      
+CMPIINSERT_ENDIF_RANK
+              endif   
+           enddo
+           ! Note that we DO NOT consider the region of R 
+           ! inboard of magnetic axis (rmcon(lr) values).
+           ! We assume that as soon as the pellet reaches 
+           ! R=rpcon(lr) radius, the temperature decay happens
+           ! at entire surface at once, i.e. at rpcon(lr) 
+           ! and rmcon(lr) points the values of temp_expt_tstart(lr)
+           ! are same (same flux surface).
+         endif ! imp_depos_method.eq.'pellet'
+        
+        !--- FOR TEST ONLY ------------------------
+        ! Checked: With a very small time step 
+        !(230 time steps for pellet to cross full R range),
+        ! and with a very large time step (one step to cross plasma)
+        ! the results are same - dMpellet_dvol_sum() as a func. of rho
+        ! is same.
+!         kopt=1 !To propagate pellet, and calc. dMpellet_dvol_sum(1:lrz)
+!         tpellet= pellet_Rstart/pellet_V !estimate t of flying through plasma
+!         write(*,*)'tpellet=',tpellet, ' dtr=',dtr
+!         npell= int(tpellet/(dtr*100))
+!         npell=max(npell,1)
+!         !do lr=1,lrz
+!         !  write(*,*) rpcon(lr)
+!         !enddo
+!         !write(*,*)'npell=', npell
+!         !pause
+!         do it=1,npell ! test: step in time, find dMpellet_dvol_sum()
+!            t_test= it*dtr*100
+!            call set_get_pellet(kopt, t_test, lrz, rmag, 
+!     &           rpcon(1:lrz), rmcon(1:lrz), dvol(1:lrz), 
+!     &           temp(kelecg,1:lrz), reden(kelecg,1:lrz),
+!     &           pellet_V, pellet_M0, pellet_Rstart, pellet_tstart,
+!     &           pellet_rcloud1, pellet_rcloud2, pellet_rp0,
+!     &           pellet_pn, pellet_pt, pellet_pm,
+!     &           ipellet_method, pellet_fract_rem, 
+!     &           ipellet_iter_max, pellet_iter_accur, pellet_Cablation,
+!     &              Gablation,dMpellet_sum, dMpellet_dvol_sum(1:lrz) ) 
+!           dens_imp_allstates(1:lrz)= dMpellet_dvol_sum(1:lrz)/fmass_imp
+!           do lr=1,lrz
+!             write(*,*) dens_imp_allstates(lr)
+!           enddo
+!           write(*,*)'ABOVE:  dens_imp_allstates(lr) at it=',it
+!         enddo ! it 
+!         pause
+        !----END OF TEST --------------------------
+      endif ! (imp_depos_method.ne.'disabled') .and. kelecg.eq.1
+
+!------------------------- contribution from partially ionized ions -----
+
       return
       end

@@ -15,7 +15,8 @@ c     also calc. knock-on source of electrons (Besedin and Pankratov).
 c..................................................................
 
       do 900 k=1,ngen
-          if (soucoord .ne. "disabled") then
+      if (soucoord .ne. "disabled") then
+      
         do 800 m=1,nso
           if (n .lt. nonso(k,m) .or. n .gt. noffso(k,m)) go to 800
           call bcast(temp2(0,0),zero,iyjx2)
@@ -81,7 +82,7 @@ c     Compute the density in preparation for scaling to achieve
 c     the desired current.
 c..................................................................
 
-          s1=0.
+          s1=0.d0
           do 300 i=1,iy
             do 250 j=1,jx
               s1=s1+temp2(i,j)*cynt2(i,l_)*cint2(j)*vptb(i,lr_)
@@ -112,9 +113,10 @@ c..................................................................
 
           xlncur(k,lr_)=xlncur(k,lr_)+asor(k,m,lr_)*zmaxpsi(lr_)
           xlncurt(lr_)=xlncurt(lr_)+xlncur(k,lr_)
- 800    continue
-      endif
-
- 900  continue
+ 800    continue !  m=1,nso
+ 
+      endif !(soucoord .ne. "disabled")
+ 900  continue ! k=1,ngen
+ 
       return
-      end
+      end subroutine sourcef

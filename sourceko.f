@@ -2,7 +2,6 @@ c
 c
       subroutine sourceko ! must be called for k=kelecg only
       implicit integer (i-n), real*8 (a-h,o-z)
-      save
 c
 c.......................................................................
 
@@ -22,6 +21,8 @@ c      save
       include 'param.h'
       include 'comm.h'
 CMPIINSERT_INCLUDE     
+      save 
+!YuP[2020-02-06] Now sourcee-->sourceko is called from each mpirank>0 (at n>0)
 
 c      The ii0m1 method is an alternative translation from
 c      pitch angle at given poloidal position to equatorial
@@ -38,7 +39,8 @@ c     Should probably replace jfl with jx, etc (bh, 980501).
       !if (jfl.lt.jx) stop 'in sourceko'  ! YuP:  Why needed?
       
       if (n.lt.nonko .or. n.gt.noffko .or. 
-     +       knockon.eq."disabled")  return
+     +       knockon.eq."disabled") return
+      if (ampfmod.eq."enabled" .and. it_ampf.gt.1) return
      
       k=kelecg
 c
@@ -47,7 +49,7 @@ c       once: the p_par,p_perp intersection points between source
 c       lines associated with each parallel velocity grid point and the
 c       u-grid.  Also,  area elements, and source factors.
 c       Momenta p_par and p_prp, are measured in units of mc. 
-c       Similarly, momenta area is in units of (mc)**c.
+c       Similarly, momenta area is in units of (mc)**2.
 
       if (ifirst.eq."first") then
          ifirst="notfirst"
@@ -62,17 +64,18 @@ c     Set up parallel grid  for fl:
          jflh=1
 
 c        For avoiding divide errors (due to roundoff):
-         abit=1.e-12
-         onepabit=1.+abit
-         onemabit=1.-abit
+         abit=1.d-12
+         onepabit=1.d0+abit
+         onemabit=1.d0-abit
 
 c    Determine index of u-contour intercepted by source line from each
 c     parallel velocity such that gamma(j-1) satisfies
 c     gamma(j-1)<= 0.5*(gamma_prime_1 +1),
 c     but gamma(j) does not satisfy this relation.
-          do jf=jflh,jfl
-            gamap1=sqrt(xl(jf)*xl(jf)*cnorm2i+1.) !cnorm2i=0 when relativ.eq."disabled"
-            xmx1=5.e-1*sqrt(xl(jf)*xl(jf)+(2.*gamap1-2.e0)*cnorm2)
+         do jf=jflh,jfl
+            gamap1=sqrt(xl(jf)*xl(jf)*cnorm2i+1.d0) !cnorm2i=0 when relativ.eq."disabled"
+cBH180719            xmx1=5.e-1*sqrt(xl(jf)*xl(jf)+(2.*gamap1-2.e0)*cnorm2)
+            xmx1=5.d-1*sqrt(xl(jf)*xl(jf)+(2.*gamap1-2.d0)*cnorm2)
             jmaxxl(jf)=luf(xmx1*onemabit,x,jx)
          enddo
          jmaxxl(jflh)=1
@@ -82,32 +85,75 @@ c     but gamma(j) does not satisfy this relation.
 cYuP            ppar1p=xpar1p*cnormi*onepabit !cnormi=0 when relativ.eq."disabled"
             ppar1p=xpar1p*onepabit/cnorm !YuP[07-2016] cannot have ppar1p or ppar1p2=0
             ppar1p2=ppar1p*ppar1p
-            gam1p=sqrt(ppar1p2+1.)
-            gam1pm1=gam1p-1.
-            gam1p2=gam1p*gam1p
-            gam1p2m1=gam1p2-1.
-            alf1=2.*(gam1p-1.)
-            aaa=(1./alf1)-(1./ppar1p2) !cannot have ppar1p2=0
-            bbb=1./ppar1p
+            gam1p=sqrt(ppar1p2+1.d0) !==  g1'        can be ~1.
+            gam1pm1=gam1p-1.d0       !==  g1' -1     can be ~0.
+            gam1pp1=gam1p+1.d0       !==  g1' +1     YuP added
+            gam1p2=gam1p*gam1p       !== (g1')^2
+            gam1p2m1=gam1p2-1.d0     !== (g1')^2 -1  can be ~0.
+            alf1=2.*(gam1p-1.d0) ! can be ~0.
+            if(ppar1p.eq.zero)then
+             WRITE(*,*)'sourceko: ppar1p=0=',ppar1p
+             !pause
+            endif
+            if(alf1.eq.zero)then
+             WRITE(*,*)'sourceko: alf1=0=',alf1
+             !pause
+            endif
+            aaa=(1.d0/alf1)-(1.d0/ppar1p2) !cannot have ppar1p2=0
+            bbb=1.d0/ppar1p
+            if(aaa.eq.zero)then
+             WRITE(*,*)'sourceko: aaa=0=',aaa ! see further: 1/(2.*aaa)
+             !pause
+            endif
             
             do j=2,jmaxxl(jf)-1
 cYuP               p02=xsq(j)*cnorm2i*onepabit !cnorm2i=0 when relativ.eq."disabled"
-               p02=(xsq(j)/cnorm2)*onepabit !YuP
-               gam0=sqrt(p02+1.)
-               gam0m1=gam0-1.
-               gam1pmg=gam1p-gam0
+               u2c2= xsq(j)/cnorm2
+               p02= u2c2*onepabit !YuP
+               if(u2c2.gt.1.d-4)then
+                 gam0=sqrt(u2c2+1.d0) !== g (==gamma)
+                 gam0m1=gam0-1.d0     !== g-1 
+               else ! small u
+                 !YuP: use expansion sqrt(1+x) ~~ 1 + 0.5*x - 0.125*x*x
+                 gam0m1= 0.5*u2c2 -0.125*u2c2*u2c2   !== g-1
+                 gam0= gam0m1 +1.d0                  !== g  (==gamma)
+               endif
+               gam1pmg=gam1p-gam0  !== g1' - g
                ccc=-p02/alf1
-               ppars(j,jf)=(-bbb+sqrt(bbb*bbb-4.*aaa*ccc))/(2.*aaa)
+
+            if(bbb*bbb-4.d0*aaa*ccc.lt.zero)then
+             WRITE(*,*)'sourceko: bbb*bbb-4.d0*aaa*ccc=',
+     +        bbb*bbb-4.d0*aaa*ccc
+             !pause
+            endif
+            if(p02-ppars(j,jf)*ppars(j,jf).lt.zero)then
+             WRITE(*,*)'sourceko: p02-ppars(j,jf)*ppars(j,jf)=',
+     +        p02-ppars(j,jf)*ppars(j,jf)
+             !pause
+            endif
+            if(gam1p2m1*gam0m1*gam0m1*gam1pmg*gam1pmg.eq.zero)then
+             WRITE(*,*)
+     +        'sourceko: gam1p2m1*gam0m1*gam0m1*gam1pmg*gam1pmg=',
+     +        gam1p2m1*gam0m1*gam0m1*gam1pmg*gam1pmg
+             !pause
+            endif
+
+               
+               ppars(j,jf)=(-bbb+sqrt(bbb*bbb-4.d0*aaa*ccc))/(2.d0*aaa)
                pprps(j,jf)=sqrt(p02-ppars(j,jf)*ppars(j,jf))
-               pprps2=pprps(j,jf)*pprps(j,jf)
-               ppar1pmp=ppar1p-ppars(j,jf)
-               ppar1pm2=ppar1pmp*ppar1pmp
-c Capital Sigma
-               faci(j,jf)=1./(gam1p2m1*
-     1              gam0m1*gam0m1*gam1pmg*gam1pmg)*
-     2              (gam1pm1*gam1pm1*gam1p2
-     3              -gam0m1*gam1pmg*(2.*gam1p2+2.*gam1p-1.
-     4              -gam0m1*gam1pmg))
+cBH180719               pprps2=pprps(j,jf)*pprps(j,jf)
+cBH180719               ppar1pmp=ppar1p-ppars(j,jf)
+cBH180719               ppar1pm2=ppar1pmp*ppar1pmp
+c Capital Sigma, Harvey etal, Checked BH180719
+cyup               faci(j,jf)=1.d0/(gam1p2m1*gam0m1*gam0m1*gam1pmg*gam1pmg)
+cyup     2              *(gam1pm1*gam1pm1*gam1p2
+cyup     3              -gam0m1*gam1pmg*(2.*gam1p2+2.d0*gam1p-1.d0
+cyup     4              -gam0m1*gam1pmg))
+               !YuP[2019] Same as above, just re-arranged:
+               faci(j,jf)=
+     +         gam1pm1*gam1p2/(gam1pmg*gam1pmg*gam0m1*gam0m1*gam1pp1)
+     +     -(2.*gam1p*gam1p + 2.d0*gam1p-1.d0)/(gam1p2m1*gam0m1*gam1pmg)
+     +     +1.d0/gam1p2m1
 
             enddo
          enddo
@@ -190,10 +236,14 @@ cBH180416:	 write(*,*)
 c       second2=second()
 c       write(*,*) 'Seconds for sourcko setup = ',second2-second1
 
-      endif              
+      endif !On ifirst.eq."first"
+         
 c  end of setup for knock-on source integral.
 
+
+c.......................................................................
 c  Formation of knock-on source:
+c.......................................................................
 
 c      second3=second()
 
@@ -234,18 +284,31 @@ c..................................................................
             if(elecfld(lr_).ne.zero) then
                xvte3=abs(soffvte)*sqrt(2.*elecr(lr_)/elecfld(lr_))*
      1              vthe(lr_)/vnorm
+               !YuP[2018-09-19] Perhaps should use abs(elecfld(lr_)) in the above
+               !to avoid sqrt(neg.value)
             endif
          endif
-      else
+      else ! isoucof=1
          if (soffvte.gt.0.) then
             if (faccof.lt.0.7) faccof=0.7
 cSC_did_not_like:        xvte3=amin1(soffvte,ucrit(kelec,lr_)*faccof)
 c990131            xvte3=amin1(soffvte*vthe(lr_)/vnorm,ucrit(kelec,lr_)*faccof)
             xvte3=min(soffvte*vthe(lr_)/vnorm,ucrit(kelec,lr_)*faccof)
-         else
+            ! YuP: Why min() of the two? If vthe~0, then min() gives ~0.
+            ! Maybe max() of the two?
+         else ! soffvte.le.0.
             if (faccof.lt.0.5) faccof=0.5
             xvte3=ucrit(kelec,lr_)*faccof
          endif
+         !YuP[2020-01] Added: calculate  elecr() for mnemonic.nc,
+         !similar to the isoucof.eq.0 section (few lines above):
+         tauee(lr_)=vth(kelec,lr_)**3*fmass(kelec)**2
+     &           /(4.*pi*reden(kelec,lr_)*charge**4*
+     &           gama(kelec,kelec))
+         elecr(lr_)=300.*fmass(kelec)*vth(kelec,lr_)/
+     &           (2.*charge*tauee(lr_)) !Dreicer el.field [V/cm]
+         !YuP[2020-01] Note: usually elecr is calc-ed in subr.efield, 
+         !but in runs with ampfmod=enabled subr.efield is not called.
       endif
       call lookup(xvte3,x,jx,wtu,wtl,lement)
       jvte3=lement
@@ -259,18 +322,58 @@ c    (default soffpr=0.0)
       jsoffpr=min(lement,jfl)
 
 
+      dens_bound_e=0.d0 ! for each given lr_, to be found below.
+      !if(n.gt.0 .and. gamafac.eq."hesslow")then
+      if(n.gt.0 .and. nstates.gt.0)then !YuP[2020-06-22] Changed the above logic
+          ! If no suitable impurity is present 
+          ! (example: imp_type is set to 0 in cqlinput),
+          ! then nstates remains 0 ==> Effectively, no impurities.
+          ! This logic is more general.
+        !YuP[2019-09-18] Density of bound electrons - to be added 
+        ! to free (cold) electrons, as the target for fast electrons.
+        ! Calculated at prev. time step:
+        ! dens_imp(kstate,lr)= density of impurity ions (from pellet, etc.)
+        ! for each charge state. The free electrons from those
+        ! partially ionized ions are already included into reden()
+        ! and the distribution function (see diagscal.f),
+        ! and here we find the density of bound electrons.
+        z_imp=bnumb_imp(nstates) !Atomic number (as in fully ionized state)
+        do kstate=0,nstates ! ions from impur.source, each Z state
+          z_state= bnumb_imp(kstate) ! Z0j in paper, for given Z state
+          z_bound= z_imp-z_state ! Nej in paper (number of bound electrons)
+          !Note that for neutral atom, kstate=0 and bnumb_imp(0)=0
+          dens_bound_e= dens_bound_e +dens_imp(kstate,lr_)*z_bound
+        enddo ! kstate
+      endif !nstates.gt.0
+
 c  Obtain average source for positive and negative v_parallel:
 
+      denfl(l_)=0.0  !FSA density, for diag purposes
+      do l=1,lz  !Over poloidal angle
 
-      do l=1,lz
-
-         call fle("calc",l)
+         call fle("calc",l)  !Reduced distn at each pol angle
          
-         den_of_s=0.
+         den_of_s(l)=0.  !Dens at each pol angle, save for diag purposes
          do jf=1,jfl-1
-            den_of_s=den_of_s+dxl(jf)*(fl1(jf)+fl2(jf))
+            den_of_s(l)=den_of_s(l)+dxl(jf)*(fl1(jf)+fl2(jf))
          enddo
-
+         
+         !YuP[2019-10-03] Added dens_bound_e (density of bound electrons)
+         !to the free electrons [den_of_s(l) = ne(lb)  in Eq.(14)  
+         !  of the paper PoP-2000 Vol.7 by Harvey et al.
+         ![YuP: not sure about den_of_s(l) = ne(lb)  Needs checking]
+         dens_tot= den_of_s(l)+dens_bound_e ! YuP[2019-10-03]
+         !Also added to cnst0, see below.
+         denfl(l_)=denfl(l_)
+     1          +(dz(l,lr_)/bbpsi(l,lr_))*dens_tot/zmaxpsi(lr_)
+         !Note: denfl() is recorded into *.nc file, but not used otherwise.
+         !if(l.eq.1)then ! YuP:print
+           !write(*,'(a,2i6,3e11.3)')'n,lr_,den_of_s,reden,dens_bound_e',
+           ! n,lr_,den_of_s(1),reden(1,lr_),dens_bound_e
+           ! !YuP:from printout: den_of_s is somewhat larger than reden
+           !! !(by factor of ~~1.3)
+           !if(lr_.eq.lrz)  pause
+         !endif !YuP:print
          flmax=0.
          do jf=1,jfl-1
 c990131            flmax=amax1(flmax,fl1(jf))
@@ -288,7 +391,7 @@ c     do jf=jflh-jsoffpr,jflh+jsoffpr
 
 
 
-         do jf=jflh+1,jfl-1
+      do jf=jflh+1,jfl-1
 c     Skip calc if fl(jf) near minimum value:
             if ((fl1(jf)+fl2(jf)).lt.em100*flmax) go to 99
      
@@ -297,8 +400,12 @@ c     Skip calc if fl(jf) near minimum value:
             ppar1p2=ppar1p*ppar1p
             gam1p=sqrt(ppar1p2+1.)
             
-            cnst0=tpir02*den_of_s*dxl(jf)*ppar1p*vnorm/
-     +           (gam1p*cnorm)
+            !YuP[2019-10-03] Added dens_bound_e (density of bound electrons)
+            !to the free electrons [den_of_s(l) = ne(lb)  in Eq.(14)  
+            !  of the paper PoP-2000 Vol.7 by Harvey et al.]
+            ![YuP: not sure about den_of_s(l) = ne(lb)  Needs checking]
+            cnst0=tpir02*(den_of_s(l)+dens_bound_e)*dxl(jf)
+     +           *ppar1p*vnorm/(gam1p*cnorm)
             cnst1=cnst0*fl1(jf)
             cnst2=cnst0*fl2(jf)
 
@@ -350,19 +457,19 @@ cBH091031         endif
          dtaudt=axl
 
          i0m1m=iy+1-i0m1
-
+         !Contribution from fl1() reduced function:
          source(i0m1,j,k,indxlr_)=source(i0m1,j,k,indxlr_)+
      +               dtaudt*src_mr1*cosz(i0m1,l,lr_)/(coss(i0m1,l_)
      +               *cynt2(i0m1,l_)*cint2(j)*bbpsi(l,lr_))
+         !Contribution from fl2() reduced function:
          source(i0m1m,j,k,indxlr_)=source(i0m1m,j,k,indxlr_)+
      +               dtaudt*src_mr2*cosz(i0m1m,l,lr_)/(coss(i0m1m,l_)
      +               *cynt2(i0m1m,l_)*cint2(j)*bbpsi(l,lr_))
 
-
-      enddo
+      enddo  !On j=jvte3,jmaxxl(jf)-2
  99   continue
-      enddo
-      enddo
+      enddo  !On jf=jflh+1,jfl-1
+      enddo  !On l=1,lz
 
 c     Symmetrize trapped particles
       do  j=jvte3,jx
@@ -379,16 +486,21 @@ c     For primary distribution formed from the pitch angle averaged
 c       reduced distribution, reverse the direction of source if
 c       the electric field is positive.
 c..................................................................
-
-      if (elecfld(lr_).gt.0.) then
-         do  j=jvte3,jx
-            do  i=1,itl-1
-               ii=iy+1-i
-               source(ii,j,k,indxlr_)=source(i,j,k,indxlr_)
-               source(i,j,k,indxlr_)=0.0
-            enddo	
-         enddo
-      endif
+!YuP[2020-01-30] I don't see the reason for doing this.
+!The primary RA electrons can have both upar>0 and upar<0,
+! even for passing electrons. They can originate from hot-tail seed,
+! which produces primary RE at all pitch angles.
+!Commenting this out:
+!      if (elecfld(lr_).gt.0.) then
+!         do  j=jvte3,jx
+!            do  i=1,itl-1
+!               ii=iy+1-i
+!               source(ii,j,k,indxlr_)=source(i,j,k,indxlr_)
+!               source(i,j,k,indxlr_)=0.0
+!            enddo	
+!         enddo
+!      endif
+!YuP[2020-01-30] done
 
 c..................................................................
 c     Compute source rate in (particles/sec/cc)
@@ -403,7 +515,7 @@ c..................................................................
           enddo
           s1=s1/zmaxpsi(lr_)
           srckotot(lr_)=s1
-
+          
 c..................................................................
 c     Compute pitch angle averaged source rate 
 c     in (particles/sec/cc) divided by du=vnorm*dx(j)
@@ -432,7 +544,7 @@ c        write source*dtr+(previous step f(since no preloading in it)
 c        to disk file "fpld_dsk1", and previous step f to disk file
 c        "fpld_dsk2",     and stop. 
 c..................................................................
-           
+CMPIINSERT_IF_RANK_EQ_0
       if (n.eq.nstop) then
       if (knockon.eq."fpld_dsk") then
          call dcopy(iyjx2,source(0,0,k,l_),1,temp1(0,0),1)
@@ -472,7 +584,8 @@ c990307         call geglxx(0)
          call pgend
          stop 'Wrote disk files from subroutine souceko: fpld_dskx'
       endif
-      endif
+      endif ! (n.eq.nstop)
+CMPIINSERT_ENDIF_RANK
  1000 format(5(1pe16.7))
             
 
@@ -484,4 +597,4 @@ c..................................................................
       xlncur(1,lr_)=s1*zmaxpsi(lr_)
 
  999  return
-      end
+      end subroutine sourceko

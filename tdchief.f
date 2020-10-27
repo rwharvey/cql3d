@@ -87,10 +87,13 @@ c-BH:  is called  for.  For example, tdrmshst fails.
 c-BH:  However, additional functionality, such as sigmamod plotting
 c-BH:  depdends on lrzmax.ge.4 (BH120308: check this).
       if (lrzmax.le.1) then
-         nefiter=1              ! counts iterations; elecfld iterations for one 
-                  ! flux surface are not functional; 
-                  ! set nefiter to 1 for logic control in impavnc0
+         nefiter=1              ! counts iterations; elecfld iterations for
+                                ! one flux surface are not functional; 
+                            ! set nefiter to 1 for logic control in impavnc0
          call achief1           ! YuP: only called during n=0; Why needed?
+                                ! BH:  In the past, at least, this call with
+                                !      lrzmax=1, time-stepped the soln
+                                !      to n=nstop in achiefn.
       endif
 
 c..................................................................
@@ -104,10 +107,23 @@ c..................................................................
       dtr0=dtr
 
 c..................................................................
-c     Initialize main netCDF write, if netcdfnm.ne."disabled"
+c     Initialize main netCDF write, if netcdfnm.ne."disabled".
+c     If netcdfshort.eq.'lngshrtf' determine number of distn saves.
 c..................................................................
 
 CMPIINSERT_IF_RANK_EQ_0
+      nsavet=0 !YuP[2019-06-07] Should be defined in any case of netcdfshort
+      isave=0  !YuP[2019-06-08] Initialize here: Index for nonzero values of increasing nsave(1:nsavea)
+      ! And for 'lngshrtf', it is set below:
+      if (netcdfshort.eq.'lngshrtf') then
+         do i=1,nsavea
+            if (nsave(i).ge.0 .and. nsave(i).le.nstop) then
+              isave=i ! Indicator that there are time frames to be saved
+              nsavet=nsavet+1
+            endif 
+         enddo
+      endif
+      
       if (netcdfnm.ne."disabled") then
          call netcdfrw2(0)
       endif
@@ -148,6 +164,7 @@ c.......................................................................
         call frnfreya(frmodp,fr_gyrop,beamplsep,beamponp,beampoffp,
      .                hibrzp,mfm1p,noplots)
       endif
+      
 
       k=kfrsou  !Only set up for one modulated beam species.
       if(k.gt.0)then
@@ -249,8 +266,16 @@ CMPIINSERT_ENDIF_RANK
         call cpu_time(t_urf3) !-.-.-.-.-.-.-.-.-.-.-.-.-.
         !YuP[03-2016] Repeat plotting surfaces, but now - with rays
         if (noplots.ne."enabled1" .and. eqmod.eq."enabled"
-     +      .and. n.eq.0) call tdplteq
-      endif
+     +      .and. n.eq.0) then
+           if(mrf.gt.0)then ! just in case !YuP[2020-10-19] was mrfn
+              !(mrf is supposed to be >0 when urfmod.ne."disabled")
+              do krf=1,mrf !YuP[2020-10-19] was krf=1,mrfn
+               ! We only need to plot for each wave type, not each wave mode
+               call tdplteq(krf) ! separate page with rays for each krf type
+              enddo
+           endif
+        endif
+      endif ! urfmod.ne."disabled"
 
 c.......................................................................
 c     cqlpmod.eq.enabled:
@@ -272,6 +297,27 @@ c              Compare with the stella code, where it is implemented.
 c              Also compare with ampfmod coding.
 c.......................................................................
 
+      !.................................................................
+      if(cfp_integrals.eq.'enabled')then
+      !YuP[08-2017][2020-07-02] Added:
+        if (ntotal.gt.ngen) call cfp_integrals_maxw
+      !Calculate certain integrals 
+      ! needed for subr. cfpcoefn.
+      ! These integrals describe a contribution to BA coll.coefs
+      ! from local collisions of general species with the background 
+      ! Maxwellian species (search "kbm=ngen+1,ntotal").
+      ! These integrals only depend on mass (fmass)
+      ! and local temperature of these (Maxwellian) species.
+      ! So, instead of calculating them over and over again
+      ! at each point along particle orbit (of the general species),
+      ! calculate them once as a table over temperature grid 
+      ! (search "T-grid"), and then reuse them by matching a local T
+      ! along orbit with the nearest value in the T-grid.
+      ! These integrals may need to be updated at each step if the temp() of 
+      ! the Maxwellian species is varied in time (as a prescribed form).
+      endif ! (cfp_integrals.eq.'enabled')
+      !.................................................................
+
       if (cqlpmod.eq."enabled" .and. eseswtch.eq."enabled" .and.
      +    sbdry.eq."enabled") then
          kopt=2
@@ -280,7 +326,16 @@ c.......................................................................
             call tdnflxs(ll) 
             call achiefn(kopt) ! achiefn(2) here (cqlpmod="enabled")
          enddo
-         call efld_cd(dz(1,lr_),lrors,vnorm,flux1,flux2,elparnw,flux0)
+         call efld_cd(dz(1:lrors,lr_),lrors,vnorm, 
+     &       flux1(0:lrors+1),flux2(0:lrors+1),elparnw(0:lrors+1),flux0)
+         !In sub.efld_cd: dz, flux1, flux2, elparnw are dimensioned as (0:lrors+1).
+         !Here, dz(lza,lrzmax) starts with index (1,1),
+         !but flux1(0:lsa1),flux2(0:lsa1),elparnw(0:lsa1) start with index 0.
+         !YuP[2019-05-30] corrected sub.efld_cd
+         ! so that dz argument starts with index 1, i.e. dz(1:ls) [dz(1:lrors)]
+         ! Note that in sub.efld_cd the loop is over kk=1,ls [kk=1,lrors]
+         ! so that indexes 0 and ls+1 are not used.
+         ! Bob, please check !
       endif
 
 c.......................................................................
@@ -296,7 +351,7 @@ c.......................................................................
 
 cBH131230:  Why won't ampfmod work before MAIN VEL TIME STEP?? nstop=0 issue?
 c.......................................................................
-c     Computer the time-advanced toroidal electric field from Ampere-
+c     Compute the time-advanced toroidal electric field from Ampere-
 c     Faraday equations using Kupfer h and g functions.
 c     
 c     cqlpmod.ne.enabled has been checked.
@@ -315,9 +370,9 @@ c.......................................................................
            do ll=1,lrz
            elecfldn(ll,n,niter)=elecfld(ll)/300.d0 !here: n=0
            enddo
-           ! Also need the end (bndry) point:
+           ! Also need the end (bndry) point: elecfldb not set for iproelec='prbola-t'
            elecfldn(lrz+1,n,niter)=elecfldb/300.d0 !here: n=0
-           ! Also save ll=0 point (magn.axis point):
+           ! Also save ll=0 point (magn.axis point): Better to project to 0?
            elecfldn(0,n,niter)=elecfld(0)/300.d0   !here: n=0
          enddo
       endif
@@ -327,16 +382,18 @@ c.......................................................................
          ! For example, if nstop=5 and nonampf=5 
          ! (meaning: apply ampf calc. at the last step),
          ! we need to start using this part when n+1=nstop=nonampf
-
+         
          if (n+1.eq.nonampf) then
            call ampfinit ! n is not updated yet, Here n=0,1,...,nstop-1
          endif
          
          if (kelecg.eq.0) then
-            write(*,*)
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)
             WRITE(*,*)'Amp-Faraday eqns require electron gen species'
-            write(*,*)
-            stop
+            WRITE(*,*)
+CMPIINSERT_ENDIF_RANK  
+            stop 'Amp-Far: kelecg should not be 0'
          endif
 c        Find dtr for this time-step
          do i=1,ndtr1a
@@ -346,18 +403,34 @@ c        Find dtr for this time-step
                dttr=dtr*nrstrt
             endif
          enddo
-c        Copy current distribution f into f_
-         call dcopy(iyjx2*ngen*lrors,f(0,0,kelec,1),1,f_(0,0,kelec,1),1)
+         !Copy current distribution f into f_ (later f is restored from f_)
+         ! f_(0:iy+1,0:jx+1,kelec,:)=f(0:iy+1,0:jx+1,kelec,:) !amp-far
+         call dcopy(iyjx2*lrors,f(0:iy+1,0:jx+1,1:1,1:lrors),1,
+     &                         f_(0:iy+1,0:jx+1,1:1,1:lrors),1) !ampfmod=enabled
+         ! For amp-far - one species (kelecg)
+         ! f() will store fg,fh, then f() is restored from f_() [impavnc0,Line~2590]
 c        Bring background profiles up to time step n
          ! No effect if bctime=0 (time-indep. profiles).
+cBH191002 Added a call profiles immediately after calc of updated f, l 607.
+cBH191002 Tried removing following line, along with adjustment of n in
+cBH191002 profiles.f, but the resulting test runs were too different.
+cBH191002 This could be investigated, to clarify why.  Seems like a repeat
+cBH191002 call to me.    
          call profiles ! if(ampfmod.eq.'enabled' .and. n+1.ge.nonampf)
                        ! skip elecfld background profiles
+         !YuP[2019-12-18] Save reden(kelecg,ll) and energy(kelecg,ll)
+         !They could be modified around call_tdboothi 
+         !during ampfsoln iterations.
+         !These saved values will be restored after all iterations are done.
+         reden_n(1:lrz)= reden(kelecg,1:lrz)  !YuP[2019-12-18] saved
+         energy_n(1:lrz)=energy(kelecg,1:lrz) !YuP[2019-12-18] saved
          
 c        Get given boundary condition (i.e., edge) elec field, at time
 c        advanced position (i.e., elecfldn(ll,n+1,0) at ll=lrz+1 point).
 c        If time-dependent (nbctime>0),
 c        then it is given by time advanced elecb() or elecin_t(njene,).
-         call ampfefldb(n+1,time+dtr)
+cBH191012         call ampfefldb(n+1,time+dtr)  BH: time=0. here.
+         call ampfefldb(n+1,timet+dtr)
 c        Besides, subr.ampfefldb Sets zero iteration of elecfldn 
 c        equal to previous time step radial profile, like this:
          ! elecfldn(ll,nn,0)=elecfldn(ll,nn-1,it_prev) ! where nn==n+1 (and ll=0:lrz)
@@ -381,8 +454,10 @@ c        Initialize elecfldn(ll,n+1,it=0) for upcoming ampfsoln
 
 c        Obtain the h and g functions over all radii and iteratively
 c        solve Ampere-Faraday eqns for the tor electric field.
+         it_ampf=0
          do it=1,nampfmax
             it_ampf=it
+CMPIINSERT_BARRIER
 
 cBH131109: Maybe don't need from bndry to center for fh/fg?   do ll=ilend,1,-1
 cBH131109: Backwards is giving bounds problem with abd in impavnc0.
@@ -392,39 +467,84 @@ cBH131109: fix the counter resetting for ll=ilend,1,-1.
 
             do ll=1,ilend
                call tdnflxs(ll)  !get l_,lr_,..
+CMPIINSERT_MPIWORKER
+              ! It will insert :
+              ! if(soln_method.eq.'direct' .and. lrzmax.gt.1) then
+              !    ! Parallelization for the impavnc0 solver is limited 
+              !    ! to soln_method='direct' (for now)
+              !    mpiworker= MOD(ll-1,mpisize-1)+1  !1...(mpisize-1)
+              ! else
+              !    ! In all other cases, perform calculations 
+              !    ! for all flux surfaces on mpirank=0, then broadcast results
+              !    mpiworker=0
+              ! endif
                call achiefn(kopt) !kopt=3 here !Increments n by 1, for each ll
-                                   !Gives fh,fg(,,1,ll) for each ll.
-                                   !it_ampf is passed in common block
-               ! YuP test/printout
-               amp_f_=ampfarl(f_(0,0,kelec,ll),ll)*dtr !ampfarl has 1/dtr factor
-               amp_f=ampfarl(f(0,0,kelec,ll),ll)*dtr !ampfarl has 1/dtr factor
-               amp_h=ampfarl(fh(0,0,kelec,ll),ll)*dtr
-               amp_g=ampfarl(fg(0,0,kelec,ll),ll)*dtr
-               write(*,'(a,3i4,3e12.4)')
-     +           'after achiefn(3): n,it,ll,integrals f, f-h, g:',
-     +            n,it,ll, amp_f, amp_f-amp_h, amp_g  
+                                  !Gives fh,fg(,,1,ll) for each ll.
+                                  !it_ampf is passed in common block
+               ! YuP test/printout (comment when not needed):
+               !amp_f_=ampfarl(f_(0:iy+1,0:jx+1,kelec,ll),ll)*dtr !ampfarl has 1/dtr factor
+               !amp_f= ampfarl( f(0:iy+1,0:jx+1,kelec,ll),ll)*dtr !ampfarl has 1/dtr factor
+               !amp_h= ampfarl(fh(0:iy+1,0:jx+1,kelec,ll),ll)*dtr
+               !amp_g= ampfarl(fg(0:iy+1,0:jx+1,kelec,ll),ll)*dtr
+               !YuP[2019-05-30] Note that fh() and fg() are allocated as
+               ! fh(0:iy+1,0:jx+1,1,1:lrz), i.e. k=1 index (for now).
+               ! If kelec>1, we can get a problem here.
+!               WRITE(*,'(a,4i4,3e12.4)')
+!     +         'after achiefn(3): mpirank,n,it,ll,integrals f, f-h, g:',
+!     +            mpirank,n,it,ll, amp_f, amp_f-amp_h, amp_g  
                ! YuP test/printout: 
                !Confirmed that f() remains unchanged during
                !iterations in this it loop, and it remains equal to f_()
-            enddo
-c           Solve for iteratively updated tor electric field
-c           n is time advanced value
-            call ampfsoln(it,n) !here n=nonampf,...,nstop
-c           Presently, ampfdiff does nothing, i.e. gives iflag=1
-c           In future, refine this, making it=it(1:lrz).
-            itt=it
-            call ampfdiff(iflag)  !iflag=0, only if error criteria met.
-                                  !Presently a dummy call giving iflag=0
-            if (iflag.eq.0) go to 16
+CMPIINSERT_SEND_RECV_AMPF
+               !It will send or recv data (each ll), but only in case of
+               !soln_method='direct' (for now)
+            enddo ! ll
+CMPIINSERT_BARRIER
+            !Restore distribution f from f_ (done on all cores):
+            !f(0:iy+1,0:jx+1,kelec,:)=f_(0:iy+1,0:jx+1,kelec,:) !amp-far: restore
+            call dcopy(iyjx2*lrors,f_(0:iy+1,0:jx+1,1:1,1:lrors),1,
+     &                              f(0:iy+1,0:jx+1,1:1,1:lrors),1) !ampfmod=enabled
+            
+! broadcast fh and fg for iyjx2*1*lrz index range:
+CMPIINSERT_BCAST_DISTRIBUTION_AMPF
+CMPIINSERT_BCAST_COLL_COEFFS
+CMPIINSERT_BCAST_SCAL
+CMPIINSERT_BCAST_VELSOU
+CMPIINSERT_BCAST_SOURCE
+CMPIINSERT_BCAST_XLNCUR
+CMPIINSERT_BCAST_SORPW_NBI
+CMPIINSERT_BARRIER
+            ! Solve for iteratively updated tor electric field
+            ! n is time advanced value
+            !YuP: just in case, for proper vaue of n:
+            n=n_(1) ! not advanced yet.
+            nn=n+1 ! advanced by +1, for saving solution [elecfldn(ll,nn,it)]
+            call ampfsoln(it,nn) !here nn=nonampf,...,nstop
+            !ampfsoln uses fg,fh,f_() functions at ALL ll (radial indexes)
+            ! Presently, ampfdiff does nothing, i.e. gives iflag=1
+            ! In future, refine this, making it=it(1:lrz).
+            call ampfdiff(iflag) !iflag=0, only if error criteria met.
+                                 !Presently a dummy call giving iflag=1
+            if (iflag.eq.0) go to 16            
          enddo !On it (Note: it is incremented by 1 at the exit of loop)
  16      continue
+         !YuP[2019-12-18] Restore reden(kelecg,ll) and energy(kelecg,ll)
+         !They could be modified around call_tdboothi 
+         !during ampfsoln iterations.
+         !These values were saved and now restored :
+         reden(kelecg,1:lrz)=  reden_n(1:lrz) !YuP[2019-12-18] restored
+         energy(kelecg,1:lrz)=energy_n(1:lrz) !YuP[2019-12-18] restored
  
-         !write(*,'(a,3i4)')'tdchief-373: n,itt,it=', n,itt,it
-
 c        Now, setup with time-advanced electric field in elecfld(),
 c        then at end of ampfmod interations, call achiefn(0) below.
-      endif  !On ampfmod
+CMPIINSERT_IF_RANK_EQ_0
+          WRITE(*,'(a,i4,3e14.7)')
+     +    'tdchief/aft.ampfsoln: n,sum(elecfld),sum(f),sum(f_)',
+     +    n,sum(elecfld),sum(f(:,:,1,:)),sum(f_(:,:,1,:))
+          ! The print above is always same in MPI runs, from run to run.
+CMPIINSERT_ENDIF_RANK
 
+      endif  !On ampfmod
 
 c...........................................................
 c     Loop back point for electric field iteration
@@ -441,9 +561,33 @@ c...........................................................
       call cpu_time(t_before_soln) !-.-.-.-.-.-.-.-.-.-.-.-.-.
 CMPIINSERT_BARRIER
 
-c     Copy current distribution f into f_
-      call dcopy(iyjx2*ngen*lrors,f(0,0,1,1),1,f_(0,0,1,1),1)
+      ! Special test: Make a non-restarting "run3" (with nstop=15),
+      ! but in the middle of the run read distrfunc.nc, 
+      ! which is a copy of mnemonic.nc 
+      ! produced during similar but shorter "run1" with nstop=13.
+      ! So, in such a run3, the distr.func. is over-written
+      ! at step n=13 (going into n=14) by a saved distr.func. from run1.
+      ! Result in such run3 is exactly same as in a normal run3, 
+      ! when these 6 lines are commented (so f is NOT overwritten).
+      ! It proves that the data is recordered and read correctly.
+!c      if((n.eq.0 .and. nstop.eq.2).or.(n.eq.13))then !FOR TEST ONLY: 0 for run2; 13 for run3
+!c        nlrestrt='ncdfdist'  ! FOR TEST ONLY: temporary enable
+!c        l_=lrors !Because the data is only read when l_=lrors in tdreadf
+!c        call tdreadf(2)      ! FOR TEST nstop02_test14 ONLY
+!c        nlrestrt='disabled'  ! FOR TEST ONLY: restore 
+!c      endif ! FOR TEST ONLY
+      !For run2(modified) - This placement is important, BEFORE f->f_ copying
+      !Then run2 gives same as test 9--12 (same as usual finit->tdreadf)
       
+c     Copy current distribution f(old,prev.step) into f_
+      !YuP[2019-09] Strange. This method of copying gives overflow [on PC/intel]:
+      ! f_(0:iy+1,0:jx+1,1:ngen,1:lrors)=f(0:iy+1,0:jx+1,1:ngen,1:lrors)
+      !This also gives overflow: f_=f 
+      ! But using dcopy() is ok (with range specified, or not specified - same)
+      call dcopy(iyjx2*ngen*lrors,f(0:iy+1,0:jx+1,1:ngen,1:lrors),1,
+     &                           f_(0:iy+1,0:jx+1,1:ngen,1:lrors),1)
+            !write(*,*)'tdchief-522 after f_ to f', sum(f_),sum(f)
+
       if (transp.eq."enabled" .and. n.ne.0 .and. adimeth.ne."enabled"
      +      .and. soln_method.ne."it3drv" .and. nefiter.eq.1)  then
 c.......................................................................
@@ -465,7 +609,11 @@ c     ampfmod.eq.enabled .and. n.ge.nonampf [Check this for
 c     the eseswtch case also.]
 c..................................................
 
-      if(nefiter.eq.1) call profiles
+      if(nefiter.eq.1) then 
+         call profiles
+             !write(*,*)'tdchief[587]/profiles: n,n_(1)',n,n_(1)
+         if(cqlpmod.ne."enabled")  call impurity_update         
+      endif ! (nefiter.eq.1)
                  
 c.......................................................................
 cBH131103      do 1 ll=1,ilend   !ilend=lrz for cqlpmod.ne.'enabled'
@@ -478,6 +626,16 @@ c     profiles are similar, but total driven current changes from
 c     108 kA to 138 kA.)
 cBH131107 Moved the ll=1,ilend reversal to above if(ampfmod.eq.enabled..
 c.......................................................................
+CMPIINSERT_IF_RANK_EQ_0
+          WRITE(*,'(a,i4,3e14.7)')
+     +    'tdchief/bef.achiefn(0): n,sum(elecfld),sum(f),sum(f_)',
+     +    n,sum(elecfld),sum(f(:,:,1,:)),sum(f_(:,:,1,:))
+          ! The print above is always same in MPI runs, from run to run.
+CMPIINSERT_ENDIF_RANK
+c      Checked: sum(da),etc, are zeroes here.
+
+      !not really needed: call starnue_sptz !Get starnue(),tauee(),taueeh(),sptzr(); all lr
+
       do 1 ll=1,ilend   !ilend=lrz for cqlpmod.ne.'enabled'
         !determine local variables depending on flux surface (l_,iy,..)
         call tdnflxs(ll) !-> get l_,lr_,...
@@ -539,18 +697,34 @@ c      endif
 
         call achiefn(0)  !--> if implct='enabled', calls impavnc0
 
-
 CMPIINSERT_SEND_RECV
 c     It will send or recv data, but only in case of
 c     soln_method='direct' (for now)
 
  1    continue ! End loop over radius:  New f is obtained for each ll
- 
+!      write(*,*)'tdchief aft.achiefn: MIN,MAX,SUM of f:',
+!     & n,MINVAL(f),MAXVAL(f),SUM(f) 
+!      Checked: sum(da),etc, are same in run2(restart) and run3(no restart)
+CMPIINSERT_IF_RANK_EQ_0
+      if(sum(srckotot).gt.0.d0)then !YuP[2020-10-20] print only if >0
+      do ll=1,ilend
+         WRITE(*,'(a,2i4,1e14.7)')'sourceko: n,ll,srckotot',
+     +   n,ll,srckotot(ll) 
+      enddo
+      endif
+CMPIINSERT_ENDIF_RANK
+
+      !YuP[2020-02-11] call profiles  !YuP: moved this further, after call_diaggnde
+      write(*,*)'=====> tdchief[828] after FPE soln, aft.profiles. n=',n
+      write(*,*)' '
 CMPIINSERT_BARRIER
 CMPIINSERT_BCAST_DISTRIBUTION
 CMPIINSERT_BCAST_COLL_COEFFS
 CMPIINSERT_BCAST_SCAL
 CMPIINSERT_BCAST_VELSOU
+CMPIINSERT_BCAST_SOURCE
+CMPIINSERT_BCAST_XLNCUR
+CMPIINSERT_BCAST_SORPW_NBI
       call cpu_time(t_after_soln) !-.-.-.-.-.-.-.-.-.-.-.-.-.
 
       do ll=1,ilend  ! Re-scale f if needed; 
@@ -612,7 +786,10 @@ c..................................................................
          do ll=1,ilend 
             ! determine local variables depending on flux surface (l_, iy,..)
             call tdnflxs(ll)
-            call dcopy(iyjx2,f_(0,0,1,l_),1,f(0,0,1,l_),1)           
+c            call dcopy(iyjx2,f_(0:iy+1,0:jx+1,kelec,l_),1, 
+c     &                        f(0:iy+1,0:jx+1,kelec,l_),1)
+            f(0:iy+1,0:jx+1,kelec,l_)=f_(0:iy+1,0:jx+1,kelec,l_)
+            !YuP[2019-05-30] Corrected species index '1'-->'kelec'
          enddo ! ll
          nefiter=nefiter+1 ! counts iterations
          go to 20 ! Another iteration, using old f() but new elecfld()
@@ -704,6 +881,11 @@ CMPIINSERT_ENDIF_RANK
         if (n .ge. nstop) call dskout(ll)
         if (n .ge. nstop) call dsk_gr
       enddo ! ll
+      !YuP[2020-02-11] Moved the updating of profiles here,  
+      ! after rescaling of f(), and after call_diaggnde :
+      ! Need to know the values of currtp() [calc-ed in diaggnde]
+      ! for some options in subr.profiles [curr_fit]
+      call profiles  !Brings namelist specified profiles up to time n
       
 CMPIINSERT_BARRIER
       
@@ -715,7 +897,7 @@ c......................................................................
         
       call cpu_time(t_after_diag2) !-.-.-.-.-.-.-.-.-.-.-.-.-.
 
- 2    continue ! if nstop.eq.0
+ 2    continue ! if nstop.eq.0, from l 328
 
       if (ilend .eq. lrors-1) n_(lrors)=n_(lrors-1)
 
@@ -811,7 +993,9 @@ c..................................................
             call tdtrfcop(1)
             call diaggnde
             if (l_ .eq. lmdpln_) then
+              if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
               write(*,*)'tdchief before xlndnr: n,l_',n,l_
+              endif
               do 25 k=1,ngen
                 xlndnr(k,lr_)=xlndn(k,lr_)
                 energyr(k,lr_)=energy(k,lr_)
@@ -823,7 +1007,9 @@ c..................................................
               call tdtrfcop(2)
               call diaggnde
               if (l_ .eq. lmdpln_) then
+              if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
               write(*,*)'tdchief before xlndnv: n,l_',n,l_
+              endif
                 do 26 k=1,ngen
                   xlndnv(k,lr_)=xlndn(k,lr_)
                   energyv(k,lr_)=energy(k,lr_)
@@ -897,9 +1083,11 @@ c     Also, set plot flag  [iplt3d is set above, if plotting this step].
 c.......................................................................
 
       if (lrzmax.lt.3 .and. softxry.ne."disabled") then
-         write(*,*)'*******************************************'
-         write(*,*)'tdchief:  SXR not computed for lrzmax.lt.3'
-         write(*,*)'*******************************************'
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)'*******************************************'
+         WRITE(*,*)'WARNING/tdchief:  SXR not computed for lrzmax.lt.3'
+         WRITE(*,*)'*******************************************'
+CMPIINSERT_ENDIF_RANK  
       else
          if (softxry.ne."disabled".and.kelecg.gt.0) then
             icall="notfrst"
@@ -957,6 +1145,15 @@ c     write netCDF output file, if netcdfnm.ne."disabled"
 c.......................................................................
 CMPIINSERT_IF_RANK_EQ_0
       if (netcdfnm.ne."disabled" .and. nstop.ne.0) then
+         if (netcdfshort.eq.'lngshrtf') then
+            isave=0
+            do i=1,nsavet
+               if(n.eq.nsave(i)) then
+                  isave=i
+                  tsave(i)=timet
+               endif
+            enddo
+         endif
          call netcdfrw2(1)
          if (urfmod.eq."enabled") then
             do krf=1,mrf !YuP:04-2010: Separate data file for each wave type krf
@@ -966,7 +1163,8 @@ CMPIINSERT_IF_RANK_EQ_0
       endif
 CMPIINSERT_ENDIF_RANK
 c.......................................................................
-c     re-write ray data at last step, if urfmod & urfwrray="enabled"
+c     re-write ray data at last step in text file, 
+c     if urfmod & urfwrray="enabled"
 c.......................................................................
 
       if (urfmod.ne."disabled" .and. urfwrray.eq."enabled" 
@@ -981,9 +1179,13 @@ c.......................................................................
          do ii=1,ntavga
             tavg12=tavg12+(tavg2(ii)-tavg1(ii))
          enddo
-         write(*,*)
-         write(*,*)'tavg.ne.disabled: tavg12 and sumdtr should be close'
-         write(*,*)'at end of run: tavg12,sumdtr = ',tavg12,sumdtr
+CMPIINSERT_IF_RANK_EQ_0
+         if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+         WRITE(*,*)
+         WRITE(*,*)'tavg.ne.disabled: tavg12 and sumdtr should be close'
+         WRITE(*,*)'at end of run: tavg12,sumdtr = ',tavg12,sumdtr
+         endif
+CMPIINSERT_ENDIF_RANK
       endif
 
 c.......................................................................
@@ -1024,3 +1226,7 @@ c.......................................................................
       
       return
       end
+
+CMPIINSERT_SUB_SEND_DATA
+
+CMPIINSERT_SUB_SEND_DATA_AMPF

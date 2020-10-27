@@ -3,6 +3,8 @@ c
       subroutine urfinitl
       implicit integer (i-n), real*8 (a-h,o-z)
 
+      REAL*4 :: R47=7.,R48=8.,R49=9.,R40=0.
+
 c..................................................................
 c     This routine does some post-namelist-read initialization
 c     and checking of input.
@@ -18,15 +20,15 @@ CMPIINSERT_IF_RANK_EQ_0
       if (noplots.ne."enabled1") then
       write(t_,1000) 
  1000 format("Urf (lower hybrid, fast wave, ech, ebw...) parameters:")
-      CALL PGMTXT('T',-7.,0.,0.,t_)
+      CALL PGMTXT('T',-R47,R40,R40,t_)
 
 c      write(t_,1001) nrayn,nrayelts
  1001 format("====>NRAYn =",i5,"     ====>NRAYELTs = ",i5)
-c      CALL PGMTXT('T',-8.,0.,0.,t_)
+c      CALL PGMTXT('T',-R48,R40,R40,t_)
 
       write(t_,1002) nmodsa
  1002 format("====>NMODSA = ", i3)
-      CALL PGMTXT('T',-9.,0.,0.,t_)
+      CALL PGMTXT('T',-R49,R40,R40,t_)
       endif
 CMPIINSERT_ENDIF_RANK
 
@@ -88,10 +90,8 @@ c     (If irftype=0, rfread can be either "text" or "netcdf".)
 c.......................................................................
 
       if (irftype.eq.1 .and. rfread.ne."netcdf") then
-         write(*,*)
          WRITE(*,*)"urfinitl STOP: Incompatible rftype and rfread"
          STOP
-         write(*,*)
       endif
 
 c.......................................................................
@@ -158,7 +158,7 @@ c...................................................................
       enddo
 
       if (mrfn.gt.nmodsa) then
-         write(*,*)'urfinitl: mrfn>nmodsa.  mrfn,nmodsa=',mrfn,nmodsa
+         WRITE(*,*)'urfinitl: mrfn>nmodsa.  mrfn,nmodsa=',mrfn,nmodsa
          STOP 'Increase nmodsa.'
       endif
 
@@ -203,7 +203,9 @@ c     Here we use achar(48+1)="1", etc., to name input files
  111           format(a,"_rf.",i1,".nc")
                rffile(i)=t_
                
+               if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
                write(*,*)'urfinitl: i,rffile(i) =',i,rffile(i)
+               endif
             enddo
          endif
       endif  !On rfread

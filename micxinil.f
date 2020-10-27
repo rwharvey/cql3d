@@ -64,7 +64,9 @@ c990131            asnha(j)=alog(alphan(j,-1)+sqrt(alphan(j,-1)**2+1.))
             gamman(j,i)=gamman(j,1)**i
             alphan(j,i)=alphan(j,-1)**(-i)  !BH080327, Needs checking?
  38       continue
+        if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
         write(*,*)'i,alphan(1:4,i)',i,(alphan(j,i),j=1,4)
+        endif
  37     continue
       endif
 c      write(*,*)'((gamman(j,i),j=1,4),i=-2,3)'

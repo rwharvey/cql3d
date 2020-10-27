@@ -175,14 +175,16 @@ c  Other arrays like abd(),...ampfda() [few lines below]
 c  are NOT in comm.h, but rather in local common blocks.
 c  So, these common blocks must be added here, too.
 
-      dimension abd(:,:)
-      pointer abd 
-      dimension ipivot(:) 
-      pointer ipivot
-      common/gauss_/ inewjmax,abd,ipivot,ialloc ! from impavnc0
-      dimension ampfda(:,:),ampfdd(:,:)
-      pointer ampfda,ampfdd
-      common /ampf/ ampfda,ampfdd ! from impavnc0
+!      real*8 abd(:,:)
+!      pointer abd 
+!      integer ipivot(:) 
+!      pointer ipivot
+!      common/gauss_/ipivot
+!      common/gauss_abd/abd
+
+!      dimension ampfda(:,:),ampfdd(:,:)
+!      pointer ampfda,ampfdd
+!      common /ampf/ ampfda,ampfdd ! from impavnc0
 
 
 CMPIINSERT_IF_RANK_EQ_0
@@ -193,15 +195,15 @@ CMPIINSERT_ENDIF_RANK
         ! rhs0 and other arrays are allocated => deallocate
         deallocate(rhs0)
       endif
-      if(ASSOCIATED(abd)) then
-        deallocate(abd)
-      endif
-      if(ASSOCIATED(ipivot)) then
-        deallocate(ipivot)
-      endif
-      if(ASSOCIATED(ampfda)) then
-        deallocate(ampfda,ampfdd,ampfaa)
-      endif
+!      if(ASSOCIATED(abd)) then
+!        deallocate(abd)
+!      endif
+!      if(ASSOCIATED(ipivot)) then
+!        deallocate(ipivot)
+!      endif
+!      if(ASSOCIATED(ampfda)) then
+!        deallocate(ampfda,ampfdd,ampfaa)
+!      endif
       if(ASSOCIATED(fh)) then
         deallocate(fh,fg)
       endif

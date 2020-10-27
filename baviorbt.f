@@ -63,12 +63,12 @@ c      nii=25   !VALUE used until 090907
       nii=25 ! nii=1 gives bad profile of j_bs(lr) in bootcalc test 
       if (nii*nstps .gt. iyjx-1) then
          nstps=iyjx/nii
-         write(*,*) 'WARNING: nstps in baviorbt reduced to',nstps
+         WRITE(*,*) 'WARNING: nstps in baviorbt reduced to',nstps
       endif
 
       if (nii.gt.iy) then
          nii=iy
-         write(*,*) 'WARNING: nii in baviorbt reduced to iy',nii
+         WRITE(*,*) 'WARNING: nii in baviorbt reduced to iy',nii
       endif
          
 c...................................................................
@@ -189,6 +189,8 @@ c            step back to the first nonzero tem2).
                   endif
                endif
             enddo
+            !write(*,*)' baviorbt after 59-LUG itemc1=',lr_,nsteps
+            !pause
 
             uu=uum-0.5*duu
             do ii=1,nii
@@ -350,6 +352,8 @@ c            step back to the first nonzero tem2).
                   endif
                endif
             enddo
+            !write(*,*)' baviorbt after 58-LUG itemc1=',lr_,nsteps
+            !pause
             
             
             uu=uum-0.5*duu
@@ -526,7 +530,7 @@ ccc      real*8, dimension(iy,lrzmax):: prnt5   !For gdb printing
 
       character*8 bnc
 
-      if (eqsym.eq."none") STOP 'baviorbt not revised for eqsym.eq.none'
+      if(eqsym.eq."none") STOP 'baviorbto not revised for eqsym.eq.none'
 
 c...................................................................
 c     ERROR CONTROL - change nstps if bigger than iyjx
@@ -1104,11 +1108,13 @@ c     +                            tang,weightl,weightu,lll
                   deltarz(ir,iz,i)=weightl*deltarhop(i,lll-1,lr)
      +                            +weightu*deltarhop(i,lll,lr)
                enddo
+               if (ioutput(1).ge.2) then !YuP[2020] diagnostic printout
                write(*,*)'deltar: deltarz(ir,iz,1:4),deltarz(ir,iz,10)',
      +                           deltarz(ir,iz,1:4),deltarz(ir,iz,10)
+               endif
                
             else
-               write(*,*)"deltar:  Shouldn't happen!"
+               WRITE(*,*)"deltar:  Shouldn't happen!"
                STOP
             endif
             

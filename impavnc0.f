@@ -12,6 +12,7 @@ c     for the implicit case (implct=enabled)
 c     (IMPAVNC0 calls IMPCHK which differentiates the solution and
 c     compares it with the r.h.s of the advanced F.P. equation to 
 c     check for accuracy)
+c     kopt=2: Coding still needed.  See achiefn.f comments.
 c     kopt=3:
 c     Calc h and g functions for iterative Amp-Far eqn solve
 c.................................................................
@@ -35,14 +36,18 @@ c.................................................................
 c     matrix declared as pointer
 c     need inewjmax in common to use with pointer
 c.................................................................
-      dimension abd(:,:)
-      pointer abd 
-      dimension ipivot(:) 
-      pointer ipivot
-      common/gauss_/ inewjmax,abd,ipivot,ialloc
-      dimension ampfda(:,:),ampfdd(:,:)
-      pointer ampfda,ampfdd
-      common /ampf/ ampfda,ampfdd !BH: Saves this data
+      integer ipivot(iyjx) ! output of subr.dgbtrf(). No need to save.
+      real*8,dimension(:,:),allocatable :: abd !(md1abd,inewjx) md1abd=3*(iy+3)+1 
+!      pointer abd 
+!      integer ipivot(:) 
+!      pointer ipivot
+!      common/gauss_/ipivot
+!      common/gauss_abd/abd
+!      dimension ampfda(:,:),ampfdd(:,:)
+!      pointer ampfda,ampfdd
+!      common /ampf/ ampfda,ampfdd !BH: Saves this data
+      real*8 ampfda(0:iy,jx),ampfdd(0:iy,jx)
+!      save abd !YuP[2019-09] cannot use save: memory alloc problems on NERSC
 
       integer icount_imp   !Counter for calls to impavnc0
       data icount_imp/0/
@@ -59,7 +64,7 @@ c     At each time step: first call to impavnc0 is with lr_=1.
 c     ifirst_lr=1 indicates lr_=1 call (otherwise ifirst_lr=0).
 c     ilast_lr=1 indicates lr_=lrz call (otherwise ilast_lr=0).
 
-      icount_imp=icount_imp+1
+c Not used anymore      icount_imp=icount_imp+1
       ifirst_lr=0
       ilast_lr=0
       if (l_.eq.1 .or. lrz.eq.1) ifirst_lr=1
@@ -333,16 +338,41 @@ c simply check whether the array is already allocated or not.
 c..................................................................
       if (soln_method.eq.'direct'.or.soln_method.eq.'itsol1') then      
         lenabd=md1abd*inewjmax
+        if(md1abd.lt.(2*ml+mu+1))then
+          STOP 'impavnc0/direct: md1abd.lt.(2*ml+mu+1) detected. stop'
+        endif
+        if(iyjx.lt.inewjx)then
+          STOP 'impavnc0/direct: iyjx.lt.inewjx detected. stop'
+        endif
+        if(size(rhs).lt.inewjx)then
+          STOP 'impavnc0/direct: size(rhs).lt.inewjx detected. stop'
+        endif
 c-YuP      if (alloc.eq."enabled") then
-        if(ASSOCIATED(ipivot)) then  
+        !if(ASSOCIATED(abd)) then  
+        if(ALLOCATED(abd))then
          ! abd and ipivot are already allocated => do nothing 
+          !deallocate(abd)
+          !allocate(abd(md1abd,inewjx),STAT=istat) ! With new value of inewjx
+          abd=zero !YuP[2019-04-24] was absent
+          ipivot=0 !YuP[2019-04-24] was absent
         else ! Not allocated yet
-         write(*,*)'impavnc0 Before allocate; Size req. for abd:',lenabd
-         allocate(abd(md1abd,inewjmax),STAT=istat) !Big size ~3*jx*iy^2
-         write(*,*)'impavnc0 abd: Allocate/istat=',istat
-         call bcast(abd,zero,lenabd)
-         allocate(ipivot(iyjx),STAT=istat)
-         call ibcast(ipivot,0,iyjx)
+          !write(*,*)'impavnc0 Before allocate; Size req. for abd:',lenabd
+          !YuP[2019-04-24] allocate(abd(md1abd,inewjmax),STAT=istat) !Big size ~3*jx*iy^2
+          ![2019-04-24] abd() is used in subr.dgbtrf and dgbtrs with dims abd(md1abd,inewjx)
+          !So changing allocation to
+          allocate(abd(md1abd,inewjx),STAT=istat) !YuP[2019-04-24] !Big size ~3*jx*iy^2
+          ![2019-04-24] The problem is - inewjx may change from one flux surface
+          ! to another, and that is what inewjmax was trying to account for
+          !(it is the maximum of inew*jx = (iyh+itl-1)*jx over all flux surfaces).
+          ! However, notice that impavnc0 is called sequentially 
+          ! starting from ll=1 (smallest rho) to larger rho, and the region
+          ! with passing particles is gradually reduced, 
+          !  i.e., inew=(iyh+itl-1) is reduced.
+          ! Then, we can use the abd() storage defined during very 1st call,
+          ! i.e., during ll=1 call, when inew*jx is largest.
+          !write(*,*)'impavnc0 abd: Allocate/istat=',istat
+          abd=zero 
+          ipivot=0 !call ibcast(ipivot,0,iyjx)
          ! will preset the values to zero in loop k=1,ngen
         endif
       endif ! on soln_method= direct or itsol1
@@ -401,11 +431,11 @@ c..................................................................
 c     Logic for LU factorization..
 c..................................................................
 
-        factor="disabled"
+        factor="disabled" !Using prior factorization
         if (ngen.gt.1 ) then
-          factor="enabled"
+          factor="enabled" ! Factorize
         endif
-        if (impchg.gt.0) factor="enabled"
+        if (impchg.gt.0) factor="enabled" ! Factorize
 
 c.................................................................
 c     The coefficients of the equation are currently defined on the
@@ -515,7 +545,7 @@ c.................................................................
           if (.not.(ampfmod.eq."enabled". and. kopt.eq.3
      +         .and.cqlpmod.ne."enabled" .and. k.eq.kelec)) then  
 
-          write(*,*)'impavnc0:  factor.eq."disabled", OK?'
+          WRITE(*,*)'impavnc0:  factor.eq."disabled", OK?'
           ipassbnd=iyh+1-itl
           if (symtrap.ne."enabled" .or. nadjoint.eq.1) ipassbnd=0
           do 2002 j=1,jx
@@ -581,7 +611,7 @@ c.......................................................................
                 rhs(ieq)=rhs(ieq)*scal(neq,l_)
 
                 if (nadjoint.eq.1 .and. symtrap.eq."enabled"
-     +            .and. i.eq.itu) rhs(ieq)=0.0
+     +            .and. i.eq.itu) rhs(ieq)=zero !YuP[2019-04-24] was 0.
                 
               endif  ! On if j.eq.1.and.lbdtry(k).ne.conserv;  else
 
@@ -620,14 +650,14 @@ c$$$                   rhs(ieq)=cnst*dfdvz
 c
 cBH140101: RHS from BA coeffs for tor E field
 c
-             if(ASSOCIATED(ampfda)) then
-                continue
-             else               ! Not allocated yet
-                allocate(ampfda(iy,0:jx),STAT=istat)
-                if (istat.ne.0) write(*,*)'impanvc0: ampfda prblm'
-                allocate(ampfdd(0:iy,jx),STAT=istat)
-                if (istat.ne.0) write(*,*)'impanvc0: ampfdd prblm'
-             endif
+!             if(ASSOCIATED(ampfda)) then
+!                continue
+!             else               ! Not allocated yet
+!                allocate(ampfda(iy,0:jx),STAT=istat)
+!                if (istat.ne.0) WRITE(*,*)'impanvc0: ampfda alloc prblm'
+!                allocate(ampfdd(0:iy,jx),STAT=istat)
+!                if (istat.ne.0) WRITE(*,*)'impanvc0: ampfdd alloc prblm'
+!             endif
              call bcast(ampfda,zero,SIZE(ampfda))
              call bcast(ampfdd,zero,SIZE(ampfdd))
 
@@ -731,18 +761,18 @@ c     reinitialize to zero matrix and rhs
 c
 c          write(*,*)'impavnc0:size(rhs) ',size(rhs)
           if (soln_method.eq.'direct' .or. soln_method.eq.'itsol1') then
-              call bcast(abd,zero,lenabd)
+              abd=zero !YuP[2019-04-24] was 0.
               do i=1,inewjx_(l_)
-                 rhs(i)=0.0
+                rhs(i)=zero !YuP[2019-04-24] was 0.
                  ipivot(i)=0
               enddo
           elseif (soln_method.eq.'itsol') then
               do i=1,inewjx_(l_)
-                 rhs(i)=0.0
+                rhs(i)=zero !YuP[2019-04-24] was 0.
               enddo
           elseif (ifirst_lr.eq.1) then  ! for it3dv and it3drv
               do i=1,ieq_tot
-                 rhs(i)=0.0
+                rhs(i)=zero !YuP[2019-04-24] was 0.
               enddo
           endif
 
@@ -802,10 +832,12 @@ c..................................................................
 c     do loop 12 is the major loop over j (momentum).
 c..................................................................
 
-          zrhsj1=0.0
+          zrhsj1=zero !YuP[2019-04-24] was 0.
 cBH040719          call bcast(zavarj1,zero,mu+1)
 cBH040719          call ibcast(ijaj1,0,mu+1)
           call bcast(zavarj1,zero,iy+4)
+          zmatcont=zero !YuP[2019-04-24] added
+          janelt=0  !YuP[2019-07-12] added
           call ibcast(ijaj1,0,iy+4)
 
           do 12 j=1,jx
@@ -987,9 +1019,9 @@ c..................................................................
               if (lbdry(k).eq."fixed") then
                 janelt(1)=ieq
                 nvar=1
-                zmatcont(1)=1.
+                   zmatcont(1)=one !YuP[2019-04-24] was 1.
                 rhs(ieq)=f_(iyh,1,k,l_) ! f_ at previous t-step
-                xnorm=1.
+                   xnorm=one !YuP[2019-04-24] was 1.
                 go to 5000
               endif
               
@@ -1016,8 +1048,8 @@ c..................................................................
                 ! Add to the matrix: f(j=1)=rhs=f_mean(j=2) :
                 janelt(1)=ieq
                 nvar=1
-                zmatcont(1)=1.
-                xnorm=1.
+                   zmatcont(1)=one !YuP[2019-04-24] was 1.
+                   xnorm=one !YuP[2019-04-24] was 1.
                 rhs(ieq)=f_(iyh,1,k,l_) !original (same as mean(f_(:,j=1,k,l_))
                 !rhs(ieq)=f_(iyh,2,k,l_) ! j=2 at prev.step ! gives neg.dens.
                 !rhs(ieq)= f_max !unstable
@@ -1433,8 +1465,8 @@ c.................................................................
 c     set f(itu)=0
                 janelt(1)=ieq
                 nvar=1
-                zmatcont(1)=1.0
-                rhs(ieq)=0.0
+                   zmatcont(1)=one !YuP[2019-04-24] was 1.0
+                   rhs(ieq)=zero !YuP[2019-04-24] was 0.
 
               else if (j .eq. 1) then
 
@@ -1555,7 +1587,7 @@ c.......................................................................
                 do 5100 icon=1,nvar
                   if (janelt(icon) .le. inew) then
 c     (i,j=1) contributions -> (iy,1) point
-                    zavarj1(1)=zavarj1(1)+zmatcont(icon)*xnorm
+                    zavarj1(1)=zavarj1(1)+zmatcont(icon)*xnorm !here direct
                   else
 c     (i,j=2) contributions -> (i,2) point
                     zavarj1(janelt(icon)-inew+1)=
@@ -1575,8 +1607,8 @@ c     i<iy,j=1: f(i)-f(iy)=0.
                   zmatcont(2)=-0.5
                   janelt(1)=ieq
                   janelt(2)=inew
-                  rhs(ieq)=0.0
-                  xnorm=2.0
+                            rhs(ieq)=zero !YuP[2019-04-24] was 0.
+                            xnorm=2.d0 !YuP[2019-04-24] was 2.0
                   do jcont=1,nvar
                     abd(ibandpieq-janelt(jcont),janelt(jcont))=
      +                zmatcont(jcont)
@@ -1594,8 +1626,7 @@ c   Bug fix, Olivier Sauter, 030509:     nvar=mu + 1
                   rhs(ieq)=zrhsj1
                   call impnorm(xnorm,zavarj1,rhs(ieq),nvar)
                   do jcont=1,nvar
-                    abd(ibandpieq-ijaj1(jcont),ijaj1(jcont))=
-     +                zavarj1(jcont)
+                 abd(ibandpieq-ijaj1(jcont),ijaj1(jcont))=zavarj1(jcont) !here direct
                   end do
                 endif  ! on ieq.lt.new/else
 
@@ -1648,11 +1679,11 @@ c.......................................................................
                 do 5200 icon=1,nvar
                   if (janelt(icon) .le. inew) then
 c     (i,j=1) contributions -> (iy,1) point
-                    zavarj1(1)=zavarj1(1)+zmatcont(icon)*xnorm
+                    zavarj1(1)=zavarj1(1)+zmatcont(icon)*xnorm !here itsol
                   else
 c     (i,j=2) contributions -> (i,2) point
                     zavarj1(janelt(icon)-inew+1)=
-     +                zavarj1(janelt(icon)-inew+1)+zmatcont(icon)*xnorm
+     +                zavarj1(janelt(icon)-inew+1)+zmatcont(icon)*xnorm !here itsol
                     ijaj1(janelt(icon)-inew+1)=janelt(icon)
                   endif
  5200           continue
@@ -1668,8 +1699,8 @@ c     i<iy,j=1: f(i)-f(iy)=0.
                   zmatcont(2)=-0.5
                   janelt(1)=ieq
                   janelt(2)=inew
-                  rhs(ieq)=0.0
-                  xnorm=2.0
+                            rhs(ieq)=zero !YuP[2019-04-24] was 0.
+                            xnorm=2.d0 !YuP[2019-04-24] was 2.0
                   do jcont=1,nvar
                     icoeff=icoeff+1
                     a_csr(icoeff)=zmatcont(jcont)
@@ -1686,10 +1717,10 @@ c   Bug fix, Olivier Sauter, 030509: right of (i=iy,j=1) point => mu+1.
 c   Bug fix, Olivier Sauter, 030509:     nvar=mu + 1
                   nvar=inew + 1
                   rhs(ieq)=zrhsj1
-                  call impnorm(xnorm,zavarj1,rhs(ieq),nvar)
+                  call impnorm(xnorm,zavarj1,rhs(ieq),nvar) !here itsol
                   do jcont=1,nvar
                     icoeff=icoeff+1
-                    a_csr(icoeff)=zavarj1(jcont)
+                    a_csr(icoeff)=zavarj1(jcont) !here itsol
                     ja_csr(icoeff)=ijaj1(jcont)
                   end do
                 endif  ! on ieq
@@ -1741,7 +1772,7 @@ c.......................................................................
                 do 5300 icon=1,nvar
                   if ((janelt(icon)-(ieq_(l_)-1)) .le. inew) then
 c     (i,j=1) contributions -> (iy,1) point
-                    zavarj1(1)=zavarj1(1)+zmatcont(icon)*xnorm
+                    zavarj1(1)=zavarj1(1)+zmatcont(icon)*xnorm !here it3drv
                   else
 c     (i,j=2) contributions -> (i,2) point
                     zavarj1((janelt(icon)-(ieq_(l_)-1))-inew+1)=
@@ -1763,8 +1794,8 @@ c     i<iy,j=1: f(i)-f(iy)=0.
                   zmatcont(2)=-0.5
                   janelt(1)=ieq
                   janelt(2)=inew+(ieq_(l_)-1)
-                  rhs(ieq)=0.0
-                  xnorm=2.0
+                            rhs(ieq)=zero !YuP[2019-04-24] was 0.
+                            xnorm=2.d0 !YuP[2019-04-24] was 2.0
                   do jcont=1,nvar
                     icoeff=icoeff+1
                     a_csr(icoeff)=zmatcont(jcont)
@@ -1784,7 +1815,7 @@ c   Bug fix, Olivier Sauter, 030509:     nvar=mu + 1
                   call impnorm(xnorm,zavarj1,rhs(ieq),nvar)
                   do jcont=1,nvar
                     icoeff=icoeff+1
-                    a_csr(icoeff)=zavarj1(jcont)
+                    a_csr(icoeff)=zavarj1(jcont) !here it3drv
                     ja_csr(icoeff)=ijaj1(jcont) + (ieq_(l_)-1)
                   end do
                 endif  ! on ieq
@@ -1805,7 +1836,7 @@ c.......................................................................
               else ! for soln_method it3dv or it3drv
                  kku=ieq-(ieq_(l_)-1)+(k-1)*iyjx 
               endif
-              scal(kku,l_)=1./xnorm
+              scal(kku,l_)=one/xnorm !!YuP[2019-04-24] was 1./xnorm
 c              if(kku.le.0 .or. kku.gt.iyjx*ngen) then
 c                write(*,*)'impavnc0: k,l_,ieq,ieq_(l_),kku,ieq_tot=',
 c     ~                          k,l_,ieq,ieq_(l_),kku,ieq_tot
@@ -1970,8 +2001,8 @@ c       before adjustment to lapack order.
         lowd=ml+mu+1
         ml_a=ml
         mu_a=mu
-        call bndcsr(n_rows_A,abd_lapack(1,1),nabd,lowd,ml_a,mu_a,
-     1              a_csr(1),ja_csr(1),ia_csr(1),icsrij,ierr_csr)
+        call bndcsr(n_rows_A,abd_lapack,nabd,lowd,ml_a,mu_a,
+     1              a_csr,ja_csr,ia_csr,icsrij,ierr_csr)
         if (ierr_csr.ne.0) then
            WRITE(*,*)'impavnc0/bndcsr: STOP ierr_csr=',ierr_csr
            stop
@@ -2044,9 +2075,9 @@ c  of coeff setup over ll=1,lrz flux surfaces.
         ! 
 
         if ( soln_method.eq."itsol" .or. soln_method.eq."itsol1" ) then
-           call ilut (n_rows_A,a_csr(1),ja_csr(1),ia_csr(1),lfil0,
-     +          droptol,alu(1),jlu(1),ju(1),iwk_ilu,w_ilu(1),
-     +          jw_ilu(1),ierr)
+           call ilut (n_rows_A,a_csr,ja_csr,ia_csr,lfil0,
+     +          droptol,alu,jlu,ju,iwk_ilu,w_ilu,
+     +          jw_ilu,ierr)
                              !Setup up above, since vv size dependency
            do i=1,n_rows_A
               rhs0(i)=rhs(i)    !Copy rhs, for input to pgmres since
@@ -2055,9 +2086,9 @@ c  of coeff setup over ll=1,lrz flux surfaces.
         elseif(soln_method.eq.'it3dv') then
            ! perform soln only at last flux surface (l_=lrz)
            if ( ilast_lr.eq.1 ) then
-              call ilut (n_rows_A,a_csr(1),ja_csr(1),ia_csr(1),lfil0,
-     +             droptol,alu(1),jlu(1),ju(1),iwk_ilu,w_ilu(1),
-     +             jw_ilu(1),ierr)
+              call ilut (n_rows_A,a_csr,ja_csr,ia_csr,lfil0,
+     +             droptol,alu,jlu,ju,iwk_ilu,w_ilu,
+     +             jw_ilu,ierr)
 c              call ilutp(n_rows_A,a_csr(1),ja_csr(1),ia_csr(1),
 c     +             lfil0,droptol,permtol,mbloc,
 c     +             alu(1),jlu(1),ju(1),iwk_ilu,w_ilu(1),jw_ilu(1),
@@ -2073,9 +2104,9 @@ CMPIINSERT_ENDIF_RANK
         elseif(soln_method.eq.'it3drv') then
            ! perform soln only at last flux surface (l_=lrz)
            if ( ilast_lr.eq.1 ) then
-              call ilut (n_rows_A,ac_csr(1),jac_csr(1),iac_csr(1),lfil0,
-     +             droptol,alu(1),jlu(1),ju(1),iwk_ilu,w_ilu(1),
-     +             jw_ilu(1),ierr)
+              call ilut (n_rows_A,ac_csr,jac_csr,iac_csr,lfil0,
+     +             droptol,alu,jlu,ju,iwk_ilu,w_ilu,
+     +             jw_ilu,ierr)
 c              call ilutp(n_rows_A,ac_csr(1),jac_csr(1),iac_csr(1),
 c     +             lfil0,droptol,permtol,mbloc,
 c     +             alu(1),jlu(1),ju(1),iwk_ilu,w_ilu(1),jw_ilu(1),
@@ -2199,13 +2230,14 @@ c     Set prmres error tolerance and max iterations internally:
        iout=0 !38 ! 0 means no writing to fort.iout file.
                 ! Writing into this file causes problems for MPI (I/O).
                 ! Keep it 0, to avoid slow runs ! YuP[04-2017]
-                ! Alternatively, set in your batch script:
-                ! export FORT_BUFFERED=1 
-                !(or the csh equivalent - setenv FORT_BUFFERED 1 ) 
-                ! At NERSC, it was the default in before 2017
-                ! but it caused problems with some
-                ! newer compilers. 
-                ! It seems its removal causes the I/O to take longer.
+                ! Alternatively, set in your batch script:
+                ! export FORT_BUFFERED=1
+                !(or the csh equivalent: setenv FORT_BUFFERED 1)
+                ! At NERSC, it was the default in before 2017
+                ! but it caused problems with some
+                ! newer compilers.
+                ! It seems its removal causes the I/O to take longer.
+                ! Yuri, the underscores gave bcompare a rought time. Remove this line.
 
 
        call cpu_time(tm1)
@@ -2215,9 +2247,9 @@ c     call PGMRES
 c--------------------------------------------------------------
 c     Put sol into rhs vector (i.e., as in soln from direct solve)
        if ( soln_method.eq."itsol" .or. soln_method.eq."itsol1" ) then
-          call pgmres(n_rows_A,krylov1,rhs0(1),sol(1),vv(1),epsilon,
-     +         maxits,iout,a_csr(1),ja_csr(1),ia_csr(1),alu(1),
-     +         jlu(1),ju(1),ierr)
+          call pgmres(n_rows_A,krylov1,rhs0,sol,vv,epsilon,
+     +         maxits,iout,a_csr,ja_csr,ia_csr,alu,
+     +         jlu,ju,ierr)
           rhs(1:n_rows_A)=sol(1:n_rows_A)
        elseif(soln_method.eq.'it3dv') then
                                 ! perform soln 
@@ -2226,9 +2258,9 @@ c     Put sol into rhs vector (i.e., as in soln from direct solve)
 CMPIINSERT_IF_RANK_EQ_0
 c       WRITE(*,*)'impavnc0 before pgmres:  ierr',ierr,soln_method
 CMPIINSERT_ENDIF_RANK
-             call pgmres(n_rows_A,krylov1,rhs0(1),sol(1),vv(1),epsilon,
-     +            maxits,iout,a_csr(1),ja_csr(1),ia_csr(1),alu(1),
-     +            jlu(1),ju(1),ierr)
+             call pgmres(n_rows_A,krylov1,rhs0,sol,vv,epsilon,
+     +            maxits,iout,a_csr,ja_csr,ia_csr,alu,
+     +            jlu,ju,ierr)
 CMPIINSERT_IF_RANK_EQ_0
 c       WRITE(*,*)'impavnc0  after pgmres:  ierr',ierr
 CMPIINSERT_ENDIF_RANK
@@ -2245,9 +2277,9 @@ CMPIINSERT_ENDIF_RANK
 CMPIINSERT_IF_RANK_EQ_0
 c       WRITE(*,*)'impavnc0 before pgmres:  ierr',ierr,soln_method
 CMPIINSERT_ENDIF_RANK
-             call pgmres(n_rows_A,krylov1,rhs0(1),sol(1),vv(1),epsilon,
-     +            maxits,iout,ac_csr(1),jac_csr(1),iac_csr(1),alu(1),
-     +            jlu(1),ju(1),ierr)
+             call pgmres(n_rows_A,krylov1,rhs0,sol,vv,epsilon,
+     +            maxits,iout,ac_csr,jac_csr,iac_csr,alu,
+     +            jlu,ju,ierr)
 CMPIINSERT_IF_RANK_EQ_0
 c       WRITE(*,*)'impavnc0  after pgmres:  ierr',ierr
 CMPIINSERT_ENDIF_RANK
@@ -2280,22 +2312,46 @@ c..................................................................
 
       if (soln_method.eq.'direct') then
 c
-c%OS        zzzt1=second()
-cBH080303        tm1 = etime(tm)       
          call cpu_time(tm1)
-
+         
 c     factorize matrix
 c_cray  64-bit-compiler uses sgbtrf (from lapack library).
 c_pc    32-bit-compiler uses dgbtrf (from lapack library).
         if (factor .ne. "disabled") then
 c          call sgbtrf(inewjx,inewjx,ml,mu,abd,md1abd,ipivot,info)
-c          write(*,*)'impavnc0 before dgbtrf, l_,inewjx,ml=',l_,inewjx,ml
-          call dgbtrf(inewjx,inewjx,ml,mu,abd,md1abd,ipivot,info)
+
+!          if(n_(l_).eq.1 .or. n_(l_).eq.14)then
+!            val_min=ep90
+!            val_max=-ep90
+!            val_sum=0.d0
+!            do i=1,iy
+!            do j=1,jx
+!              val= di(i,j,k,l_)
+!              val_sum=val_sum+val
+!              val_min=MIN(val_min,val)
+!              val_max=MAX(val_max,val)
+!            enddo
+!            enddo
+!            write(*,*)'impavnc/consscal: MIN,MAX,SUM val',
+!     &                             val_min,val_max,val_sum
+!          endif
+          
+          call dgbtrf(inewjx,inewjx,ml,mu,abd(1:md1abd,1:inewjx),md1abd,
+     &                ipivot(1:inewjx),info)
+!          if(sum(ipivot).lt.0)then
+!           WRITE(*,*)' sum(abd),sum(ipivot)=',inewjx,md1abd,
+!     &     sum(abd),sum(ipivot), size(abd),size(ipivot) 
+!            pause  
+!          endif 
           if (info .ne. 0) then
-            print *,' warning after sgbtrf in impavnc0: info = ',info
+           WRITE(*,*)' sum(abd),sum(ipivot)=',inewjx,md1abd,
+     &     sum(abd),sum(ipivot), size(abd),size(ipivot)    
+            PRINT *,
+     &'ERR after sgbtrf in impavnc0:mpirank,n,l_,kopt,icount_ampf,info',
+     &       mpirank,n,l_,kopt,icount_ampf,info,factor
             stop 'impavnc0 1'
           endif
-        endif
+        endif ! factor .ne. "disabled"
 c       tm1 = etime(tm) - tm1
 c       write(*,*)'impavnc0: time for dgbtrf tm1=',tm1
 
@@ -2309,11 +2365,12 @@ cBH080303        tm1 = etime(tm)
         inbrhs = 1
         transpose = 'n'
 c        call sgbtrs(transpose,inewjx,ml,mu,inbrhs,abd,md1abd,ipivot
-        call dgbtrs(transpose,inewjx,ml,mu,inbrhs,abd,md1abd,ipivot
-     +    ,rhs,inewjx,info)
+        call dgbtrs(transpose,inewjx,ml,mu,inbrhs,
+     &       abd(1:md1abd,1:inewjx),md1abd,
+     &       ipivot(1:inewjx),rhs(1:inewjx),inewjx,info)
      
         if (info .ne. 0) then
-          print *,' warning after sgbtrs in impavnc0: info = ',info
+          PRINT *,' warning after sgbtrs in impavnc0: info = ',info
           stop 'impavnc0 2'
         endif
 c       tm1 = etime(tm) - tm1
@@ -2468,9 +2525,9 @@ cBH-YuP:         endif ! "scale"
 						                 
        enddo  !  On ll ; finished with updating f
        
-       WRITE(*,'(a,2i6)')
-     +  'impavnc[ZOW]: sol.found, f is updated. k,l_=',
-     +                                          k,l_
+!       WRITE(*,'(a,4i6,a)')
+!     +  'impavnc:sol.found,f updtd. Mpirank,l_,kopt,icount_ampf,factor',
+!     +                              mpirank,l_,kopt,icount_ampf,factor
        ! Note, with MPI, and soln_method.eq.'direct',
        ! parallelization is done over ll (l_) index.
        ! mpirank=0 is not doing calculations, only receiving data.
@@ -2484,27 +2541,28 @@ c.......................................................................
 
            if (icount_ese.eq.1) then
               
-c             Store new f into fh        
-              call dcopy(iyjx2*ngen,f(0,0,1,l_),1,fh(0,0,1,l_),1)
+                   !             Store new f into fh
+             call dcopy(iyjx2,f(0:iy+1,0:jx+1,kelec,l_),1, 
+     +                       fh(0:iy+1,0:jx+1,1,l_),1) ! we are in k-loop here
+                   !YuP[2019-05-30] Note that in case of cqlpmod.eq."enabled",
+                   ! fh() is allocated as fh(0:iy+1,0:jx+1,1:ngen,0:ls+1) in wpalloc
               factor="disabled"
               icount_ese=2
               go to 10
 
            elseif (icount_ese.eq.2) then
 
-c             g function is in f.
-c             Calculate fluxes, restore f with f_, and return.
-
+             ! g function is in f.
+             ! Calculate fluxes, restore f with f_, and return.
               flux1(l_)=fluxpar(
-     +             1,x,coss(1,l_),cynt2(1,l_),cint2,temp1,iy,jx)
+     +             1,x,coss(1:iy,l_),cynt2(1:iy,l_),cint2,temp1,iy,jx)
               flux2(l_)=fluxpar(
-     +             1,x,coss(1,l_),cynt2(1,l_),cint2,temp2,iy,jx)
-              call dcopy(iyjx2*ngen,f_(0,0,1,l_),1,f(0,0,1,l_),1)
-              
+     +             1,x,coss(1:iy,l_),cynt2(1:iy,l_),cint2,temp2,iy,jx)
+              f(0:iy+1,0:jx+1,k,l_)=f_(0:iy+1,0:jx+1,k,l_) !We are in k-loop here
               go to 999
            endif
            
-        endif
+        endif ! cqlpmod.eq."enabled"
        
 
 c.......................................................................
@@ -2517,24 +2575,30 @@ c.......................................................................
 
            if (icount_ampf.eq.1) then
               
-c             Store new f into fh        
-              call dcopy(iyjx2,f(0,0,kelec,l_),1,fh(0,0,1,l_),1)
+                   !             Store new f into fh
+c              call dcopy(iyjx2,f(0:iy+1,0:jx+1,kelec,l_),1, 
+c     +                        fh(0:iy+1,0:jx+1,1,l_),1)
+              fh(0:iy+1,0:jx+1,1,l_)=f(0:iy+1,0:jx+1,kelec,l_)
               !YuP[05-2017] corrected dcopy in the above line:
               !was iyjx2*ngen, but we only copy one species (kelec)
               factor="disabled"
               icount_ampf=2 !next, re-define rhs() for the 'g' function equations
-              go to 10
+              go to 10 ! return, for finding fg next
 
            elseif (icount_ampf.eq.2) then
 
-c             g function is in f, store into fg
-              call dcopy(iyjx2,f(0,0,kelec,l_),1,fg(0,0,1,l_),1)
+           !             g function is in f, store into fg
+c           call dcopy(iyjx2,f(0:iy+1,0:jx+1,kelec,l_),1, 
+c     +                     fg(0:iy+1,0:jx+1,1,l_),1)
+              fg(0:iy+1,0:jx+1,1,l_)=f(0:iy+1,0:jx+1,kelec,l_)
               !YuP[05-2017] corrected dcopy in the above line:
               !was iyjx2*ngen, but we only copy one species (kelec)
 cBH170312:  Checking effect of zeroing correction part of distn:
 cBH170312:              call bcast(fg(0,0,1,l_),zero,iyjx2*ngen)
 c             Restore f with f_, and return.
-              call dcopy(iyjx2,f_(0,0,kelec,l_),1,f(0,0,kelec,l_),1)
+c              call dcopy(iyjx2,f_(0:iy+1,0:jx+1,kelec,l_),1,
+c     +                          f(0:iy+1,0:jx+1,kelec,l_),1)
+              f(0:iy+1,0:jx+1,kelec,l_)=f_(0:iy+1,0:jx+1,kelec,l_)
               !YuP[05-2017] corrected dcopy in the above line:
               !was iyjx2*ngen, but we only copy one species (kelec)
               go to 999
@@ -2571,7 +2635,6 @@ c-YuP      if(dalloc.eq."enabled") then
          ! Should be after last nefiter iteration (which is unknown).
          ! Not really necessary to deallocate?
 c-YuP      endif
-
       irstart=0
  999  continue
 

@@ -254,7 +254,7 @@ CMPIINSERT_INCLUDE
 c     Initialize MPI:
 CMPIINSERT_START
 c     It will insert:
-c      call init_mpi ! Initialize MPI and set mpitime0=MPI_WTIME
+c     ! Initialize MPI and set mpitime0=MPI_WTIME
 
 CMPIINSERT_BARRIER
 

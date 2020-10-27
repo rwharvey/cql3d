@@ -20,7 +20,7 @@ c..................................................................
           da(i,j)=da(i,j)+cal(i,j,k,l_)
           db(i,j)=db(i,j)+cbl(i,j,k,l_)
           dc(i,j)=dc(i,j)+scatfrac*ccl(i,j,k,l_)
-          dd(i,j)=dd(i,j)+cdl(i,j,k,l_)
+          dd(i,j)=dd(i,j)+scatfrac*cdl(i,j,k,l_) !YuP[2019-11-18] Added scatfrac
           de(i,j)=de(i,j)+scatfrac*cel(i,j,k,l_)
           df(i,j)=df(i,j)+scatfrac*cfl(i,j,k,l_)
  11     continue

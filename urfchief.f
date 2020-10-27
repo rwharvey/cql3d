@@ -115,7 +115,9 @@ c$$$        call urfrays(initrf,nraypts1,nraypts2,nraypts3)
 c...................................................................
 c     Read in ray data
 c...................................................................
+        if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
         write(*,*)'call urfread: n, nurf=',n,nurf
+        endif
         call urfread
 
 c...................................................................
@@ -196,8 +198,10 @@ c...................................................................
         nraypts3=nraypts3+nrfstep2
         call urfwrite
         call urfrays(initrf,nraypts1,nraypts2,nraypts3)
-                write(*,*)'call urfread: n, nurf,irfitr2,irfitr3='
+        if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+           write(*,*)'call urfread: n, nurf,irfitr2,irfitr3='
      +         ,n,nurf,irfitr2,irfitr3
+        endif
         call urfread
 
 c...................................................................
@@ -248,7 +252,9 @@ c..................................................................
         call tdnflxs(lmdpln(ll))
 c%os  
         if (indxlr_ .ne. ll) then
-          print *,' error in defining l_,indxlr_,... in urfchief'
+CMPIINSERT_IF_RANK_EQ_0
+          PRINT *,' error in defining l_,indxlr_,... in urfchief'
+CMPIINSERT_ENDIF_RANK  
           stop 'urfchief: error in defining l_,indxlr_,...'
         endif
 c%os  

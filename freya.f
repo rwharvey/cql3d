@@ -592,7 +592,7 @@ c
 c     calculate total plasma volume
       volume = 0.
       do i=1,mfm1
-        write(*,*)'freya: i,psivol(i)=',i,psivol(i)
+c        write(*,*)'freya: i,psivol(i)=',i,psivol(i)
         volume = volume + psivol(i)
       enddo
       write(*,*)'freya: volume(sum of psivol)=',volume
@@ -1048,10 +1048,10 @@ c       to base it on the rho coordinate and rotsid,  and to
 c       fill in the rotsid() array.
       write(*,*)
       write(*,*)'freya, hot ion birth rate vs rotsid, for ib=1, ie=1:3'
-      write(*,*) (rotsid(i),i=1,mfm1) 
-      write(*,*) (hibrz(i,1,1),i=1,mfm1)
-      write(*,*) (hibrz(i,2,1),i=1,mfm1)
-      write(*,*) (hibrz(i,3,1),i=1,mfm1)
+c      write(*,*) (rotsid(i),i=1,mfm1) 
+c      write(*,*) (hibrz(i,1,1),i=1,mfm1)
+c      write(*,*) (hibrz(i,2,1),i=1,mfm1)
+c      write(*,*) (hibrz(i,3,1),i=1,mfm1)
 c
       write(*,*)
       write(*,*) 'fap(ie=1:3)',(fap(i,1),i=1,3)

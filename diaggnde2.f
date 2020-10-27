@@ -372,6 +372,21 @@ c$$$ 80     continue
            zeff4(lr_)=bnumb(k)**4*reden(k,lr_)+zeff4(lr_)
            zeff1=zeff1+bnumb(k)*reden(k,lr_)
  80     continue
+        !YuP[2020-06-22] if(gamafac.eq."hesslow".and.(kelec.ne.0))then
+        if(nstates.gt.0)then !YuP[2020-06-22] Changed the above logic to this.
+          ! If no suitable impurity is present 
+          ! (example: imp_type is set to 0 in cqlinput),
+          ! then nstates remains 0 ==> Effectively, no impurities.
+          ! This logic is more general.
+          ! Add ions from impurities, all charge states
+          do kstate=1,nstates ! Now additional ions from impur.source.
+           dens_kstate=dens_imp(kstate,lr_)
+           xq=xq+1
+           zeff(lr_)= zeff(lr_) +dens_kstate*bnumb_imp(kstate)**2
+           zeff4(lr_)=zeff4(lr_)+dens_kstate*bnumb_imp(kstate)**4
+           zeff1=     zeff1     +dens_kstate*bnumb_imp(kstate)            
+          enddo ! kstate
+        endif ! nstates.gt.0
         
       elseif (izeff.eq."ion") then
          do kk=1,nionm
@@ -383,8 +398,7 @@ c$$$ 80     continue
          enddo
          
       else
-         write(*,*) 'Problem with izeff specification'
-         stop
+         stop 'diaggnde2: Problem with izeff specification'
       endif
       
       zeff4(lr_)=zeff4(lr_)/xq

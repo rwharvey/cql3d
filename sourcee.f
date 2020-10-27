@@ -26,11 +26,11 @@ c     return if source is not to be recomputed this time step
 c..................................................................
 
       if (nsou.eq.1 .or. n.eq.0) then
-        continue
+         continue
       elseif (mod(n,nsou).eq.1 .and. n.ne.1) then
-        continue
+         continue
       else
-        return
+         return
       endif
 
 c..................................................................
@@ -93,21 +93,29 @@ c..................................................................
         endif  ! On soucoord
       endif  ! On n.eq.0
 
+      if ((ampfmod.eq."disabled") .or.
+     &    (ampfmod.eq."enabled" .and. it_ampf.eq.1) ) then !YuP[2020-01]
+        !YuP[2020-01] That is, when ampfmod.eq."enabled", 
+        !initialize the two arrays below only at 1st iteration, 
+        !and then reuse them at higher iterations, i.e., it_ampf>1.
+        !Note: there is if(ampfmod.eq."enabled" .and. it_ampf.gt.1)return
+        !clause in sourceko.f. 
+        !So, if we don't use a corresponding clause here,
+        !then at it_ampf>1 the arrays source(), xlncur(1,lr_)  
+        !will be set to 0.0 but not computed in sourceko.f.
 c..................................................................
 c     Initialize the source profile to zero.
 c..................................................................
-
-      call bcast(source(0,0,1,indxlr_),zero,iyjx2*ngen)
-
+        call bcast(source(0,0,1,indxlr_),zero,iyjx2*ngen)
 c..................................................................
 c     xlncur will contain the source current (/cm**2/sec).
 c     In general asor*zmaxpsi(lr_)=xlncur  (asor in units particles/cc)
 c..................................................................
-
-      call bcast(xlncur(1,lr_),zero,ngen)
+        call bcast(xlncur(1,lr_),zero,ngen)
+      endif  !YuP[2020-01]
 
 c..................................................................
-c     Determine Guassian+knock-on  source(i,j,k,indxlr_) array
+c     Determine Gaussian+knock-on  source(i,j,k,indxlr_) array
 c..................................................................
 
       call sourcef
@@ -124,8 +132,8 @@ c..................................................................
 c     Compute the source power.
 c..................................................................
 
-      do 70 k=1,ngen
-        call sourcpwr(k)
- 70   continue
+      do k=1,ngen
+        call sourcpwr(k) ! From source() array [may include NBI or KO]
+      enddo
       return
-      end
+      end subroutine sourcee

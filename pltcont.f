@@ -21,7 +21,7 @@ CMPIINSERT_INCLUDE
       integer pltcase
       character*(*) tt_
       character*64 tx_,ty_
-      REAL wk_tam(jx)
+      REAL*4 wk_tam(jx)
       real*8 wkd(jx) 
 c...  
 cmnt  This routine performs contour plots of distributions
@@ -37,8 +37,8 @@ c...
 C
 C     PASSING ARRAYS TO PGFUNC1, FOR PGPLOT PGCONX:
       pointer wx,wy
-      REAL wx(:),wy(:), xpt,ypt
-      REAL RCONT,RXMAXQ,RTEMP1,RXPTS,RYPTS
+      REAL*4 wx(:),wy(:), xpt,ypt
+      REAL*4 RCONT,RXMAXQ,RTEMP1,RXPTS,RYPTS
       DIMENSION RCONT(NCONTA),RTEMP1(iy,jx),RXPTS(2),RYPTS(2)
       COMMON /PGLOCAL1/wx,wy,IIY,JXQ
 C     wx IS V-NORM ARRAY, wy IS THETA ARRAY.  TYPE REAL.
@@ -51,6 +51,9 @@ C     wx IS V-NORM ARRAY, wy IS THETA ARRAY.  TYPE REAL.
       real*4 BRIGHT,CONTRA,FMIN,FMAX,RVMIN,RVMAX,
      +       TRPG(6),RTEMP2(npar,nprp)
       REAL*4 RCONTLOG(NCONTA),FLOGMIN,FLOGMAX
+
+      REAL*4 :: R40=0.,R4P2=.2,R4P8=.8,R4P65=.65,R4P9=.9
+      REAL*4 :: R42=2.,R45=5.,R46=6.,R47=7.,R48=8.
 
       EXTERNAL PGFUNC1
 
@@ -322,12 +325,12 @@ c     equal to that defined for the distribution:
       IIY=iy
       RXMAXQ=XMAXQ
 
-      CALL PGSVP(.2,.8,.65,.9)
+      CALL PGSVP(R4P2,R4P8,R4P65,R4P9)
         IF ( RXMAXQ.eq.0. ) THEN
            RXMAXQ=1.
         ENDIF
-      CALL PGSWIN(-RXMAXQ,RXMAXQ,0.,RXMAXQ)
-      CALL PGBOX('BCNST',0.,0,'BCNST',0.,0)
+      CALL PGSWIN(-RXMAXQ,RXMAXQ,R40,RXMAXQ)
+      CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
       CALL PGLAB(tx_,ty_,tt_)
 
       if( (itype.eq.1 .and. pltd.eq.'color')   .or. 
@@ -393,7 +396,7 @@ c     equal to that defined for the distribution:
       ! Valid only for RTEMP2(ipar,iprp) over rectangular grid!
       CALL PGIMAG(RTEMP2,npar,nprp,1,npar,1,nprp,FLOGMIN,FLOGMAX,TRPG)
       ! Colorbar:
-      CALL pgwedg('RI', 2.0, 5.0, FLOGMIN,FLOGMAX, 'log10(..)')
+      CALL pgwedg('RI',R42,R45, FLOGMIN,FLOGMAX, 'log10(..)')
       
       endif ! on color option
 
@@ -476,11 +479,11 @@ c..................................................................
       if (k.eq.0) return
       rr=rpcon(lr_) !rovera(lr_)*radmin  ! YuP[03-2016] changed to rpcon
       write(t_,150) n,timet
-        CALL PGMTXT('B',6.,0.,0.,t_)
+        CALL PGMTXT('B',R46,R40,R40,t_)
       write(t_,151) rovera(lr_),rr
-        CALL PGMTXT('B',7.,0.,0.,t_)
+        CALL PGMTXT('B',R47,R40,R40,t_)
       write(t_,153) rya(lr_), rpcon(lr_), lr_
-        CALL PGMTXT('B',8.,0.,0.,t_)
+        CALL PGMTXT('B',R48,R40,R40,t_)
  150  format("time step n=",i5,5x,"time=",1pe10.2," secs")
  151  format( "r/a=",1pe10.3,5x,"radial position (R)=",1pe12.4," cm")
  153  format( "rya=",1pe10.3,5x,"R=rpcon=",1pe12.4," cm,  Surf#",i4)
@@ -490,9 +493,10 @@ C
 C
       subroutine PGFUNC1(VISBLE,yplt,xplt,zplt)
       INTEGER VISBLE
-      REAL xplt,yplt,zplt
+      REAL*4 xplt,yplt,zplt
       pointer wx,wy
-      REAL wx(:),wy(:)
+      REAL*4 wx(:),wy(:)
+      REAL*4 XWORLD,YWORLD
 C
 C 
       INCLUDE 'param.h'
@@ -548,13 +552,13 @@ C PGIMAG.
 c From pgdemo4.f
 C-----------------------------------------------------------------------
       INTEGER TYPE
-      REAL CONTRA, BRIGHT
+      REAL*4 CONTRA, BRIGHT
 C
-      REAL GL(2), GR(2), GG(2), GB(2)
-      REAL RL(9), RR(9), RG(9), RB(9)
-      REAL HL(5), HR(5), HG(5), HB(5)
-      REAL WL(10), WR(10), WG(10), WB(10)
-      REAL AL(20), AR(20), AG(20), AB(20)
+      REAL*4 GL(2), GR(2), GG(2), GB(2)
+      REAL*4 RL(9), RR(9), RG(9), RB(9)
+      REAL*4 HL(5), HR(5), HG(5), HB(5)
+      REAL*4 WL(10), WR(10), WG(10), WB(10)
+      REAL*4 AL(20), AR(20), AG(20), AB(20)
 C
       DATA GL /0.0, 1.0/
       DATA GR /0.0, 1.0/

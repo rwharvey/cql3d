@@ -34,6 +34,8 @@ c..................................................................
 
       ctl=sqrt(abs(1.-psif(zl)*(1.-coss(itl,lmdpln_)**2)))
       thtl=acos(ctl)
+      
+      
       if (soucoord.eq."cart") then
         sini=sqrt(abs(1.-cosi*cosi))
 
@@ -59,14 +61,21 @@ c     Now for polar coordinate case.
 c..................................................................
 
       else
-        facc=-(cosi-cosm1(kk,m,lr_))**2/cosm2(kk,m,lr_)
-        faccr=-(-cosi-cosm1(kk,m,lr_))**2/cosm2(kk,m,lr_)
-        q1=exp(facc)
-        q2=exp(faccr)
-        do 11 j=1,jx
-          tam7(j)=q1*sovt(j,kk,m,lr_)
-          tam8(j)=q2*sovt(j,kk,m,lr_)
- 11     continue
+        if(cosm2(kk,m,lr_).ne.0.d0)then !YuP[2020-10-20] Added check of denom.
+          ! cosm2(kk,m,lr_) can be 0 when scm2(kk,m)=0. 
+          !(set in aindflt: scm2(k,m)=0., for k>1 species)
+          facc= -( cosi-cosm1(kk,m,lr_))**2/cosm2(kk,m,lr_)
+          faccr=-(-cosi-cosm1(kk,m,lr_))**2/cosm2(kk,m,lr_)
+          q1=exp(facc)
+          q2=exp(faccr)
+          do j=1,jx
+            tam7(j)=q1*sovt(j,kk,m,lr_)
+            tam8(j)=q2*sovt(j,kk,m,lr_)
+          enddo
+        else ! cosm2=0.d0
+          tam7(:)=0.d0
+          tam8(:)=0.d0
+        endif     
       endif
 
 c..................................................................
@@ -86,9 +95,15 @@ c     Give the desired z(l,lr_) dependence to the source current
 c..................................................................
 
       if (isounor .ne. 1) then
-        facz=exp(-(zl-zm1(kk,m,lr_))**2/zm2(kk,m,lr_))
+        if(zm2(kk,m,lr_).ne.0.d0)then !YuP[2020-10-20] Added check of denom.
+          ! zm2(kk,m,lr_) can be 0 when szm2(k,m)=0. 
+          !However, in aindflt, szm2(k,m) is set to 1. or other, so - no danger)
+          facz=exp(-(zl-zm1(kk,m,lr_))**2/zm2(kk,m,lr_))
+        else
+          facz=0.d0 ! ok?
+        endif
         call dscal(jx,facz*sounor(kk,m,l,lr_)*asor(kk,m,lr_),
-     1    soupp(1,lr_),1)
+     1               soupp(1,lr_),1)
       endif
       return
       end

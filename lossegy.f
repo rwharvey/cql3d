@@ -71,47 +71,102 @@ c..................................................................
 c     Bremsstrahlung:
          if (k.eq.kelecg .and. bremsrad.eq."enabled") then
             if(brfacgm3.lt.1.) stop 'Check brfacgm3, see cqlinput_help'
-            do 150 kk=1,nionm
+            c1= fmass(kelecg)*clite2 ! m_e*c^2
+            r02_alf= (charge**2/c1)**2/137.
+            do kk=1,nionm
                kkk=kionm(kk)
-               c1=fmass(kelecg)*clite2
-               c2=(charge**2/c1)**2/137.*bnumb(kkk)**2
+               !c1=fmass(kelecg)*clite2 !YuP: it is set above
+               c2= r02_alf*bnumb(kkk)**2
                c3=1./bnumb(kkk)**(1./3.)
                c5=sqrt(c3)
                c4=183.*c3
-               c3=137.*c3
+               !c3=137.*c3 ! YuP: not used below
                gam3=c5*gam2
                gam4=brfacgm3*gam3
                sigmarad=0.
-               do 160 j=1,jx
+               do j=1,jx
                   if (gamm1(j).lt.gam1) then
                      sigmarad=16./3.*c2
                   elseif (gamm1(j).gt.gam1.and.
-     1                   gamm1(j).le.gam3) then
-c990131                     sigmarad=8.*c2*(alog(gamm1(j))-1./6.)
-                     sigmarad=8.*c2*(log(gamm1(j))-1./6.)
-c990131                     sigmarad=8.*c2*(alog(gamm1(j))-1./6.)
+     &                   gamm1(j).le.gam3) then
                      sigmarad=8.*c2*(log(gamm1(j))-1./6.)
                   elseif (gamm1(j).gt.gam3.and.
-     1                  gamm1(j).le.gam4) then
-c990131                     sigmarad=4.*c2*(alog(c4)+1./18.)
+     &                  gamm1(j).le.gam4) then
                      sigmarad=4.*c2*(log(c4)+1./18.)
                   elseif (gamm1(j).gt.gam4) then
                      gam5=gamm1(j)-gam4
-c990131                     sigmarad=4.*c2*(alog(c4)+1./18.)*(1.+brfac*gam5
                      sigmarad=4.*c2*(log(c4)+1./18.)*(1.+brfac*gam5
-     1                    **brfac1)
+     &                    **brfac1)
                   endif
                   betau3=reden(kkk,lr_)*sigmarad*clite2*gamma(j)*
-     +                 xsq(j)/vnorm
-                  do 170 i=1,iy
+     &                 xsq(j)/vnorm
+                  do i=1,iy
                      egylosa(i,j,k,indxlr_)=egylosa(i,j,k,indxlr_)+
-     +                    vptb(i,lr_)*betau3
- 170              continue
- 160           continue
- 150        continue
-         endif
+     &                    vptb(i,lr_)*betau3
+                  enddo ! i
+               enddo ! j
+            enddo ! kk=1,nionm
+ 
+            !YuP[2020-06-22] !Contribution from partially ionized impurities.
+            !!goto 200 ! Temporary, to skip this part.
+            if(n.gt.0 .and. nstates.gt.0)then 
+             ! If no suitable impurity is present 
+             ! (example: imp_type is set to 0 in cqlinput),
+             ! then nstates remains 0 ==> Effectively, no impurities.
+             z_imp=bnumb_imp(nstates) !Atomic number (as in fully ionized state)
+             !c1= fmass(kelecg)*clite2 ! m_e*c^2
+             !r02_alf= (charge**2/c1)**2/137. !Set above (in Maxw.ions section)
+             c3=1./z_imp**(1./3.) !This will go under ln(), as ln(c4).
+             c5=sqrt(c3)
+             c4=183.*c3
+             gam3=c5*gam2
+             gam4=brfacgm3*gam3
+             ! Add ions from impurities, all charge states:
+             do kstate=0,nstates ! 0 is for neutral state.
+               dens_kstate=dens_imp(kstate,lr_) !updated at each time step.
+               z_state= bnumb_imp(kstate) ! Z0j in paper, for given Z state
+               z_bound= z_imp-z_state ! Nej in paper (number of bound electrons)
+               !Note that for neutral atom, kstate=0 and bnumb_imp(0)=0
+               c2= r02_alf*(z_imp**2 + z_bound)
+               !Pigarov suggested to use (Za^2 + Nbound) as a leading factor
+               ! for the stopping power. (Nbound=z_bound here, in the code).
+               !For a neutral gas, Nbound=Za (Za=z_imp here, the atomic number)
+               ! and then the leading factor is Za*(Za+1).
+               !For fully ionized state, Nbound=0, 
+               ! and then the leading factor is Za^2.
+               !It is a small difference; for Neon (Za=10), the difference
+               ! is only 10%.
+               !The rest of the coding below repeats the coding above
+               ! for the Maxwellian (fully ionized) ions,
+               ! except reden(kion) is replaced by dens_kstate.
+               c2_lnc4= 4.*c2*(log(c4)+1./18.)
+               sigmarad=0.
+               do j=1,jx
+                  if (gamm1(j).lt.gam1) then
+                     sigmarad=16./3.*c2
+                  elseif (gamm1(j).gt.gam1.and.
+     &                    gamm1(j).le.gam3) then
+                     sigmarad=8.*c2*(log(gamm1(j))-1./6.)
+                  elseif (gamm1(j).gt.gam3.and.
+     &                    gamm1(j).le.gam4) then
+                     sigmarad=c2_lnc4 ! c2_lnc4= 4.*c2*(log(c4)+1./18.)
+                  elseif (gamm1(j).gt.gam4) then
+                     gam5=gamm1(j)-gam4
+                     sigmarad=c2_lnc4*(1.+brfac*gam5**brfac1)
+                  endif
+                  betau3=dens_kstate*sigmarad*clite2*gamma(j)*
+     &                 xsq(j)/vnorm
+                  do i=1,iy
+                     egylosa(i,j,k,indxlr_)=egylosa(i,j,k,indxlr_)+
+     &                    vptb(i,lr_)*betau3 !contribution is added
+                  enddo ! i
+               enddo ! j
+             enddo ! kstate
+            endif ! nstates.gt.0
 
- 200  continue
+         endif ! (k.eq.kelecg .and. bremsrad.eq."enabled")
+
+ 200  continue !k=1,ngen
 
       return
       end

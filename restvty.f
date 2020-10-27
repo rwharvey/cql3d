@@ -30,7 +30,7 @@ c     Code current density is purely parallel, and varies
 c       on a flux surface as 
 c       j_par = j_midplane * B(z)/B(0)(=bpsi(l))
 c     resist=Resistivity, calc'd from distn fnctn results
-c                  =<E_phi/R>/<j_phi/R>, ia a "toroidal" resistivity.
+c                  =<E_phi/R>/<j_phi/R>, is a "toroidal" resistivity.
 c                  Except, if efswtchn.eq."neo_hh" .and. 
 c                    cqlpmod.ne."enabled" ==>
 c                    resist=(pol cross-section-area avg of E)/currpar
@@ -63,9 +63,11 @@ C%OS  old:   resist=elecfld(lr_)/(300.*curr(kelec,lr_))
             if (efflag.ne."parallel") then
 
             if (efswtchn.eq."neo_hh" .and. cqlpmod.ne."enabled") then
-            resist=elecfld(lr_) / 300. /(currpar(lr_)*3.e9)  * rmag *
+              if (abs(currpar(lr_)) .gt. 1.e-10)then !YuP[2020-01-02] added if()
+                resist=elecfld(lr_) / 300. /(currpar(lr_)*3.e9) *rmag*
      +           fpsi(lr_)  / bmod0(lr_) * onovrp(2,lr_)/ 
      +           psiavg(2,lr_)
+              endif !YuP
             else
                resist=elecfld(lr_) / 300. / currm(kelec,l_) * rmag * 
      +              bmod0(lr_) / fpsi(lr_)
@@ -77,8 +79,10 @@ C%OS  old:   resist=elecfld(lr_)/(300.*curr(kelec,lr_))
             else                          !I.E., efflag.eq."parallel"
 
             if (efswtchn.eq."neo_hh" .and. cqlpmod.ne."enabled") then
+              if (abs(currpar(lr_)) .gt. 1.e-10)then !YuP[2020-01-02] added if()
                resist=elecfld(lr_)/300.*rmag*onovrp(2,lr_)/onovrp(1,lr_)
      +              /(currpar(lr_)*3.e9)
+              endif !YuP
             else
                resist=elecfld(lr_) / 300. / currm(kelec,l_) * rmag * 
      +              onovpsir3(lr_) / onovrp(2,lr_)
@@ -100,7 +104,7 @@ c%OS  /           0.125/(psis(l_)+psis(l_+1))/(solrs(l_)+solrs(l_+1))**2
 c%OS  /                                                  /currm(kelec,l_)
 c%OS  endif
          endif
-      endif
+      endif !if (abs(currm(kelec,l_)) .gt. 1.e-10)
 
 
       rovsloc(l_)=resistlo/(sptzr(l_)+em90)

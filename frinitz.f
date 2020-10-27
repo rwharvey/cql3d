@@ -58,7 +58,17 @@ CDIR$ NEXTSCALAR
       else
         kelec=kelecm
       endif
-      if (kelec.eq.0) call diagwrng(9)
+cBH180908      if (kelec.eq.0) call diagwrng(9)
+      if (kelec.eq.0) then
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*) 'WARNING: Unphysical plasma, only one species.'
+         WRITE(*,*) '         Have not checked with NBI turned on.'
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
+      endif
+
+
 CDIR$ NEXTSCALAR
 c     Find first ion species (general or maxwellian).
       do 1005 k=1,ntotal

@@ -17,6 +17,8 @@ c..................................................................
 c
       data naccel/100/
       ialpha=2
+!     ialpha=0  !BH180903: Made self-coll ener cons worse than ialpha=2
+!     ialpha=1  !BH180903: Made self-coll ener cons worse than ialpha=2,0
       impcoef=0
       if (n.eq.1) then
         continue
@@ -46,23 +48,30 @@ c..................................................................
       if (ntotal.eq.ngen) goto 110
       iswwflag=0
 
-      do 100 k=ngen+1,ntotal
+      do 100 kbm=ngen+1,ntotal  ! Maxwellian species:
+         !k=kbm 
 
 c..................................................................
 c     If this species is not to be included as a field (background)
 c     species for calculation of the collision integral, jump out.
 c..................................................................
-        if (kfield(k).eq."disabled") go to 100
+        if (kfield(kbm).eq."disabled") go to 100
 
 c..................................................................
 c     Determine the Maxwellian distribution associated with
-c     background species k. This will be a relativistic Maxwellian
+c     background species kbm. This will be a relativistic Maxwellian
 c     for relativistic calculations.
 c..................................................................
 
-        rstmss=fmass(k)*clite2/ergtkev
-        reltmp=rstmss/temp(k,lr_)
-        if (cqlpmod .eq. "enabled") reltmp=rstmss/temppar(k,ls_)
+        temp_loc=temp(kbm,lr_)
+        if (cqlpmod .eq. "enabled") temp_loc=temppar(kbm,ls_)
+
+!! YuP[08-2017] alternative to the following section: Use table cfpm() instead:
+!! See if(cfp_integrals.eq.'enabled')  section
+        if(cfp_integrals.eq.'disabled')then !Original method for integrals (slow)
+        rstmss=fmass(kbm)*clite2/ergtkev
+        reltmp=rstmss/temp_loc
+	
         if (reltmp .gt. 100. .or. relativ .eq. "disabled") then
           ebk2=sqrt(pi/(2.*reltmp))
         else if (reltmp .lt. .01) then
@@ -77,8 +86,9 @@ c     Need extra mesh points to represent ions on a mesh meant to
 c     support electrons. Need more resolution near zero.
 c     Split each velocity bin into nintg pieces and integrate.
 c..................................................................
-c990131        nintg0=41.*amax1(1.,sqrt(fmass(k)/1.67e-24))
-        nintg0=41.*max(1.d0,sqrt(fmass(k)/1.67e-24))
+c990131        nintg0=41.*amax1(1.,sqrt(fmass(kbm)/1.67e-24))
+cBH        nintg0=41.*max(1.d0,sqrt(fmass(kbm)/1.67e-24))
+        nintg0=41.*max(1.d0,sqrt(fmass(kbm)/1.67d-24))
 c990131        nintg=max0(nintg0,min0(51,int(x(2)/sqrt(.2*cnorm2/reltmp))))
         nintg=max(nintg0,min0(51,int(x(2)/sqrt(.2*cnorm2/reltmp))))
         nintg=2*(nintg/2)+1
@@ -89,9 +99,16 @@ c990131        nintg=max0(nintg0,min0(51,int(x(2)/sqrt(.2*cnorm2/reltmp))))
           do 11 j=2,jx
             xx=x(j)-(i-1)*dxm5(j)/dfloat(nintg-1)
             xx2=xx**2
-            gg=sqrt(1.+xx2*cnorm2i)
+            gg=sqrt(1.+xx2*cnorm2i) !cnorm2i=0 when relativ(ka).eq."disabled"
+!!            ! YuP[07-2017] This is not quite correct - cnorm2i is set 
+!!            ! for 'ka' general species, but here we consider 'kbm' Maxw.species.
+!!            ! Should they be treated as relativistic or not?
+!!            ! They can be different (relativistically) from 'ka' species.
+!!            ! There should be a separate setting of relativ() for 
+!!            ! Maxwellian species, too.
             gg2=gg**2
-            if(cnorm2i*xx2-1.e-5 .gt. 0.d0) then
+
+            if(cnorm2i*xx2-1.d-5 .gt. 0.d0) then
                expon=gg-1.
             else
                expon=.5*xx2/cnorm2
@@ -125,8 +142,9 @@ c..................................................................
           do 16 ll1=1,20
             xx=(realiota(ll1)+.05*realiota(ll2-1))*x(jx)
             xx2=xx**2
-            gg=sqrt(1.+xx2*cnorm2i)
-            if(cnorm2i*xx2-1.e-5 .gt. 0.d0) then
+            gg=sqrt(1.+xx2*cnorm2i) !cnorm2i=0 when relativ(ka).eq."disabled"
+
+            if(cnorm2i*xx2-1.d-5 .gt. 0.d0) then
                expon=gg-1.
             else
                expon=.5*xx2/cnorm2
@@ -143,7 +161,8 @@ c..................................................................
 c..................................................................
 c     tam2 - M0; tam3 - N0; tam5 - E0
 c     tam6 - M0';  tam7 - N0';   tam9 - E0'
-c     see UCRL manual..
+c     see UCRL manual.
+c     Eqns. 64-66 of UCRL-96510 by Mark R. Franz
 c..................................................................
           tam2(jj)=tam2(jp)+temp1(1,jp)
           tam3(j)=tam3(jm)+temp1(3,j)
@@ -155,12 +174,24 @@ c..................................................................
 c..................................................................
         do 30 j=2,jx
           tam10(j)=cog(0,1)*(3.*tam7(j)+cnorm2i*(2.*xm(j,3)*tam6(j)-
-     *      tam9(j)))*gamsqr(j)
+     *      tam9(j)))*gamsqr(j)  ! ~Eq. 61, and cog(0,1)=4*pi/3
           tam11(j)=cog(0,1)*(xsq(j)*tam2(j)+
-     *      gamsqr(j)*xm(j,-1)*tam5(j))
+     *      gamsqr(j)*xm(j,-1)*tam5(j))  ! ~Eq. 62
           tam12(j)=cog(0,1)*(tam2(j)+1.5*xm(j,-1)*tam3(j)-
-     *      .5*xm(j,-3)*tam5(j))
+     *      .5*xm(j,-3)*tam5(j))  ! ~Eq. 63
  30     continue
+        endif ! (cfp_integrals.eq.'disabled')
+ 
+ 
+        !YuP[2020-07-16] alternative to the above section. Use table cfpm() instead.
+        if(cfp_integrals.eq.'enabled')then
+          ! For tam10(1:jx),tam11(1:jx),tam12(1:jx) - 
+          ! Instead of the above calculations [cfp_integrals.eq.'disabled']
+          ! use integrals stored in cfpm() array.
+          kk=kbm-ngen
+          call cfp_integrals_get(kk,temp_loc) !out: tam10(),tam11(),tam12()
+        endif ! (cfp_integrals.eq.'enabled')
+        !YuP[2020-07-16] Done For tam10,11,12 
 
 c.......................................................................
 c     Perform the bounce-average for the background species and introduce
@@ -168,45 +199,39 @@ c     the contribution to all general species coeff.
 c.......................................................................
 
         if (cqlpmod .ne. "enabled") then
-          call bavdens(k)
+          call bavdens(kbm)
         else
           do 59 i=1,iy
-            bavdn(i,lr_)=denpar(k,ls_)
-            bavpd(i,lr_)=denpar(k,ls_)*sinn(i,l_)
+            bavdn(i,lr_)=denpar(kbm,ls_)
+            bavpd(i,lr_)=denpar(kbm,ls_)*sinn(i,l_)
  59       continue
         endif
 
 c     Below, eal and ebl are to save contributions to the collisional
-c     coefficients cal() and cbl(i,j,k,l_) for general species k and
-c     radial location l_, resulting from electrons (eal and  ebl
-c     of (i,j,k,1,l_)), and resulting from the sum of the
-c     effects of the background ions, (eal and ebl of (i,j,k,2,l_)). 
+c     coefficients cal() and cbl(i,j,ka,l_) for general species ka and
+c     radial location l_, resulting from background electrons 
+c     (eal and  ebl of (i,j,ka,1,l_)), and resulting from the sum of the
+c     effects of the background ions, (eal and ebl of (i,j,ka,2,l_)). 
 c     eal and ebl are used later for calculating powers from the
 c     general  to the Max. species.
 
-        do 80 kk=1,ngen
-          anr1=gama(kk,k)*satioz2(k,kk)*one_
-          anr2=anr1*satiom(kk,k)
+        do 80 ka=1,ngen  !Loop over gen species, adding bkgrnd coeffs
+          anr1=gama(ka,kbm)*satioz2(kbm,ka)*one_  !ln(Lambda)*(Z_k/Z_kk)**2
+          anr2=anr1*satiom(ka,kbm)              !*mass_kk/mass_k
           call bcast(tem1,zero,iyjx)
           call bcast(tem2,zero,iyjx)
           
           do 70 j=2,jx
-            ttta=anr2*tam10(j)*gamefac(j)
-            tttb=anr1*tam11(j)*gamefac(j)
-            tttf=anr1*tam12(j)*gamefac(j)
+            ttta=anr2*tam10(j)*gamefac(j,kbm) !if gamafac="enabled" or "hesslow", then
+            tttb=anr1*tam11(j)*gamefac(j,kbm) !use gamefac for en dep gama
+            tttf=anr1*tam12(j)*gamefac(j,kbm) !YuP[2019-07-26] kbm index added
             do 60 i=1,iy
               jj=i+(j-1)*iy 
-              tem1(jj)=ttta*vptb(i,lr_)
-     1          *bavdn(i,lr_)
-              tem2(jj)=tttb*vptb(i,lr_)
-     1          *bavdn(i,lr_)
-              cal(i,j,kk,l_)=cal(i,j,kk,l_)+tem1(jj)
-              cbl(i,j,kk,l_)=cbl(i,j,kk,l_)+tem2(jj)
-ccc              if (j.eq.2) prnt1(i)=tttf
-ccc              if (j.eq.3) prnt2(i)=tttf
-ccc              if (j.eq.4) prnt3(i)=tttf
-              cfl(i,j,kk,l_)=cfl(i,j,kk,l_)+tttf*vptb(i,lr_)
-     1          *bavpd(i,lr_)
+              tem1(jj)=ttta*vptb(i,lr_)*bavdn(i,lr_)
+              tem2(jj)=tttb*vptb(i,lr_)*bavdn(i,lr_)
+              cal(i,j,ka,l_)=cal(i,j,ka,l_)+tem1(jj)
+              cbl(i,j,ka,l_)=cbl(i,j,ka,l_)+tem2(jj)
+             cfl(i,j,ka,l_)=cfl(i,j,ka,l_)+tttf*vptb(i,lr_)*bavpd(i,lr_)
  60         continue
  70       continue
 
@@ -215,22 +240,330 @@ ccc             prnt4(i)=vptb(i,lr_)
 ccc             prnt5(i)=bavpd(i,lr_)
 ccc          enddo
 
-          if(k.eq.kelecm) then
-            call daxpy(iyjx,one,tem1,1,eal(1,1,kk,1,l_),1)
-            call daxpy(iyjx,one,tem2,1,ebl(1,1,kk,1,l_),1)
+          if(kbm.eq.kelecm) then
+            call daxpy(iyjx,one,tem1,1,eal(1,1,ka,1,l_),1)
+            call daxpy(iyjx,one,tem2,1,ebl(1,1,ka,1,l_),1)
           else
             do 101 i=1,nionm
-              if(k.eq.kionm(i)) then
-                call daxpy(iyjx,one,tem1,1,eal(1,1,kk,2,l_),1)
-                call daxpy(iyjx,one,tem2,1,ebl(1,1,kk,2,l_),1)
+              if(kbm.eq.kionm(i)) then
+                call daxpy(iyjx,one,tem1,1,eal(1,1,ka,2,l_),1)
+                call daxpy(iyjx,one,tem2,1,ebl(1,1,ka,2,l_),1)
+
+cBH180807:  Saving individual Maxwl ion components of coll operator
+cBH180807:                call daxpy(iyjx,one,tem1,1,eal(1,1,ka,kbm+1,l_),1)
+cBH180807:                call daxpy(iyjx,one,tem2,1,ebl(1,1,ka,kbm+1,l_),1)
+cBH180807:  Need to increase dimensions of eal,ebl, and calc power transfer
+cBH180807:  to each genrl species, and put into the .nc output file for
+cBH180807:  use with radial transport moment codes.
+
               endif
  101        continue
           endif
 
- 80     continue ! kk=1,ngen
- 100  continue ! k=ngen+1,ntotal
+ 80     continue ! ka=1,ngen, line 187
+ 100  continue ! kbm=ngen+1,ntotal, line 49
 
- 110  continue
+
+!------------------------- contribution from partially ionized ions -----
+!YuP[2019-07-26]--[2019-09]
+      if(gamafac.eq."hesslow" .and. kelecg.eq.1)then
+      
+      !---1---> SCATTERING of free electron on partially screened ions
+      ! These values and gscreen array are set in sub.set_gscreen_hesslow(imp_type):
+      ! fmass_imp ! mass of impurity ion [gram]
+      ! bnumb_imp(kstate) ! Z charge number of each ionization state
+      !--- Distribution over charge states dens_imp(kstate,lr_) was found in tdchief
+      ! Need to add: 
+      ! temp_imp(kstate,lr_) ! T[kev] for each ionization state kstate, at given radial point 
+      ! For now, assume all ionization states have same temperature, 
+      ! equal to temper. of any Maxwellian ions, so that
+      kion1=kionm(1)
+      temp_imp(0:nstates,lr_)=temp(kion1,lr_) !BUT is it ok for kstate=0 (atom)?
+      !Setup an effective Maxwellian distr. for impurity species,
+      !find all relevant integrals
+      rstmss= fmass_imp*clite2/ergtkev
+      do kstate=0,nstates ! kstate=0 means neutral (atom)
+        ! Note: kstate=0:nstates, with kstate=0 corresponding to a neutral,
+        !       for which bnumb_imp(0)=0;
+        !       and kstate= nstates corresponding to a fully ionized state,
+        !       for which gscreen function (see below) is 0.
+        temp_loc=temp_imp(kstate,lr_)
+        !impurity ions - they are cold (non-relativistic)
+          if(cfp_integrals.eq.'disabled')then
+            reltmp= rstmss/temp_loc
+            ebk2=sqrt(pi/(2.*reltmp))
+            rnorm=reltmp/(4.*pi*cnorm3*ebk2)
+            call bcast(temp1(0,0),zero,iyjx2)
+            !Need extra mesh points to represent ions on a mesh meant to
+            !support electrons. Need more resolution near zero.
+            !Split each velocity bin into nintg pieces and integrate.
+            nintg0=41.*max(1.d0,sqrt(fmass_imp/1.67d-24))
+            nintg=max(nintg0,min0(51,int(x(2)/sqrt(.2*cnorm2/reltmp))))
+            nintg=2*(nintg/2)+1
+            do i=1,nintg
+              sfac=4.+2.*(2*(i/2)-i)
+              if (i.eq.1 .or. i.eq.nintg) sfac=1.
+              sfac=sfac/3.
+              do j=2,jx
+                xx=x(j)-(i-1)*dxm5(j)/dfloat(nintg-1)
+                xx2=xx**2
+                gg=sqrt(1.+xx2*cnorm2i)
+                gg2=gg**2
+                expon=.5*xx2/cnorm2 ! non-relativ. limit
+               fff=sfac*rnorm*exp(-expon*reltmp)*dxm5(j)/dfloat(nintg-1)
+                temp1(1,j)=temp1(1,j)+xx*gg*fff
+                temp1(2,j)=temp1(2,j)+xx*fff
+                temp1(3,j)=temp1(3,j)+xx2*fff
+                temp1(4,j)=temp1(4,j)+xx2*fff/gg
+                temp1(5,j)=temp1(5,j)+(xx2/gg)**2*fff
+                temp1(6,j)=temp1(6,j)+(xx2/gg2)**2*gg*fff
+              enddo
+            enddo
+            tam2(jx)=0.
+            tam3(1)=0.
+            tam5(1)=0.
+            !tam2(jx) represents integral from xmax to infinity
+            !The following coding performs this integration. In this case 21*xmax
+            !represents infinity. The lack of this piece is most obvious when
+            !ions are a general species and electrons are fixed Maxwellians.
+            do ll2=1,21
+              sfac=4.+2.*(2*(ll2/2)-ll2)
+              if ( ll2.eq.1 .or. ll2.eq.21) sfac=1.
+              sfac=sfac*x(jx)/60.
+              do ll1=1,20
+                xx=(realiota(ll1)+.05*realiota(ll2-1))*x(jx)
+                xx2=xx**2
+                gg=sqrt(1.+xx2*cnorm2i)
+                expon=.5*xx2/cnorm2 ! non-relativ. limit
+                fff=sfac*rnorm*exp(-expon*reltmp)
+                tam2(jx)=tam2(jx)+xx*gg*fff
+              enddo
+            enddo
+     
+            do j=2,jx
+              jj=jx+1-j
+              jp=jj+1
+              jm=j-1
+              tam2(jj)=tam2(jp)+temp1(1,jp)
+              tam3(j)= tam3(jm)+temp1(3,j)
+              tam5(j)= tam5(jm)+temp1(5,j)
+            enddo
+            do j=2,jx
+              tam12(j)=cog(0,1)*(tam2(j)+1.5*xm(j,-1)*tam3(j)-
+     &                               0.5*xm(j,-3)*tam5(j)  )  ! ~Eq. 63
+            enddo
+
+          else !if(cfp_integrals.eq.'enabled')then
+            !YuP[2020-07-16] alternative to the above. Use table cfpm() instead.
+            ! For tam10(1:jx),tam11(1:jx),tam12(1:jx) - 
+            ! Instead of the above calculations [cfp_integrals.eq.'disabled']
+            ! use integrals stored in cfpm() array.
+            ktable=nmax+kstate+1 !so that ktable=(nmax+1):(nmax+nstates+1)
+            call cfp_integrals_get(ktable,temp_loc) !out:tam10(),tam11(),tam12()
+            !Here, we only need tam12(j)
+          endif ! (cfp_integrals.eq.'enabled')
+
+          !Perform the bounce-average for the background species and introduce
+          !the contribution to all general species coeff.
+          !ka=kelecg ! contribution will be added to cfl(i,j,ka,l_)
+          Zion2=bnumb_imp(kstate)**2
+          !Similar to anr1=gama(ka,k)*satioz2(k,ka)  !ln(Lambda0)*(Z_k/Z_e)**2
+          !use anr1= gama(ka,kstate)*Zion2
+          !i.e.,replace satioz2(i,ka)=(bnumb(i)/bnumb(ka))**2 by bnumb_imp(kstate)**2
+          !Note: here bnumb(ka)=bnumb(kelecg)=-1
+          do j=2,jx
+           ! We only need to add contribution for "F" term - scattering
+           ! of electron on ion.
+           !Consider  coulomb_log_ei= gama(ka,kstate)*gamefac(j,kstate)
+           !Note that for e-on-ions (according to Hesslow; see subr.cfpgamma)
+           ! gama(kelecg,k)*gamefac(j,k) = gama_ei + 0.2*log(1.d0 + p_dep**5)
+           !where gama_ei=gama(kelecg,kion) = 14.9-0.5*ln(ne20) +ln(T_kev),
+           !i.e. it does not depend on a particular ion type.
+           !So, instead of gama(ka,kstate)*gamefac(j,kstate)
+           !we can use gama(ka,kion)*gamefac(j,kion)
+           !where kion is kion=kionm(1), for example.
+           kion1=kionm(1)
+           coulomb_log_ei= gama(kelecg,kion1)*gamefac(j,kion1)
+           tttf= tam12(j)*(Zion2*coulomb_log_ei +gscreen(kstate,j))
+           !Note: for kstate=nstates we have z_state=z_imp (so z_bound=0),
+           !so that gscreen(nstates,j)=0 for all j.
+           !But the first term still works, as for a fully-ionized ion:
+           ! Zion2*coulomb_log_ei
+           do i=1,iy
+             jj=i+(j-1)*iy 
+             !Find bounce-av. density of this ionization state;
+             !similar to subr.bavdens, only replace reden(k,lr_)-->dens_imp(kstate,lr_)
+             bavpd_imp=batot(i,lr_)*sinn(i,lmdpln_)*dens_imp(kstate,lr_)
+             cfl(i,j,kelecg,l_)= cfl(i,j,kelecg,l_)
+     &                          +tttf*vptb(i,lr_)*bavpd_imp
+             ! ka=kelecg here (electron_general)
+           enddo ! i
+          enddo ! j
+          
+      enddo !kstate=0,nstates
+
+      !---2---> SLOWING-DOWN of free electron on bound electrons.
+      ! See the slowing down term (Eq. 2.31 in Hesslow, JPP-2018).
+      ! We need to add the second term (SUM_j), because 
+      ! the first term (free e on free e) is already added, as usual.
+      ! For the slowing down (drag force)
+      ! the only coll. coefficient that must be changed is A.
+      ! fmass(k) here is for bound electrons.
+      !Normally, for interaction of free electrons (general species)
+      !with Maxwellian electrons, we define the distribution function
+      !of Maxwellian electrons through temp() and reden() values.
+      !Now, we consider interaction of free electrons with bound electrons.
+      !We need to add extra term to the A collisional (drag) coefficient.
+      ![For reference: Eq. 61 in UCRL-96510 by Mark R. Franz].
+      !So what is the temperature of bound electrons?
+      !It is needed for calculation of integrals below,
+      !such as M0, N0, E0.
+      !Should we treat bound electrons as being at T=0?   
+      !For simplicity, we just set them to be at very low T, say 10eV.  
+      temp_e_bound=10.d-3 ! in keV
+      fmass_e=9.1095d-28 !fmass(kelecg)
+      rstmss= fmass_e*clite2/ergtkev
+      !ka=kelecg ! contribution will be added to cal(i,j,ka,l_)
+      do kstate=0,nstates-1 ! kstate=0 means neutral (atom)
+        ! Note: kstate=0:nstates, with kstate=0 corresponding to a neutral,
+        !       for which bnumb_imp(0)=0;
+        !       and kstate= nstates corresponding to a fully ionized state,
+        !       for which hbethe function is 0 (because z_bound=0).
+        temp_loc=temp_e_bound
+          if(cfp_integrals.eq.'disabled')then
+            reltmp= rstmss/temp_loc
+            !bound e - they are cold (non-relativistic)
+            ebk2=sqrt(pi/(2.*reltmp))
+            rnorm=reltmp/(4.*pi*cnorm3*ebk2)
+            call bcast(temp1(0,0),zero,iyjx2)
+            !Need extra mesh points to represent cold e on a mesh meant to
+            !support general electrons. Need more resolution near zero.
+            !Split each velocity bin into nintg pieces and integrate.
+            nintg0=41
+            nintg=max(nintg0,min0(51,int(x(2)/sqrt(.2*cnorm2/reltmp))))
+            nintg=2*(nintg/2)+1
+            do i=1,nintg
+              sfac=4.+2.*(2*(i/2)-i)
+              if (i.eq.1 .or. i.eq.nintg) sfac=1.
+              sfac=sfac/3.
+              do j=2,jx
+                xx=x(j)-(i-1)*dxm5(j)/dfloat(nintg-1)
+                xx2=xx**2
+                gg=sqrt(1.+xx2*cnorm2i) ! could set to 1.
+                gg2=gg**2
+                expon=.5*xx2/cnorm2 ! non-relativ. limit
+               fff=sfac*rnorm*exp(-expon*reltmp)*dxm5(j)/dfloat(nintg-1)
+                !temp1(1,j)=temp1(1,j)+xx*gg*fff !not needed here?
+                temp1(2,j)=temp1(2,j)+xx*fff
+                !temp1(3,j)=temp1(3,j)+xx2*fff !not needed here?
+                temp1(4,j)=temp1(4,j)+xx2*fff/gg
+                !temp1(5,j)=temp1(5,j)+(xx2/gg)**2*fff !not needed here?
+                temp1(6,j)=temp1(6,j)+(xx2/gg2)**2*gg*fff
+              enddo
+            enddo
+            tam2(jx)=0. !not needed here?
+            tam3(1)=0. !not needed here?
+            tam5(1)=0. !not needed here?
+            tam6(jx)=0.
+            tam7(1)=0.
+            tam9(1)=0.         
+            !tam6(jx) represents integral from xmax to infinity
+            !The following coding performs this integration. In this case 21*xmax
+            !represents infinity. The lack of this piece is most obvious when
+            !ions are a general species and electrons are fixed Maxwellians.
+            do ll2=1,21
+              sfac=4.+2.*(2*(ll2/2)-ll2)
+              if ( ll2.eq.1 .or. ll2.eq.21) sfac=1.
+              sfac=sfac*x(jx)/60.
+              do ll1=1,20
+                xx=(realiota(ll1)+.05*realiota(ll2-1))*x(jx)
+                xx2=xx**2
+                gg=sqrt(1.+xx2*cnorm2i)
+                expon=.5*xx2/cnorm2 ! non-relativ. limit
+                fff=sfac*rnorm*exp(-expon*reltmp)
+                !tam2(jx)=tam2(jx)+xx*gg*fff ! not needed here?
+                tam6(jx)=tam6(jx)+xx*fff 
+              enddo
+            enddo
+            do j=2,jx
+              jj=jx+1-j
+              jp=jj+1
+              jm=j-1
+              !tam2(jj)=tam2(jp)+temp1(1,jp) ! not needed here?
+              !tam3(j)= tam3(jm)+temp1(3,j) ! not needed here?
+              !tam5(j)= tam5(jm)+temp1(5,j) ! not needed here?
+              tam6(jj)=tam6(jp)+temp1(2,jp)
+              tam7(j)= tam7(jm)+temp1(4,j)
+              tam9(j)= tam9(jm)+temp1(6,j) 
+              !tam6 - M0';  tam7 - N0';   tam9 - E0' 
+              !Eqns. 64-66 of UCRL-96510 by Mark R. Franz 
+            enddo
+            do j=2,jx
+              tam10(j)=cog(0,1)*(3.*tam7(j)+cnorm2i*(2.*xm(j,3)*tam6(j)-
+     &                                           tam9(j)))*gamsqr(j)  
+              ! ~Eq. 61, (inside {} brackets), and cog(0,1)=4*pi/3
+            enddo
+          else !if(cfp_integrals.eq.'enabled')then
+            !YuP[2020-07-16] alternative to the above. Use table cfpm() instead.
+            ! For tam10(1:jx),tam11(1:jx),tam12(1:jx) - 
+            ! Instead of the above calculations [cfp_integrals.eq.'disabled']
+            ! use integrals stored in cfpm() array.
+            ktable=nmax+nstates+2 !(T-table for bound electrons at 10eV)
+            call cfp_integrals_get(ktable,temp_loc) !out:tam10(),tam11(),tam12()
+            !Here, we only need tam10(j).
+            !Since we assumed that bound e are at same T=10eV (in each kstate)
+            !we could compute tam10 just once, say, for kstate=0.
+          endif ! (cfp_integrals.eq.'enabled')
+
+          !Perform the bounce-average for the background species and introduce
+          !the contribution to all general species coeff.
+          !Instead of ne*gama(ka,k)*satioz2(k,ka)*satiom(ka,k) 
+          !now we must use SUM[n_kstate*hbethe(kstate)].
+          !Note: here bnumb(ka)=bnumb(kelecg)=-1, so satioz2(k,ka)=1.
+          !Also here: satiom(ka,k)==mass_kk/mass_k =1.
+          !Use bounce-av. density of this ionization state;
+          !similar to subr.bavdens, only replace reden(k,lr_)-->dens_imp(kstate,lr_)
+          call bcast(tem1,zero,iyjx)
+          do j=2,jx
+           ! We only need to add contribution for the "A" term -  
+           ! drag of (free)electron on (bound)electrons.
+           ! Replace this: ttta= gama(ka,k)*tam10(j)*gamefac(j,k) with this:
+           ttta= tam10(j)*dens_imp(kstate,lr_)*hbethe(kstate,j)
+           !Note that density is included here.
+           !It is multiplied by hbethe(kstate,j), which contains 
+           !z_bound= z_imp-z_state ! Nej in paper (number of bound electrons)
+           do i=1,iy
+             jj=i+(j-1)*iy 
+             tem1(jj)= ttta*vptb(i,lr_) !for contributing to eal() below
+             cal(i,j,kelecg,l_)= cal(i,j,kelecg,l_)+tem1(jj) !free_e on bound_e
+             ! ka=kelecg here (electron_general)
+           enddo ! i
+          enddo ! j
+          !??? Not sure where to add tem1() contribution:
+          !eal(*,*,ka,1,l_) is for transfer of energy to Maxwellian e [k=kelecm].
+          !eal(*,*,ka,2,l_) is for transfer of energy to Maxwellian i [k=kionm()],
+          !and all such ions are summed-up (not for individual ion species).
+          !Maybe we consider that in this case the energy is transferred to 
+          !the partially ionized ion (kstate) ?
+          !call daxpy(iyjx,one,tem1,1,eal(1,1,ka,2,l_),1) 
+          
+      enddo !kstate=0,nstates
+
+      endif ! gamafac.eq."hesslow" .and. kelecg.eq.1
+
+!YuP[2019-07-26] 
+!------------------------- contribution from partially ionized ions -----
+
+
+
+c.......................................................................
+c     At this point, contributions to the FP coll coeffs for each 
+c     general species due to the Maxwl background species have been
+c     added to cal(,,), etc.
+c.......................................................................
+
+
+ 110  continue !Branch around Maxwl contribs if nmax=0, or colmodl=2
 ccc      kk=1
 ccc      do i=1,iy
 ccc         prnt1(i)=cal(i,2,kk,l_)
@@ -246,7 +579,8 @@ c     Calculate coefficients and their bounce-averages for a general species
 c..................................................................
 
       if (colmodl.eq.1) goto 700
-      if (colmodl.eq.4 .and. n.ge.naccel) then
+      if (colmodl.eq.4 .and. n.ge.naccel) then !Undocumented option
+                                      ! Kerbel
         do 250 k=1,ngen
           if (k.ne.ngen) then
             do 220 j=1,jx
@@ -283,6 +617,18 @@ c.......................................................................
         iorbstr=l_
         iorbend=l_
       endif
+
+cBH180906:  Make sure that expanded eal/ebl and new ecl arrays 
+cBH180906:  for non-isotropic genrl distributions, saving ca,cb,cc
+cBH180906:  coll contributions to each general species from
+cBH180906:  itself and other species, are zeroed out.  Then,
+cBH180906:  accumate the contributions below, use for calculating
+cBH180906:  power flow in diagentr coding, and save powers into
+cBH180906:  .nc output file.
+cBH180906:  ecl() can be dimension to cover just the range of
+cBH180906   general species k's.
+cBH180906   The coding also needs adding to cfpcoefr.f.
+
       do 600 l=iorbstr,iorbend
         ileff=l
         if (cqlpmod .eq. "enabled") ileff=ls_
@@ -290,6 +636,9 @@ c.......................................................................
         do 500 k=1,ngen
 c.................................................................
 c     Jump out if this species is not to be used as a background species
+cBH180901: This comment doesn't make much sense, as kfield(k) here is not
+cBH180901: related to a background species.  Maybe the comment is
+cBH180901: mistakenly copied from above.
 c..................................................................
           if (kfield(k).eq."disabled") go to 500
 
@@ -302,11 +651,12 @@ CPTR>>>REPLACE PTR-BCASTCACD
           call bcast(ce,zero,iyjx)
           call bcast(cf,zero,iyjx)
 CPTR<<<END PTR-BCASTCACD
+
           mu1=0
           mu2=mx
           mu3=madd
           if (colmodl.eq.3) then
-            mu1=1
+            mu1=1  !Skipping P_0 term
             mu2=mx
             mu3=1
           endif
@@ -359,7 +709,7 @@ c     prepare arrays for computation of M_m, N_m, R_m and E_m
      *          gamma(jm)*xm(jm,ix4(m))*tam1(jm))
  301        continue
 
-c     note: ialpha set to 2 at top of subroutine
+c     note: ialpha set to 0, 1, or 2 at top of subroutine, Using 2 now.
             if (m.ge.1 .or. ialpha.eq.2) goto 308
 c..................................................................
 c     The do loops 302 through 307 seek to take advantage of the
@@ -399,7 +749,8 @@ c990131              tam21(j)=alog(tam1(j)/tam1(j+1))/(gamm1(j+1)-gamm1(j))
                 xx2=xx**2
                 gg=sqrt(1.+xx2*cnorm2i)
                 gg2=gg**2
-                if(cnorm2i*xx2-1.e-5 .gt. 0.d0) then
+cBH                if(cnorm2i*xx2-1.e-5 .gt. 0.d0) then
+                if(cnorm2i*xx2-1.d-5 .gt. 0.d0) then
                    expon=gg-1.
                 else
                    expon=.5*xx2/cnorm2
@@ -442,7 +793,7 @@ c990131              tam21(j)=alog(tam1(j)/tam1(j+1))/(gamm1(j+1)-gamm1(j))
               tam19(j)=alpha*tam19(j)+(1.-alpha)*tam29(j)
  307        continue
 
- 308        continue
+ 308        continue  !End of branch on special integration
 
             do 310 j=2,jx
               jj=jx+1-j
@@ -558,21 +909,21 @@ c     sum over m: Add contribution from each m
                 do 370 ii=0,1
                 i=iii*ii-(iy+1-iii)*(ii-1) ! i=iy+1-iii or i=iii
                 do 360 j=2,jx
-                  ca(i,j)=ca(i,j)+ss(i,ileff,m,lr_)*tam2(j)*gamefac(j)
-                  cb(i,j)=cb(i,j)+ss(i,ileff,m,lr_)*tam3(j)*gamefac(j)
-                  cc(i,j)=cc(i,j)+ssy(i,ileff,m,lr_)*tam4(j)*gamefac(j)
+                 ca(i,j)=ca(i,j)+ss(i,ileff,m,lr_)*tam2(j)*gamefac(j,k) !YuP[2019-07-26] k index added
+                 cb(i,j)=cb(i,j)+ss(i,ileff,m,lr_)*tam3(j)*gamefac(j,k) !YuP[2019-07-26] k index added
+                 cc(i,j)=cc(i,j)+ssy(i,ileff,m,lr_)*tam4(j)*gamefac(j,k) !YuP[2019-07-26] k index added
                   cd(i,j)=cd(i,j)+sinz(i,ileff,lr_)*
-     *              ssy(i,ileff,m,lr_)*tam5(j)*gamefac(j)
+     *              ssy(i,ileff,m,lr_)*tam5(j)*gamefac(j,k) !YuP[2019-07-26] k index added
                   ce(i,j)=ce(i,j)+sinz(i,ileff,lr_)*
-     *              ssy(i,ileff,m,lr_)*tam4(j)*gamefac(j)
+     *              ssy(i,ileff,m,lr_)*tam4(j)*gamefac(j,k) !YuP[2019-07-26] k index added
                   cf(i,j)=cf(i,j)+sinz(i,ileff,lr_)*
      *              (ss(i,ileff,m,lr_)*tam6(j)+ssyy(i,ileff,m,lr_)
-     +              *tam7(j))*gamefac(j)
+     +              *tam7(j))*gamefac(j,k) !YuP[2019-07-26] k index added
  360            continue ! j
  370          continue ! ii
  380          continue ! iii
 
- 400      continue
+ 400      continue ! m, starting at l 313
 
           if (madd.eq.2 .or. symtrap.ne."enabled") goto 430
 
@@ -674,6 +1025,9 @@ cBH091031 440            continue
                   cdl(i,j,kk,l_)=cdl(i,j,kk,l_)+ax*ay*cd(i,j)
                   cel(i,j,kk,l_)=cel(i,j,kk,l_)+ax*ay*ce(i,j)
                   cfl(i,j,kk,l_)=cfl(i,j,kk,l_)+ax*az*cf(i,j)
+cBH180906: This is a point to accumalate contributions to expanded
+cBH180906: eal/ebl/ecl arrays saving coll contributions to each general
+cBH180906: species from itself and other species.
  450            continue
                 if (madd.eq.2) goto 470
                 do 460 j=2,jx
@@ -684,6 +1038,9 @@ cBH091031 440            continue
                   cdl(ii,j,kk,l_)=cdl(ii,j,kk,l_)+ax*ay*cd(ii,j)
                   cel(ii,j,kk,l_)=cel(ii,j,kk,l_)+ax*ay*ce(ii,j)
                   cfl(ii,j,kk,l_)=cfl(ii,j,kk,l_)+ax*az*cf(ii,j)
+cBH180906: This is a point to accumalate contributions to expanded
+cBH180906: eal/ebl/ecl arrays saving coll contributions to each general
+cBH180906: species from itself and other species.
  460            continue
  470            continue
  480          continue ! i=1,imax(l,lr_)
@@ -766,7 +1123,7 @@ c..................................................................
       
 
       do 2000 k=1,ngen
-        fscal= one/tnorm(k)
+        fscal= one/tnorm(k)  !tnorm=vnorm**3/(GAM1*one_), see ainvnorm.f
         call dscal(iyjx,fscal,cal(1,1,k,l_),1)
         call dscal(iyjx,fscal,cbl(1,1,k,l_),1)
         call dscal(iyjx,fscal,ccl(1,1,k,l_),1)
@@ -809,3 +1166,315 @@ c But it doesn't.  Check kerbel email, Oct 31, 2005.
 
       return
       end
+      
+c=======================================================================
+c=======================================================================
+      subroutine cfp_integrals_maxw
+      !YuP[2020-07-02] Adapted from FOW version:
+      !YuP[08-2017] Calculate certain integrals 
+      ! needed for subr. cfpcoefn.
+      ! These integrals describe a contribution to BA coll.coefs
+      ! from local collisions of general species with the background 
+      ! Maxwellian species (search "kbm=ngen+1,ntotal").
+      ! These integrals only depend on mass (fmass)
+      ! and local temperature of these (Maxwellian) species.
+      ! So, instead of calculating them over and over again
+      ! at each point along particle orbit (of the general species),
+      ! calculate them once as a table over temperature grid 
+      ! ("T-grid" below), and then reuse them by matching a local T
+      ! along orbit with the nearest values in the T-grid.
+      ! These integrals may need to be updated if the temp() of 
+      ! the Maxwellian species is varied in time (as a prescribed form).
+      ! This subr. is called from tdchief, just after call_profiles,
+      ! before "do 600 k=1,ngen" loop.
+      ! The speedup from using this subroutine is factor of 5x-9x !
+      implicit integer (i-n), real*8 (a-h,o-z)
+      include 'param.h'
+      include 'comm.h'
+        
+      ! INPUT through comm.h: temp(ntotala,0:lrza),fmass(ntotala),etc
+      
+      ! Local working arrays:
+      real*8 wk1(jx),wk2(jx),wk3(jx),wk4(jx),wk5(jx),wk6(jx)
+
+      ! OUTPUT: 
+      ! temp_min(nmaxw_sp), temp_max(nmaxw_sp) ==
+      !           min/max of temp() for each Maxw.species, to set 
+      !           a uniform T-grid within [temp_min; temp_max] range;
+      !           Different for each Maxwellian species!
+      ! cfpm(3,nmaxw_sp,ntemp,jx) ==
+      !           storage of three integrals, 
+      !           for each Maxw.species (1:nmaxw_sp),
+      !           set as a table over 1:ntemp uniform T-grid,
+      !           saved as a function of j index (func. of momentum). 
+      ! Set ntemp=100 ! 100 points is sufficient to represent 
+      ! all possible values of temp(kbm,lr) profile; (Better use 200)
+      ! so typically 3*6*100*200=360000 data points.
+      !
+      !YuP[2020-07-16] The number of Maxw species is extended 
+      !   to include impurities.
+      !In nmaxw_sp=nmax+nstates+2, the contribution is from:
+      ! nmax= Regular Maxw. species (fully-ionized ions or/and electrons). 
+      ! nstates+1= Partially-ionized impurity ions
+      !   (kstate=1:nstates for ionized states, and kstate=0 for neutral state)
+      !    For now, it is assumed that all ionization states have
+      !    same temperature, equal to T for main ions, 
+      !    temp(kion1,lr), where kion1=kionm(1).
+      ! Additionally, +1 for bound electrons in impurity ions; 
+      !    It is assumed that all bound electrons have temp_e_bound=10eV.
+      !Note: if no impurity ions are present, nstates is 0.
+      
+      !cnorm2i=0. !YuP[07-2016] Bad way to control the relativistic nature 
+                  !of background species. Value 0 means non-relativistic.
+      cnorm2ii=1./cnorm2 !treat Maxw. species relativistically, see notes below.
+      !Note: cnorm=clight/vnorm, cnorm2=cnorm^2
+      
+      do 10 kbm=ngen+1,ngen+nmaxw_sp !Maxw. species index 
+         kk=kbm-ngen !Counter of Maxw. species, starting from 1
+        ! These values depend on kbm:
+        if(kk.le.ntotal-ngen)then !Or simply kk.le.nmax (regular Maxw.species)
+          !kk= 1 : nmax
+          fmass_sp=fmass(kbm)
+          temp_min_kbm=MINVAL(temp(kbm,:)) !min value of T for Maxw. species kbm
+          temp_max_kbm=MAXVAL(temp(kbm,:)) !max value of T for Maxw. species kbm
+        elseif(kk.le.nmax+nstates+1)then
+          !impurity ions with different ionization states
+          !kk= (nmax+1 : nmax+nstates+1) covers all ionization states
+          ! with kstate=0:nstates (including neutral state).
+          fmass_sp=fmass_imp ! All ioniz.states have mass fmass_imp
+          ! For now, assume all ionization states have same temperature, 
+          ! equal to temper. of any Maxwellian ions, so that
+          if(kionm(1).ne.0)then
+            kion1=kionm(1)
+          else
+            WRITE(*,*)'cfp_integrals_maxw: kionm(1)=0; choose other.'
+            stop 'cfp_integrals_maxw'
+          endif
+          !temp_imp(0:nstates,lr_)=temp(kion1,lr_) !BUT is it ok for kstate=0 (atom)?
+          temp_min_kbm=MINVAL(temp(kion1,:)) !min value of T, for kion1
+          temp_max_kbm=MAXVAL(temp(kion1,:)) !max value of T
+          ! In future, we can generalize to MINVAL(temp_imp(kstate,:) )
+          ! where kstate= kk-nmax-1 (range: kstate=0:nstates)
+        elseif(kk.eq.nmax+nstates+2)then !recall that nmaxw_sp= nmax+nstates+2
+          ! Bound electrons in impurity ions.
+          fmass_sp=9.1095d-28 !(e)
+          ! All bound electrons are assumed to be at T=10eV
+          temp_e_bound=10.d-3 ! in keV
+          temp_min_kbm=temp_e_bound !min value of T 
+          temp_max_kbm=temp_e_bound !max value of T 
+        endif
+        ! min/max values of temp() could have changed; Check:
+        if( (temp_min(kk).eq.temp_min_kbm).and.
+     &      (temp_max(kk).eq.temp_max_kbm)     ) then
+           !write(*,*)'cfp_integrals: skipped update for kbm=',kbm
+           goto 10 !No change; next kbm
+        endif
+        !Otherwise, update these arrays, recalculate cfpm() tables:
+        temp_min(kk)=temp_min_kbm ! min value of T for Maxw. species kbm
+        temp_max(kk)=temp_max_kbm ! max value of T for Maxw. species kbm
+        dtemp=(temp_max(kk)-temp_min(kk))/(ntemp-1) ! for a uniform T-grid
+        if(dtemp.gt.0.d0)then
+          ntemp1=ntemp
+        else ! dtemp=0, which means a flat T profile; Consider itemp=1 only.
+          ntemp1=1
+        endif
+        rstmss=fmass_sp*clite2/ergtkev ! get values from comm.h
+        nintg0=41.*max(1.d0,sqrt(fmass_sp/1.67e-24)) !see below, nintg
+        
+        
+        do itemp=1,ntemp1 ! scan the range [temp_min; temp_max],
+                        ! calculate integrals
+          ! Uniform T-grid:
+          temp_loc= temp_min(kk)+dtemp*(itemp-1) ! [temp_min; temp_max]
+          ! Determine the Maxwellian distribution associated with
+          ! background species kbm. This will be a relativistic 
+          ! Maxwellian for relativistic calculations.
+          reltmp=rstmss/temp_loc ! m*c^2/T  ["theta_b" in manual/refs]
+          if (reltmp .gt. 100.) then     ! low T(kbm)
+            ebk2=sqrt(pi/(2.*reltmp))
+          else if (reltmp .lt. .01) then ! high T(kbm)
+            ebk2=2.*exp(reltmp)/reltmp**2
+          else
+            call cfpmodbe(reltmp,ebk1,ebk2)
+          endif
+          rnorm=reltmp/(4.*pi*cnorm3*ebk2)
+          wk1=0.d0 ! 1:jx
+          wk2=0.d0 ! 1:jx
+          wk3=0.d0 ! 1:jx
+          wk4=0.d0 ! 1:jx
+          wk5=0.d0 ! 1:jx
+          wk6=0.d0 ! 1:jx
+          ! Need extra mesh points to represent ions on a mesh meant to
+          ! support electrons. Need more resolution near zero.
+          ! Split each velocity bin into nintg pieces and integrate.
+          nintg=max(nintg0,min0(51,int(x(2)/sqrt(.2*cnorm2/reltmp))))
+          nintg=2*(nintg/2)+1
+          do ibm=1,nintg
+            sfac=4.+2.*(2*(ibm/2)-ibm)
+            if (ibm.eq.1 .or. ibm.eq.nintg) sfac=1.
+            sfac=sfac*rnorm/(3.*(nintg-1))
+            dnintg=(ibm-1)/dfloat(nintg-1)
+            do jbm=2,jx
+              xx=x(jbm)-dnintg*dxm5(jbm) ! get values from comm.h
+              xx2=xx*xx
+              xc2=xx2*cnorm2ii !YuP: it was cnorm2i=0 when relativ="disabled"
+            ! YuP[07-2017] This is not quite correct - cnorm2i is set 
+            ! for 'ka' general species, but here we consider 'kbm' Maxw.species.
+            ! Should they be treated as relativistic or not?
+            ! They can be different (relativistically) from 'ka' species.
+            ! There should be a separate setting of relativ() for 
+            ! Maxwellian species, too.
+              gg2=1.d0+xc2 ! ==  1 + (v/c)^2
+              gg=sqrt(gg2)
+              if(xc2 .gt. 1.e-5) then ! relativistic case
+                 expon=gg-1.d0
+              else
+                 expon=.5*xx2/cnorm2  
+              endif
+              fff=sfac*exp(-expon*reltmp)*dxm5(jbm)
+              x4g2f=(xx2*xx2/gg2)*fff
+              wk1(jbm)=wk1(jbm)+xx*gg*fff  ! for M0 integral
+              wk2(jbm)=wk2(jbm)+xx*fff     ! for M0'
+              wk3(jbm)=wk3(jbm)+xx2*fff    ! for N0
+              wk4(jbm)=wk4(jbm)+xx2*fff/gg ! for N0'
+              wk5(jbm)=wk5(jbm)+x4g2f      ! for E0
+              wk6(jbm)=wk6(jbm)+x4g2f/gg   ! for E0'
+            enddo ! jbm
+          enddo ! ibm
+          tam2(jx)=0. ! defined/stored in comm.h
+          tam3(1)=0.
+          tam5(1)=0.
+          tam6(jx)=0.
+          tam7(1)=0.
+          tam9(1)=0.
+          ! tam2(jx) and tam6(jx) represent integrals from xmax to Inf.
+          ! The following coding performs this integration. 
+          ! In this case 21*xmax represents infinity. 
+          ! The lack of this piece is most obvious when ions are 
+          ! a general species and electrons are fixed Maxwellians.
+          do ll2=1,21
+            sfac=4.+2.*(2*(ll2/2)-ll2)
+            if ( ll2.eq.1 .or. ll2.eq.21) sfac=1.
+            sfac=sfac*rnorm*x(jx)/60.
+            do ll1=1,20
+              xx=(realiota(ll1)+.05*realiota(ll2-1))*x(jx)
+              xx2=xx**2
+              xc2=xx2*cnorm2ii !was cnorm2i=0 when relativ="disabled"
+              gg=sqrt(1.+xc2)
+              if(xc2 .gt. 1.e-5) then  ! relativistic case
+                 expon=gg-1.
+              else
+                 expon=.5*xx2/cnorm2  
+                 !do not use xc2 here: can be 0 when relativ="disabled"
+              endif
+              fff=sfac*exp(-expon*reltmp)
+              tam2(jx)=tam2(jx)+xx*gg*fff
+              tam6(jx)=tam6(jx)+xx*fff
+            enddo ! ll1
+          enddo ! ll2
+ 
+ 
+          do j=2,jx ! scan all j, calculate integrals(j)
+          
+              do jb=2,j ! 2:j
+                jm=jb-1 ! 1:j-1
+                tam3(jb)=tam3(jm)+wk3(jb) ! N0
+                tam7(jb)=tam7(jm)+wk4(jb) ! N0'
+                tam5(jb)=tam5(jm)+wk5(jb) ! E0
+                tam9(jb)=tam9(jm)+wk6(jb) ! E0'
+              enddo
+              do jb= jx-1,j,-1 ! [jx-1 : j]
+                jp=jb+1        ! [jx : j+1]
+                tam2(jb)=tam2(jp)+wk1(jp) ! M0
+                tam6(jb)=tam6(jp)+wk2(jp) ! M0'
+              enddo
+              tam10(j)=cog(0,1)*gamsqr(j)*
+     &                (3.*tam7(j)+cnorm2ii*(2.*xm(j,3)*tam6(j)-tam9(j)))
+              tam11(j)=cog(0,1)*
+     &                (xsq(j)*tam2(j)+gamsqr(j)*xm(j,-1)*tam5(j))
+              tam12(j)=cog(0,1)*
+     &                (tam2(j)+1.5*xm(j,-1)*tam3(j)-.5*xm(j,-3)*tam5(j))
+
+              ! Done - the integrals are found. Now save them into cfpm(1:3,1:nmax,1:ntemp,1:jx)
+              cfpm(1,kk,itemp,j)= tam10(j)
+              cfpm(2,kk,itemp,j)= tam11(j)
+              cfpm(3,kk,itemp,j)= tam12(j)
+              ! Note: kbm is from [ngen+1;ntotal] range,
+              ! while cfpm is defined at kk=1:nmax indices.
+              ! So, kk=kbm-ngen
+          
+          enddo ! j
+
+        enddo ! itemp
+        
+ 10   enddo ! kbm=ngen+1,ntotal ! Maxwellian species
+      
+      return
+      end subroutine cfp_integrals_maxw
+      
+
+
+c=======================================================================
+c=======================================================================
+      subroutine cfp_integrals_get(kk,temp_loc) 
+      !YuP[2020-07-16] Use Temperature-grid table for evaluation
+      !of some integrals related to Maxwellian species.
+      !OUTPUT: tam10(jx),tam11(jx),tam12(jx) [through comm.h]
+      !See explanation in subr.cfp_integrals_maxw
+      implicit integer (i-n), real*8 (a-h,o-z)
+      include 'param.h'
+      include 'comm.h'
+      integer kk ! INPUT
+      real*8 temp_loc ! INPUT
+      integer itemp,itemp1,itemp2,j ! local
+      real*8 dtemp,ttdt,tdt !local
+      
+      ! INPUT:
+      !  kk=kbm-ngen ! Counter of Maxw. species, starting from 1.
+      !  temp_loc= Temperature of species (from temp(kbm,lr), or other)
+      ! INPUT from comm.h :
+      !  temp_min(kk)=MINVAL(temp(kbm,:)) ! min of T for Maxw. species kbm
+      !  temp_max(kk)=MAXVAL(temp(kbm,:)) ! max of T for Maxw. species kbm
+      !     (For impurity ions, see subr.cfp_integrals_maxw)
+      !  ntemp= number of 'itemp' points in T-grid
+      !  cfpm(1:3,kk,itemp,j=1:jx) = Table values of integrals, 
+      !    which were computed in subr.cfp_integrals_maxw
+      
+        ! Step size in a uniform T-grid:
+        dtemp=(temp_max(kk)-temp_min(kk))/(ntemp-1) 
+        ! Find the nearest itemp index, to match the given temp_loc and 
+        ! temp_grid(itemp)= temp_min+dtemp*(itemp-1) in the T-grid: 
+        if(dtemp.gt.0.d0)then
+          !itemp= NINT( (temp_loc-temp_min(kk))/dtemp ) +1
+          ! Note: NINT(0.49)=0,   and   NINT(0.51)=1
+          ! Or better, a linear interpolation:
+          ttdt= (temp_loc-temp_min(kk))/dtemp !can be 0.0 ..(ntemp-1.d0)
+          itemp1= INT(ttdt)+1 !can be 1..(ntemp-1) [ntemp, if temp_loc=temp_max]
+          itemp2= itemp1+1    !can be 2..ntemp   [ntemp+1, if temp_loc=temp_max]
+          itemp2=min(itemp2,ntemp) !to make sure it doesnot exceed ntemp
+          ! temp_loc is between temp_grid(itemp1) and temp_grid(itemp2)
+          tdt= ttdt - (itemp1-1)
+          ! tdt is to be used for a lin. interpolation, like this:
+          ! tam10= cfpm(itemp1) + (cfpm(itemp2)-cfpm(itemp1))*tdt
+          ! Now Get the values of integrals from the cfpm() table:
+          do j=2,jx
+            tam10(j)= cfpm(1,kk,itemp1,j) + 
+     +               (cfpm(1,kk,itemp2,j)-cfpm(1,kk,itemp1,j))*tdt
+            tam11(j)= cfpm(2,kk,itemp1,j) +
+     +               (cfpm(2,kk,itemp2,j)-cfpm(2,kk,itemp1,j))*tdt
+            tam12(j)= cfpm(3,kk,itemp1,j) +
+     +               (cfpm(3,kk,itemp2,j)-cfpm(3,kk,itemp1,j))*tdt
+          enddo    
+        else ! dtemp=0, which means a flat T profile; Consider itemp=1 only.
+          itemp=1
+          do j=2,jx
+            tam10(j)= cfpm(1,kk,itemp,j)
+            tam11(j)= cfpm(2,kk,itemp,j)
+            tam12(j)= cfpm(3,kk,itemp,j)
+          enddo    
+        endif
+
+      return
+      end subroutine cfp_integrals_get
+      
+      

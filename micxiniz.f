@@ -16,18 +16,20 @@ c..................................................................
       include 'comm.h'
       dimension zd2bpol(lfielda),zd2solr(lfielda),zd2solz(lfielda),
      +  znormsh(0:lza)
+      dimension wk_z(lza),wk_r(lza),wk_b(lza) ! local work.arrays
 
 c%OS  compute psi_prime as df/ds
 c%OS  fpsismi(l)=psis(l)*dls(2,2,1,l)+psis(l+1)*(1-dls(2,2,1,l))
-      fpsismi(l)=(0.5-0.5*(1/(l+1))+0.5*(1/(ls+1-l)))*psis(l)+
-     +  (0.5+0.5*(1/(l+1))-0.5*(1/(ls+1-l)))*psis(l+1)
+c YuP      fpsismi(l)=(0.5-0.5*(1/(l+1))+0.5*(1/(ls+1-l)))*psis(l)+
+c YuP     +  (0.5+0.5*(1/(l+1))-0.5*(1/(ls+1-l)))*psis(l+1)
+c YuP: fpsismi() is not used
 
 c.......................................................................
 cl    1. Determine the field line orbit mesh z(1:lz,lr_). 
 c     tfacz is a mesh squeeze (nonuniformity) factor:
 c     tfacz=1. means uniform mesh; tfacz < 1. means geometric mesh with
 c     points closer near zero. tfacz > 1. means points closer near zmax
-c     For eqsym.eq."none", tfacz appears best, since z(lz,)=z(1,).
+c     For eqsym.eq."none", tfacz=1. appears best, since z(lz,)=z(1,).
 c......................................................................
 
       if (eqsym.ne."none") then
@@ -104,8 +106,14 @@ c..................................................................
             bpsi(lu,lr_)=(1.+eps(lr_))/(1.+eps(lr_)*cos(thtpol(lu,lr_)))
             eqbpol(lu,lr_)=bthr0(lr_)*bpsi(lu,lr_)
             solr(lu,lr_)=radmaj*(1.+eps(lr_)*cos(thtpol(lu,lr_)))
+            !YuP[2020-01-29] Added:
+            solz(lu,lr_)=radmaj*eps(lr_)*sin(thtpol(lu,lr_)) !assumed zmag=0.
+            !recall that eps=rovera(lr_)*radmin/radmaj
+            !YuP[2020-01-29] Added dlp definition for eqmod="disabled":
+            eqdell(lu,lr_)=radmaj*eps(lr_)*pi/(lfield-1) !=r*pi/(lfield-1)
+            !Here, it is constant along field line.
  24       continue
-        endif
+        endif ! (eqmod.eq."disabled")
         if (eqsym.eq."none") then
            i1p(1)=3
            i1p(2)=3
@@ -187,11 +195,15 @@ c%OS  espsifi(incza,lr_)=zmax(lr_)
 c%OS  espsifi(inczpa,lr_)=zmax(lr_)
 c%OS  psifi(inczpa,lr_)=bpsi(lorbit(lr_),lr_)
 c%OS  psifi(incza,lr_)=bpsi(lorbit(lr_),lr_)
-        pol(1,lr_)=0.
+        pol(1,lr_)=0. ! the midplane outer point
         if (eqsym.eq."none") then
            pol(lz,lr_)=2*pi
         else
-           pol(lz,lr_)=pi
+           if(machine.eq."toroidal")then
+             pol(lz,lr_)=pi ! midplane inner point
+           else  ! mirror (only eqsym.ne."none" case, for now)
+             pol(lz,lr_)=thtpol(lorbit(lr_),lr_) ! supposed to be <pi/2
+           endif
         endif
         do 22 l=2,lz-1
           call terp1(lorbit(lr_),es(1,lr_),thtpol(1,lr_),d2thtpol(1,lr_)
@@ -211,31 +223,67 @@ c.......................................................................
            i1p(2)=2
            d2solrz(1,lr_)=0.0
            d2solrz(lorbit(lr_),lr_)=0.0
-        endif
-        call coeff1(lorbit(lr_),es(1,lr_),solr(1,lr_),d2solrz(1,lr_),
-     1    i1p,1,work)
-        do 221 l=1,lz
-           call terp1(lorbit(lr_),es(1,lr_),solr(1,lr_),d2solrz(1,lr_),
-     1          z(l,lr_),1,tab,itab)
-           solrz(l,lr_)=tab(1)
- 221    continue
-
-        if (eqsym.eq."none") then
-           i1p(1)=3
-           i1p(2)=3
-        else
-           i1p(1)=2
-           i1p(2)=2
            d2solzz(1,lr_)=0.0
            d2solzz(lorbit(lr_),lr_)=0.0
+           d2bpolz(1,lr_)=0.0
+           d2bpolz(lorbit(lr_),lr_)=0.0
         endif
+        call coeff1(lorbit(lr_),es(1,lr_),solr(1,lr_),d2solrz(1,lr_),
+     1       i1p,1,work)
         call coeff1(lorbit(lr_),es(1,lr_),solz(1,lr_),d2solzz(1,lr_),
      1       i1p,1,work)
-        do 223 l=1,lz
-           call terp1(lorbit(lr_),es(1,lr_),solz(1,lr_),d2solzz(1,lr_),
-     1          z(l,lr_),1,tab,itab)
-           solzz(l,lr_)=tab(1)
- 223    continue
+        call coeff1(lorbit(lr_),es(1,lr_),eqbpol(1,lr_),d2bpolz(1,lr_),
+     1       i1p,1,work)
+     
+        do 221 l=1,lz
+          call terp1(lorbit(lr_),es(1,lr_),solr(1,lr_),d2solrz(1,lr_),
+     1         z(l,lr_),1,tab,itab)
+          solrz(l,lr_)=tab(1)
+          call terp1(lorbit(lr_),es(1,lr_),solz(1,lr_),d2solzz(1,lr_),
+     1         z(l,lr_),1,tab,itab)
+          solzz(l,lr_)=tab(1)
+          call terp1(lorbit(lr_),es(1,lr_),eqbpol(1,lr_),d2bpolz(1,lr_),
+     1         z(l,lr_),1,tab,itab)
+          bpolz(l,lr_)=tab(1)
+ 221    continue
+ 
+! YuP[2019-12-12] migrated some corrections from CQL3D-FOW version.
+        !YuP[2017-11-29] Adjustment of solzz(), solrr(), bpolz() arrays.
+        !REASON: Some of surfaces can be traced towards positive Z, 
+        !while other - towards negative Z (example: RFP, like MST machine).
+        !To avoid an error in calculation of ddarea and ddvol of cells,
+        !where a cell is defined by lr+1/lr-1 and l+1/l-1 four points,
+        !make all traces of surfaces to go towards positive Z,
+        !for all lr indexes.
+        if(machine.eq."toroidal")then !(no need for mirror configuration?)
+        if(solzz(2,lr_).lt.solzz(1,lr_))then ! Z(2)<Z(1)
+          ! solz is traced towards smaller(negative) Z.
+          ! Make adjustment, depending on eqsym.
+          if(eqsym.eq.'none')then ! whole surface was traced.
+            ! Reverse l index, so that effectively
+            ! the trace of surface goes backward, from end to beginning
+            do l=1,lz
+              wk_z(l)=solzz(lz-l+1,lr_) 
+              ! solzz(l=1)  is mapped to wk_z(lz)
+              ! solzz(l=lz) is mapped to wk_z(1)
+              wk_r(l)=solrz(lz-l+1,lr_) 
+              wk_b(l)=bpolz(lz-l+1,lr_) 
+            enddo
+            do l=1,lz
+              solzz(l,lr_)=wk_z(l)
+              solrz(l,lr_)=wk_r(l)
+              bpolz(l,lr_)=wk_b(l)
+            enddo ! Done - the line is reversed.
+          else ! half-surface (started from Z=0)
+            !In this case, simply take abs() value for solzz.
+            !No need to adjust solrz or bpolz because of up/dn symmetry.
+            do l=1,lz
+              solzz(l,lr_)=abs(solzz(l,lr_))
+            enddo
+          endif ! eqsym
+        endif ! Z(2)<Z(1)
+        endif ! machine
+        !YuP[2017-11-29] DONE Adjustment of solzz(), solrr(), bpolz()
 
 
 
@@ -430,4 +478,4 @@ c.......................................................................
  999  continue
 
       return
-      end
+      end  subroutine micxiniz

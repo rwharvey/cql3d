@@ -45,24 +45,34 @@ c..................................................................
               !For a mirror machine: ray can get outside of zbox
               !which defines the border of ez() equilibrium grid
               ![so that zbox=ez(nnz)-ez(1)]
-              if (icount_outside_ez.eq.0) 
-     +        write(*,*)'urffflx: Ray elements outside of ez grid'
+              if (icount_outside_ez.eq.0) then
+                if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+                write(*,*)'urffflx: Ray elements outside of ez grid'
+                endif
+              endif
               icount_outside_ez=icount_outside_ez+1 !for a printout
-              write(*,'(a,i4,2i7)')
+              if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+                write(*,'(a,i4,2i7)')
      +            'urffflx: zray>ez; iray,is,icount_outside_ez',
      +                               iray,is,icount_outside_ez
+              endif
               ! Make an adjustment:
               zray=ez(nnz)
               !This correction is ok for a tokamak, too,
               !although not likely to happen.
             endif
             if(zray.lt.ez(1))then 
-              if (icount_outside_ez.eq.0) 
-     +        write(*,*)'urffflx: Ray elements outside of ez grid'
+              if (icount_outside_ez.eq.0) then
+                if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+                write(*,*)'urffflx: Ray elements outside of ez grid'
+                endif
+              endif
               icount_outside_ez=icount_outside_ez+1 !for a printout
-              write(*,'(a,i4,2i7)')
+              if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+                write(*,'(a,i4,2i7)')
      +            'urffflx: zray<ez; iray,is,icount_outside_ez',
      +                               iray,is,icount_outside_ez
+              endif
               ! Similarly, Make an adjustment:
               zray=ez(1)
             endif
@@ -88,12 +98,17 @@ c..................................................................
             l=luf(apsi,tr2(1),lrzmax)
 cBH090602   Ray elements outside LCFS (rho=1 surface) will be attributed to lrzmax
             if (l.gt.lrzmax) then
-               if (icount_outside_lim.eq.0) 
-     +         write(*,*)'urffflx: Ray elements outside of rho=1'
+               if (icount_outside_lim.eq.0) then
+                if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+                 write(*,*)'urffflx: Ray elements outside of rho=1'
+                endif
+               endif
                icount_outside_lim=icount_outside_lim+1 !for a printout
+               if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
                write(*,'(a,i4,2i7)')
      +             'urffflx:l>lrzmax; iray,is,icount_outside_lim',
      +                                iray,is,icount_outside_lim
+               endif
                l=lrzmax ! Adjusted
             endif
 c$$$            if (l.le.0) then

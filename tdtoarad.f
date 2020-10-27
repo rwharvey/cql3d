@@ -79,6 +79,12 @@ c..................................................................
      *      ergtkev
  20     continue
  30     continue
-      endif
+      endif ! (eqmod.eq."enabled")
+      
+      !YuP[2020-01-29] Make these arrays available in general case
+      ! of eqmod :
+      rmconz(lr_)=rmcon(lr_)
+      rpconz(lr_)=rpcon(lr_)
+      
       return
       end

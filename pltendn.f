@@ -9,13 +9,17 @@ c     and density conservation constant vs. time.
 c
       include 'param.h'
       include 'comm.h'
-c     Conversion to real function for PGPLOT
+c     Conversion to real*4 function for PGPLOT
       REAL*4 RBOUND
-c     PGPLOT REAL Variables:
+c     PGPLOT REAL*4 Variables:
       REAL*4 RILIN
       REAL*4 RPG1,RPG2
       REAL*4 RNONCHA1(nonch),RNONCHA2(nonch)
       REAL*4 RJXA1(jx),RJXA2(jx),RJXA3(jx)
+
+      REAL*4 :: R40=0.,R4P2=.2,R4P65=.65,R4P95=.95,R4MP2=-0.2
+      REAL*4 :: R4P3=.3,R4P5=.5,R4P6=.6,R4P8=.8,R4P9=.9
+
       dimension wk_nch(nonch)
       real*8 wkd(jx) 
       CHARACTER*64 TX_
@@ -40,13 +44,11 @@ c
 c...  
 cmnt  Generate plot "endn"
 c...  
-10150   format("time step (n) is",i5,5x,"time=",1pe12.4," secs",   
-     +         "   Species k=",i2)
+10150   format("time step (n) is",i5,5x,"time=",1pe12.4," secs") !,"   Species k=",i2)
 10151   format("r/a=",1pe12.4,5x,"radial position (R) =",1pe12.4," cm")
 c$$$c...  
 cmnt  Generate plot "elecfld" and "curr"
 c...  
-c$$$        call gxglfr(0)
         CALL PGPAGE
 
 cBH070419
@@ -57,7 +59,7 @@ c     +                      nch(l_),pefld(1:nch(l_),1)
         call aminmx(pefld(1,l_),1,nch(l_),1,emin,emax,kmin,kmax)
         if (abs(emin-emax).lt.abs(emax)*dgts) emax=emin+.001*abs(emin)
         if(emax.gt.0.) emax=emax*1.05 ! extend the upper range
-        CALL PGSVP(.2,.8,.65,.95)
+        CALL PGSVP(R4P2,R4P8,R4P65,R4P95)
 
         DO I=1,NCH(L_)
            RNONCHA1(I)=RBOUND(ptime(i,l_))
@@ -71,7 +73,7 @@ c     +                      nch(l_),pefld(1:nch(l_),1)
 c        write(*,*)'Elec Fld: RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2',
 c     +             RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2   
         CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGLINE(nch(l_),RNONCHA1,RNONCHA2)
         CALL PGLAB(' ','Elec Fld (V/cm)',' ')
 
@@ -88,11 +90,11 @@ c     +             RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2
         IF ( RPG2-RPG1 .le. 1.e-16 ) THEN
            RPG2= RPG1+1.e-16
         ENDIF
-        CALL PGSVP(.2,.8,.3,.6)
+        CALL PGSVP(R4P2,R4P8,R4P3,R4P6)
 c        write(*,*)'Curr Den: RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2',
 c     +             RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2   
         CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGLAB('Time (sec)','Curr Den (A/cm^2)',' ')
         CALL PGLINE(nch(l_),RNONCHA1,RNONCHA2)
 
@@ -108,20 +110,20 @@ C        CALL PGSLS(1)     ! Reset line style back to full.
         if (efswtchn.eq."neo_hh") then
            write(t_,10164) elecfld(lr_)
            RILIN=RILIN+1.
-           CALL PGMTXT('B',RILIN,0.,0.,t_)
+           CALL PGMTXT('B',RILIN,R40,R40,t_)
            write(t_,10165) k,curramp
            RILIN=RILIN+1.
-           CALL PGMTXT('B',RILIN,0.,0.,t_)
+           CALL PGMTXT('B',RILIN,R40,R40,t_)
            write(t_,10166) 
            RILIN=RILIN+1.
-           CALL PGMTXT('B',RILIN,0.,0.,t_)
+           CALL PGMTXT('B',RILIN,R40,R40,t_)
         else
            write(t_,10160) elecfld(lr_)
            RILIN=RILIN+1.
-           CALL PGMTXT('B',RILIN,-.2,0.,t_)
+           CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
            write(t_,10161) k,curramp
            RILIN=RILIN+1.
-           CALL PGMTXT('B',RILIN,-.2,0.,t_)
+           CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
         endif
 
 10160   format("Electric field =",1pe12.4," (V/cm)")
@@ -133,6 +135,7 @@ C        CALL PGSLS(1)     ! Reset line style back to full.
 10166   format("(efswtchn=neo_hh)")
 
 
+        fnu0=2.0/tauee(lr_) !YuP[2020-01]Added here, for printout in plots
         if (entr(k,3,l_).ge. 1.e-20 .and. kelecg.ne.0) then
           if (lrzmax.gt.1.and.n.gt.0) then
             areaovol=darea(lr_)/dvol(lr_)
@@ -158,29 +161,29 @@ C        CALL PGSLS(1)     ! Reset line style back to full.
 
           write(t_,10170) cdeffncy
           RILIN=RILIN+2.
-          CALL PGMTXT('B',RILIN,-.2,0.,t_)
+          CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 10170     format("Current drive efficiency j/(2*pi*R*prf) =",
      +         1pe12.4,' A/W')
 
           if (k .eq. kelecg) then
              write(t_,10171) xj
              RILIN=RILIN+1.
-             CALL PGMTXT('B',RILIN,-.2,0.,t_)
+             CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 10171        format("Electron current (units ne*q*vth(kelec,lr_)) = ",
      +            1pe12.4)
              write(t_,10172) xp
              RILIN=RILIN+1.
-             CALL PGMTXT('B',RILIN,-.2,0.,t_)
+             CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 10172        format("power (units: ne*vth(kelec,lr_)**2*me*nu0) =",
      +            1pe12.4)
              write(t_,10173) xe
              RILIN=RILIN+1.
-             CALL PGMTXT('B',RILIN,-.2,0.,t_)
+             CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 10173        format("efficiency (j/p) (Fisch 1978 units) = ",
      +            1pe12.4)
              write(t_,10174) xc
              RILIN=RILIN+1.
-             CALL PGMTXT('B',RILIN,-.2,0.,t_)
+             CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 10174        format("efficiency (j/p) (e/(m*c*nu_c units) = ",
      +            1pe12.4)
           endif
@@ -195,11 +198,11 @@ c..................................................................
           write(t_,10175) vth(kelec,lr_)
 10175     format("vth(kelec,lr_) = sqrt(T/m) = ",1pe12.4," cm/sec")
           RILIN=RILIN+1.
-          CALL PGMTXT('B',RILIN,-.2,0.,t_)
+          CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
           write(t_,10176) fnu0
 10176     format("nu0 = ",1pe12.4," Hz")
           RILIN=RILIN+1.
-          CALL PGMTXT('B',RILIN,-.2,0.,t_)
+          CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
        endif
 
  100   continue
@@ -251,13 +254,12 @@ c       'x', 'u/c', or 'energy', up to maximum pltlimm.
            enddo
         endif
 
-c$$$        call gxglfr(0)
         CALL PGPAGE
 
         call aminmx(currv(1,k,l_),1,jxq,1,fnmin,fnmax,kmin,kmax)
         if (abs(fnmin-fnmax).lt.fnmax*dgts) fnmax=fnmin+.001*abs(fnmin)
 
-        CALL PGSVP(.2,.8,.6,.9)
+        CALL PGSVP(R4P2,R4P8,R4P6,R4P9)
 c       Convert from statAmps/cm**2 to Amps/cm**2, dividing by 3.e9
         DO J=1,JXQ
            RJXA1(J)=RBOUND(tam1(j))
@@ -269,13 +271,13 @@ c       Convert from statAmps/cm**2 to Amps/cm**2, dividing by 3.e9
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RJXA1(1),RJXA1(JXQ),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGLINE(jxq,RJXA1,RJXA2)
         CALL PGLAB(tx_,'Par Curr Den: j(u/unorm)',' ')
 
         call aminmx(currvs(1,k),1,jxq,1,fnmin,fnmax,kmin,kmax)
         if (abs(fnmin-fnmax).lt.fnmax*dgts) fnmax=fnmin+.001*abs(fnmin)
-        CALL PGSVP(.2,.8,.2,.5)
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P5)
 c       Convert from statAmps/cm**2 to Amps/cm**2, dividing by 3.e9
         DO J=1,JXQ
            RJXA1(J)=RBOUND(tam1(j))
@@ -284,14 +286,14 @@ c       Convert from statAmps/cm**2 to Amps/cm**2, dividing by 3.e9
         RPG1=RBOUND(fnmin)/3.e9
         RPG2=RBOUND(fnmax)/3.e9
         CALL PGSWIN(RJXA1(1),RJXA1(JXQ),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGLINE(jxq,RJXA1,RJXA2)
         CALL PGLAB(tx_,'Int_0,u[j(u/unorm)]',' ')
 
         write(t_,10183) k,currvs(jx,k)/3.e9
 10183   format("Species:",i2,"  Current =",e10.4," Amps/cm\u2\d")
         RILIN=5.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
 
 
 c       if (pltlim.eq.'u/c') then
@@ -313,11 +315,10 @@ c       CALL PGLAB(t_,' ',' ')
 c...  
 cmnt  Generate plot "pwrrf"
 c...  
-c$$$        call gxglfr(0)
         CALL PGPAGE
         call aminmx(pwrrf(1,k,l_),1,jxq,1,fnmin,fnmax,kmin,kmax)
         if (abs(fnmin-fnmax).lt.fnmax*dgts) fnmax=fnmin+.001*abs(fnmin)
-        CALL PGSVP(.2,.8,.6,.9)
+        CALL PGSVP(R4P2,R4P8,R4P6,R4P9)
         DO J=1,JXQ
            RJXA1(J)=RBOUND(tam1(j))
            RJXA2(J)=RBOUND(pwrrf(j,k,l_))
@@ -329,14 +330,14 @@ c$$$        call gxglfr(0)
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RJXA1(1),RJXA1(JXQ),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGLINE(jxq,RJXA1,RJXA2)
         CALL PGLAB(' ','RF Pwr Den: p(u/unorm)',' ')
 
 
         call aminmx(pwrrfs(1,k,l_),1,jxq,1,fnmin,fnmax,kmin,kmax)
         if (abs(fnmin-fnmax).lt.fnmax*dgts) fnmax=fnmin+.001*abs(fnmin)
-        CALL PGSVP(.2,.8,.2,.5)
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P5)
         DO J=1,JXQ
            RJXA1(J)=RBOUND(tam1(j))
            RJXA2(J)=RBOUND(pwrrfs(j,k,l_))
@@ -348,13 +349,13 @@ c$$$        call gxglfr(0)
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RJXA1(1),RJXA1(JXQ),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGLINE(jxq,RJXA1,RJXA2)
         CALL PGLAB(' ','Int_0,u[p(u/unorm)]',' ')
         write(t_,10193) k,pwrrfs(jx,k,l_)
 
         RILIN=6.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
 10193   format("Species:",i2,"  Power =",e10.4," Watts/cc")
 
        if (pltlim.eq.'u/c') then
@@ -384,7 +385,7 @@ c...
           wk_nch(i)=consnp(i,l_)
         enddo
         call aminmx(wk_nch,1,nch(l_),1,emin,emax,kmin,kmax)
-        CALL PGSVP(.2,.8,.5,.9)
+        CALL PGSVP(R4P2,R4P8,R4P5,R4P9)
         DO I=1,NCH(L_)
            RNONCHA1(I)=RBOUND(ptime(i,l_))
            RNONCHA2(I)=RBOUND(consnp(i,l_))
@@ -397,29 +398,30 @@ c...
 c        write(*,*)'consn(l_): RNONCHA1(1),RNONCHA1(nch(l_)),RPG1,RPG2',
 c     +                        RNONCHA1(1),RNONCHA1(nch(l_)),RPG1,RPG2   
         CALL PGSWIN(RNONCHA1(1),RNONCHA1(nch(l_)),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGLINE(nch(l_),RNONCHA1,RNONCHA2)
         CALL PGLAB('time (sec)','consn(l_) conservation diag',' ')
 
       write(t_,10250) consn(l_)
         RILIN=5.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
       write(t_,10251) 
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
       write(t_,10252) 
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
 10250 format("consn(l_)=",1pe12.4)
 10251 format("Perfect conservation should yield  machine accuracy,")
 10252 format("or about 1.e-14:")
-        write(t_,10150) n,timet,k
+
+        write(t_,10150) n,timet !,k ! consnp does not dep. on k
         RILIN=RILIN+2.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
         write(t_,10151) rovera(lr_),rr
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
 
       return
@@ -441,14 +443,16 @@ C======================================================================
       include 'param.h'
       include 'comm.h'
 CMPIINSERT_INCLUDE
-c     Conversion to real function for PGPLOT
+c     Conversion to real*4 function for PGPLOT
       REAL*4 RBOUND
-c     PGPLOT REAL Variables:
+c     PGPLOT REAL*4 Variables:
       REAL*4 RILIN
       REAL*4 RPG1,RPG2, RPGmin, RPGmax
       REAL*4 RLRZAP1(0:LRZA) ! for rho coord.
       REAL*4 RLRZAP(0:LRZA)  ! for R coord.
       REAL*4 RLRZAP11(0:LRZA) ! vertical axis: conservation of ptcl
+      REAL*4 :: R41P44=1.44,R41P8=1.8,R4P5=.5,R40=0.,R41=1.
+      REAL*4 :: R4P2=.2,R4P6=.6,R4P8=.8,R4P9=.9
       
       REAL*4 RNONCHA1(nonch),RNONCHA2(nonch)
       real*8 wk_cons(nonch)
@@ -494,10 +498,10 @@ c..................................................................
 
 
       CALL PGPAGE
-        CALL PGSAVE
       
+        CALL PGSAVE !-1
         ! FIRST(lower) SUBPLOT: Conservation vs. t, for different rho
-        CALL PGSVP(.2,.8,.2,.5)
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P5)
         !Find min/max over all time steps and all radial points
         emin= 1.d16
         emax=-1.d16
@@ -514,30 +518,30 @@ c..................................................................
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RBOUND(ptime(1,1)),RBOUND(ptime(n+1,1)),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGSLS(1)  ! 1-> solid; 2-> dashed; 3-> -.-.- ;
-        do l_=1,lrz
+        do ll=1,lrz
           do itime=1,n+1 !!YuP was: nonch
            RNONCHA1(itime)=RBOUND(ptime(itime,1))
-           RNONCHA2(itime)=RBOUND(consnp(itime,l_))
+           RNONCHA2(itime)=RBOUND(consnp(itime,ll))
           ENDDO
           CALL PGLINE(n+1,RNONCHA1,RNONCHA2)
         enddo
-        CALL PGSAVE
-        CALL PGSCH(1.)
+        CALL PGSCH(R41)
         CALL PGLAB(' ',
      +       'consn(t) at different rho',' ')
         ! Label for horizontal axis (better control of position):
-        CALL PGSCH(1.44)
-        CALL PGMTXT('B',1.8,0.5,0.5, 'time (sec)') 
+        CALL PGSCH(R41P44)
+        CALL PGMTXT('B',R41P8,R4P5,R4P5, 'time (sec)') 
 !        write(t_,10250) conserv_nptcl(k,n+1)
 !10250   format("ratio(t_end)=",1pe12.4)
-!        CALL PGMTXT('B',3.,0.,0.,t_)
-        CALL PGUNSA
+!        CALL PGMTXT('B',3.,R40,R40,t_)
+        CALL PGUNSA !-1
 
 
+        CALL PGSAVE !-2
         ! SECOND(upper) SUBPLOT: Conservation vs. rho, at different t
-        CALL PGSVP(.2,.8,.6,.9)
+        CALL PGSVP(R4P2,R4P8,R4P6,R4P9)
         !Find min/max over all time steps and all radial points
         emin= 1.d16
         emax=-1.d16
@@ -554,7 +558,7 @@ c..................................................................
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RPGmin,RPGmax,RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGSLS(1)  ! 1-> solid; 2-> dashed; 3-> -.-.- ;
         DO it=1,n+1 !nonch ! Plot all curves (for all time steps)
            !RNONCHA1(it)=RBOUND(ptime(it,1))
@@ -563,18 +567,17 @@ cBH171231           RLRZAP11(1:LRZMAX)= consnp(it,1:LRZMAX)
 cBH171231           CALL PGLINE(lrzmax,RLRZAP1(1),RLRZAP11(1)) 
            CALL PGLINE(lrz,RLRZAP1(1),RLRZAP11(1)) 
         ENDDO   
-        CALL PGSAVE
-        CALL PGSCH(1.)
+        CALL PGSCH(R41)
         CALL PGLAB(' ',
      +  '(dentot-xlndn0-sgaint1)/(.5*(xlndn0+dentot))',' ')
         ! Label for horizontal axis (better control of position):
-        CALL PGSCH(1.44)
-        CALL PGMTXT('B',1.8,0.5,0.5,t_horiz) 
+        CALL PGSCH(R41P44)
+        CALL PGMTXT('B',R41P8,R4P5,R4P5,t_horiz) 
 !        write(t_,3002) k,kspeci(1,k),kspeci(2,k),n
 ! 3002   format("species no. ",i2,4x,a8,2x,a8,2x," time step n=",i5)  
-        CALL PGSCH(1.0)
-!        CALL PGMTXT('T',1.,0.,0.0,t_)
-        CALL PGUNSA
+        CALL PGSCH(R41)
+!        CALL PGMTXT('T',1.,R40,R40,t_)
+        CALL PGUNSA !-2
 
 
       return

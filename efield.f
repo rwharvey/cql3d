@@ -8,6 +8,7 @@ c
 
       character*8 elecset
 
+      real*8 elecfld_t0(lrza),sigma_t0(lrza) !YuP[2020-04-13] To save values at t=0 
 c..................................................................
 c     CQL3D mode:
 c     At the n.ge.0 time-step:
@@ -114,7 +115,7 @@ c     GA-A16178, the same as Eq. 5.66 of Hinton-Hazeltine, Rev. Mod. Phys.
      *      *sqrt(fmass(kelec))/(temp(kelec,lr_)*ergtkev)**1.5
       endif
 
- 2    continue
+ 2    continue ! Not used
 
 c..................................................................
 c     elecr is the Dreicer electric field (as in Kulsrud et al.),
@@ -149,14 +150,28 @@ c..................................................................
 c     Calculation of plasma current for use in elecfld determination
 c     (efswtch.ne."method1").
 
+      !YuP[2018-09-13] But further below, elecfld() is re-defined.
+      ! Yup argued to move this section AFTER if(efswtch.eq....) block.
+      ! BH is not so sure.  Need to consider meaning of efswtchn, per
+      ! cqlinput_help.   On the other hand, there is perhaps a problem with
+      ! setting elecfld() at the first time step, which shows up as an
+      ! anomalous starting electric field in the wh80.ps RE case.
+      ! BH180917:  Could use more checking.
       if (efswtchn.eq."neo_hh") then
          call restcon
          call resthks(l_,lr_,lmdpln_,
      +        zreshin(lr_),zreskim(lr_),zressau1,zressau2)
+         !Original version that uses zreshin [Hinton and Hazeltine]:
+!YuP         currpar(lr_)=(curra(kelec,l_)+
+!YuP     +        elecfld(lr_)/300./(zreshin(lr_)*sptzr(l_)))/3.e9
+         !YuP[2020-04-02] Version with zressau1(starnue=0) or zressau2(starnue>0) 
+         !Based on Sauter, Angioni and Lin-Liu, Phys.Plasmas 6, 1834 (1999) :
          currpar(lr_)=(curra(kelec,l_)+
-     +        elecfld(lr_)/300./(zreshin(lr_)*sptzr(l_)))/3.e9
-      else
-         currpar(lr_)=currtp(lr_)/3.e9
+     +        elecfld(lr_)/300./(zressau1*sptzr(l_)))/3.e9
+         !This currpar() is further used for efswtch=method2,3,4
+         !(also for method5, but it is set separately in eflditer.f)
+      else ! efswtchn.eq."disabled" (default value) Use total Ip (Ohmic+RE)
+         currpar(lr_)=currtp(lr_)/3.e9  
       endif
 
       if (efswtch.eq."method1") then
@@ -164,19 +179,20 @@ c     (efswtch.ne."method1").
 c        if input variable eoved (E over E-Dreicer) is .ne. 0.
 c        then compute the value of elecfld(lr_)
 c        (For lbdry(kelec).eq."fixed", only do it for n=0).
+         !write(*,*)'efield_/method1: n,lr,elecfld',n,lr_,elecfld(lr_)
+         !write(*,*)'elecset,eoved,elecr(lr_)',elecset,eoved,elecr(lr_)
 
          if (kelecg.ne.0) then !=> kelec=kelecg (see ainspec.f)
             if (lbdry(kelecg).eq."fixed" .and. n.gt.0)  go to 31
          endif
          if (elecset.eq."eoved") elecfld(lr_)=eoved*elecr(lr_)
  31      continue
+         !write(*,*)'efield=/method1: n,lr,elecfld',n,lr_,elecfld(lr_)
 
       elseif (efswtch.eq."method2") then
 
-
 c        If time step .lt. noncntrl, use specified electric
 c          field. Then relaxation towards specified current.
- 
          if (n.lt.noncntrl) then
 
             if (kelecg.ne.0) then !=> kelec=kelecg (see ainspec.f)
@@ -195,6 +211,8 @@ c990131     +         (currpar(lr_) -currxj(lr_))/(sign(1.,currxj(lr_))
      +           (currpar(lr_) -currxj(lr_))/(sign(one,currxj(lr_))
 c990131     +           *amax1(abs(currpar(lr_)),abs(currxj(lr_)))))
      +           *max(abs(currpar(lr_)),abs(currxj(lr_)))))
+            !YuP[2019-10-29] Is currpar FSA current, and currxj - also FSA?
+            !Then we don't need currpar(lr_)/psifct1 as in method5
             
          endif
          
@@ -241,7 +259,14 @@ c          target currxj (convert to volts/cm from cgs)
             call restcon
             call resthks(l_,lr_,lmdpln_,
      +           zreshin(lr_),zreskim(lr_),zressau1,zressau2)
-            elecfld(lr_)=currxj(lr_)*(zreshin(lr_)*sptzr(l_))*300.*3.e9
+            !Original version that uses zreshin [Hinton and Hazeltine]:
+!YuP            elecfld(lr_)=currxj(lr_)*(zreshin(lr_)*sptzr(l_))*300.*3.e9 !V/cm
+            !YuP[2020-04-02] Version with zressau1 (small change in results from this):
+            !Based on Sauter, Angioni and Lin-Liu, Phys.Plasmas 6, 1834 (1999) :
+            elecfld(lr_)=currxj(lr_)*(zressau1*sptzr(l_))*300.*3.e9 !V/cm
+!            write(*,'(a,i4,3e12.3)')
+!     &          'efield.f [n=0]: lr,elecfld,totcurtt,currxj',
+!     &           lr_,elecfld(lr_),totcurtt,currxj(lr_)
             
          else ! n>0
 
@@ -251,25 +276,58 @@ c           Presently, the calculated parallel current
 c           in diaggnde is averaged over the area cross-section
 c           (at cnst toroidal angle) between a flux surface.
 c           This quantity is depracated, and should be replaced
-c           in the future.  Here, for method5, we adjust currpar 
+c           in the future.  Here, for method5(YuP:4?), we adjust currpar 
 c           back to parallel current at the minimum B position.
 c           See comments in eflditer.f, on psifct.
 
-            psifct1=1.
-            if(efswtch.eq."method5") then
-               psifct1=psiovr(lr_)/onovrp(1,lr_)
-            endif
+            psifct1=1. ! Here: efswtch.eq."method4"
+            !if(efswtch.eq."method5")then !YuP[2019-10-29] method5 ???
+            !   psifct1=psiovr(lr_)/onovrp(1,lr_)
+            !endif
 
-            write(*,*)'efield:elecfld,currpar/psifct,currxj',
-     +            elecfld(lr_),currpar(lr_)/psifct1,currxj(lr_)
+!            write(*,*)'efield:elecfld,currpar/psifct,currxj',
+!     +            elecfld(lr_),currpar(lr_)/psifct1,currxj(lr_)
 
-            currxj0(lr_)=currxj(lr_)
-            elecfld(lr_)=elecfld(lr_)*(1.-efrelax*
-     +           (currpar(lr_)/psifct1 -currxj(lr_))/
-     +           (sign(one,currxj(lr_))
-     +           *max(abs(currpar(lr_)/psifct1),abs(currxj(lr_)))))
+            currxj0(lr_)=currxj(lr_) !for efswtch.eq."method4"
+            
+             !Original procedure: a linear type of response:
+!             elecfld(lr_)=elecfld(lr_)*(1.d0-efrelax*
+!     +           (currpar(lr_)/psifct1 -currxj(lr_))/
+!     +           (sign(one,currxj(lr_))
+!     +           *max(abs(currpar(lr_)/psifct1),abs(currxj(lr_)))))
+     
+            !YuP[2020-04-03] generalized the above to
+            !(works better in some cases)
+             djrel= (currpar(lr_)-currxj(lr_)) / 
+     &              max( abs(currpar(lr_)) , abs(currxj(lr_)) )
+             sign_dj=  sign(one,djrel*currxj(lr_))
+             if(djrel.eq.0.d0) sign_dj=0.d0 !to give elecfld_new=elecfld_old
+             elecfld(lr_)=elecfld(lr_)*
+     &                   (1.d0 -efrelax*sign_dj*abs(djrel)**efrelax_exp)
+             !Note that when efrelax_exp=1.0, it becomes
+             !elecfld(lr_)= elecfld(lr_)*(1.-efrelax*sign_dj*abs(djrel))
+             !which is same as the original procedure.
+             ! Recommended alternative value: efrelax_exp=0.5
+             ! which gives a faster convergence to the target current,
+             ! although sometimes produces "jiggles" in E(t).
 
-            write(*,*)'efield:elecfld',elecfld(lr_)
+            !YuP[2019-10-29] Is currpar FSA current, and currxj - at the midplane?
+            !Then we need currpar(lr_)/psifct1 -currxj(lr_), indeed.
+            !If currxj - at the midplane, then xjc() or xjin_t() are at the midplane.
+            !But help file says xjc is FSA, then currxj is FSA, and then
+            ! we have to use currpar(lr_) -currxj(lr_)  in the above.
+            !But then, why do we need 1/psifct1 in method5 ?
+
+            !YuP[2020-04-02] Try direct definition; at n>0 similar to n=0 above:
+!            call restcon
+!            call resthks(l_,lr_,lmdpln_,
+!     &           zreshin(lr_),zreskim(lr_),zressau1,zressau2)
+!            elecfld(lr_)= (currxj(lr_)-curra(kelec,l_))
+!     &                     *zressau1*sptzr(l_)*300.*3.e9 !V/cm
+!            !Results: initially, current evolves in same way as in "efrelax" version,
+!            !but then becomes unstable (when RE appear). 
+
+            !write(*,*)'efield: n,lr,elecfld',n,lr_,elecfld(lr_)
 
          endif ! n
 
@@ -286,8 +344,38 @@ c          target currxj (convert to volts/cm from cgs)
             call restcon
             call resthks(l_,lr_,lmdpln_,
      +           zreshin(lr_),zreskim(lr_),zressau1,zressau2)
-            elecfld(lr_)=currxj(lr_)*(zreshin(lr_)*sptzr(l_))*300.*3.e9
-         
+            !Original version that uses zreshin [Hinton and Hazeltine]:
+!YuP            elecfld(lr_)=currxj(lr_)*(zreshin(lr_)*sptzr(l_))*300.*3.e9
+            !YuP[2020-04-02] Version with zressau1
+            !Based on Sauter, Angioni and Lin-Liu, Phys.Plasmas 6, 1834 (1999) :
+            elecfld(lr_)=currxj(lr_)*(zressau1*sptzr(l_))*300.*3.e9
+            
+      elseif (efswtch.eq."method6") then !YuP[2020-04-13] Added method6
+            ! At t=0, save the value of elecfld and conductivity.
+            ! At later time step, use spitzer+neoclassical conductivity
+            ! to evolve electric field so that 
+            !  E(t) = E(t=0)* sigma(t=0)/sigma(t)
+            !  [it is aimed to yield j(t)=const, if no j_RE]
+            !For this method6, need to have iproelec.eq.'parabola' or 'spline'
+            !but iproelec.eq."prbola-t" will work, too:
+            !subr.profiles will setup elecfld(lr) at t=0, 
+            !then, whatever is set at t>0 [in subr.profiles], will not be used;
+            !it will be overwritten by lines below.
+            call restcon
+            call resthks(l_,lr_,lmdpln_,
+     +           zreshin(lr_),zreskim(lr_),zressau1,zressau2)
+            !YuP[2020-04-02] Version with zressau1
+            !Based on Sauter, Angioni and Lin-Liu, Phys.Plasmas 6, 1834 (1999) :
+            sigma=1.d0/(zressau1*sptzr(l_)) ! sigma (starnue=0) [cgs]
+            ! Consider this option:
+            !sigma=1.d0/(zressau2*sptzr(l_)) ! sigma (starnue>0) [cgs]
+            if (n.eq.0) then
+              elecfld_t0(lr_)= elecfld(lr_) ! Save, at t=0 
+              sigma_t0(lr_)= sigma ! Save , at t=0
+            else ! n>0
+              elecfld(lr_)= elecfld_t0(lr_)*sigma_t0(lr_)/sigma
+            endif ! n
+
          
       endif ! selection of efswtch=
       

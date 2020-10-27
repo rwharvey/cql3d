@@ -80,8 +80,10 @@ c     Maximum argument in table will be argmax - give it a 40% boost
 c..................................................................
 
         argmax=xkp*vnorm/wcemin*1.4
+        if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
         write(*,*)'urfbes: argmax,nharm(krf),bvalmin = ',
      1                     argmax,nharm(krf),bvalmin
+        endif
         bsslstp(krf)=argmax/(nbssltbl-1)
         arg=0.
         do 10 i=1,nbssltbl

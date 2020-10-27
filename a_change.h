@@ -8,12 +8,540 @@ c     This file documents changes in the code
 c
 c***********************************************************************
 
+c[332] version="cql3d_git_200101.3"
+
+
+c[332] Added control of printout to the screen, 
+    using the namelist variable ioutput(1) [it was present but not used].
+    After 2020-10-21, the usage of ioutput(1):
+    ioutput(1)=0  means the printout to screen is reduced to a minimum,
+                  leaving namelist printout, warning messages,
+                  and physics-related values used or computed by code.
+                  (default value ioutput(1)=0)
+    ioutput(1)=1  The above, and more printout - 
+                  values of arrays for diagnostic purpose.
+    ioutput(1)=2  (or .ge.2) The above, and even more diagnostic printout.
+    ioutput(2)=0 ! No usage at present [2020]
+    BH,YuP[2020-10-21]
+
+
+c[331] Corrected usage of enerkev(1:jx,k) (explicit index k)
+    in subr. tdtrdfus and netcdfrw2. 
+    Removed referencing (lossmode(1).eq.'simplbn1') in if-endif 
+    statements.    !YuP[2020-10-20]
+
+c[330] Added checking of denominator=0 in subroutines soup and sourc0.
+    For example, cosm2(kk,m,lr_) can be 0 when scm2(kk,m)=0. 
+    (scm2 is set in aindflt: scm2(k,m)=0., for k>1 species).
+    It resulted in soupp(j,lr) array getting NaN in runs with ngen=2.
+    YuP[2020-10-20]
+
+c[329] Adjusted subr.tdplteq(krf) and tdchief (around call of tdplteq)
+    Now it is called for each wave type (was: each mode). YuP[2020-10-19]
+
+c[328] An adjustment in urfbplt.f.  When subr.ufrbplt is called, 
+    the time step is not advanced yet,
+    so if nstop=2, then n in (n.eq.nplt3d(i)) can only get to 1.
+    It means that if nplt3d(i) is set to nstop,
+    the condition n.eq.nplt3d(i) is never satisfied.
+    Changed (n.eq.nplt3d(i)) to (n+1.eq.nplt3d(i)).
+    YuP[2020-10-02]
+
+c[327] Corrected error in subr.netcdfrf(kopt,krf)
+  related to recording of data for each wave type 'krf'.
+  Such arrays as freqcy, delpwr, cwexde, etc, -
+  they are not functions of krf (wave type; Example: krf= 1:mrf= 1:2),
+  but rather they are functions of krfn (wave modes; Example: mrfn=3+3).
+  Initially, they are read for each krf, 
+  but then duplicated into each krfn index.
+  This is done in subr.urfread, at the end.
+  But subr.netcdfrf(kopt,krf) is called with krf,
+  for recording of data (when kopt=0 or 1).
+  Then, we need to record them like cwexde(is,iray, irfn(krf)) 
+  [before this correction, it was recorded as cwexde(is,iray,krf)],
+  where irfn(krf=1) =1 and irfn(krf=2) =4 in our example.
+  Index irfn(krf) is pointing to beginning harmonic of each wave type;
+  It is the index (in 1:mrfn) of the lowest harmonic for each wave type.
+  !YuP[2020-09-23]  
+
+c[326] Small changes in plotting subroutines to improve limits  
+    in vertical axis. Also adjusted a warning printout 
+    from function lug(), during check of
+    requirement for input array to be strictly increasing; allow 
+    a certain accuracy (1.d-8*abs(parray(i)) as a margin of error.
+     [YuP 2020-08] 
+
+
+c[325] version="cql3d_git_200101.2"
+
+c[325] New option eqsource="miller"   - 
+    Analytically defined equilibrium, D-shape. 
+    All related namelist variables start with "eq_miller_" prefix.
+    REF: R.L. Miller et al., "Noncircular, finite aspect ratio, local
+    equilibrium model", Phys. Plasmas, Vol. 5, No. 4, April 1998,
+    See Eqs.36-37.  
+    YuP[2020-07-13] [mostly, it was imported from CQL3D-FOW version,
+    but then upgraded to D-shape; in FOW version
+    it was valid for ellipse only, i.e. for eq_miller_deltaedge=0.
+    Also added a more general polynomial profile of PSI(r).]
+
+c[324] YuP[2020-07-02],[2020-07-16]
+    Added subroutines cfp_integrals_maxw and cfp_integrals_get.
+    Subr. cfp_integrals_maxw calculates certain integrals 
+    needed for subr. cfpcoefn.
+    These integrals describe a contribution to BA coll.coefs
+    from local collisions of general species with the background 
+    Maxwellian species (search for sections after "kbm=ngen+1,ntotal").
+    These integrals only depend on mass (fmass) 
+    and local temperature of these (Maxwellian) species.
+    So, instead of calculating them over and over again,
+    calculate them once as a table over temperature grid 
+    (search "T-grid"), and then reuse them by matching a local T
+    with the nearest values in the T-grid.
+    These integrals are updated if the temp() of 
+    the Maxwellian species is varied in time (in a prescribed form). 
+    This subr. is called from tdchief, just after call_profiles.
+    It is adapted from cql3d-fow version, then extended
+    for impurity ions with all ionization states.
+    Search for "call cfp_integrals_get".
+    This option is accessed by setting cfp_integrals='enabled'
+    in cqlinput (default is 'disabled').
+    This option can give some speedup in case of high-Z impurity.
+
+
+c[323] Added a new option for method of searching 
+       for the flux surface in subr.eqfndpsi.
+       The new method makes iterations in major radius position
+       for the start of flux surface. The old method is based on
+       iterations in values of poloidal flux, and it is
+       not accurate in area near magnetic axis where the profile
+       of PSI(r) is nearly flat. See a long comment in the 
+       beginning of subr.eqfndpsi.  Search for "YuP[2020-06-30]"
+       to find all changes related to this option.
+       [Not a namelist option yet; need to change line 119 
+       in subr.eqfndpsi(), use kopt=2 to access this new option.]
+
+c[322] Added new option for gamaset (version of Coulomb log):
+       gamaset=-1.  means: use NRL definitions for gama(kk,k). 
+       YuP[2020-06-23]
+
+c[321] Added contribution from partially ionized impurities to 
+       Bremsstrahlung energy loss term. See the end of lossegy.f,
+       with comments on "c2= r02_alf*(z_imp**2 + z_bound)" definition.
+       Also added the call to subr.lossegy from subr.achiefn 
+       (was only from ainitial, at n=0); 
+       the loss term (egylosa() array) must be recomputed
+       at each time step, - because Maxw.ion density could change;
+       and impurity content could change.
+       YuP[2020-06-22]
+       
+c[320] Corrected error in subr.synchrad, in B-curvature related terms.
+       Coefficient A should be proportional to gamma (was ~1/gamma).
+       See YuP_2020_Synchrotron_derivations.pdf,
+       YuP[2020-06-18] 
+
+c[319] Added efswtch="method6" --
+       At t=0, save the value of elecfld and conductivity.
+       At later time step, use spitzer+neoclassical conductivity
+       to evolve electric field so that 
+       E(t) = E(t=0)* sigma(t=0)/sigma(t)
+       [it is aimed to yield j(t)=const, if no j_RE]
+       !YuP[2020-04-13]
+
+c[318] Added 'favr_thet0' into netcdfrw2.f, which saves
+c[318] the value of INTEGR{f*2pi*sin(theta0)dtheta0} /4pi,
+c[318] 'Distr function at midplane averaged over pitch angle'.
+c[318] It can be saved at each time step (use netcdfshort="long_jp"),
+c[318] otherwise it is saved at last time step only.
+c[318] The logic for saving is same as for 'currv' array,
+c[318] and the size of 'favr_thet0' is same as for 'currv',
+c[318] so it would not take much space in mnemonic.nc file.
+c[318] See YuP[2020-04-07] 
+
+c[317b] For efswtch="method4", added a generalized procedure for 
+       relaxation of E-field:
+         elecfld==> elecfld*(1.-efrelax*sign(djrel*currxj)*|djrel|**efrelax_exp)
+       where djrel= (curr-currxj) / max(|curr|,|currxj|)
+       Presently this generalized procedure is only available for 
+       efswtch="method4", but could be extended to other "method#".
+       Default value is efrelax_exp=1.d0, which gives
+       the original procedure.
+       YuP[2020-04-03]
+       
+c[317a] Modified how current density is calculated in subr.efield
+       for efswtch.eq."method4" and "method5" (at n=0). 
+       The original version was using resistivity 
+       zreshin [Hinton and Hazeltine] from subr.resthks.
+       The new version uses resistivity zressau1
+       based on Sauter, Angioni and Lin-Liu, 
+       Phys.Plasmas 6,1834(1999). Same change is made in 
+       section if(efswtchn.eq."neo_hh") in subr.efield.
+       This part is more important for the evaluation of E field,
+       since it uses a correction of E field based on 
+       analytical values of resistivity. This "neo_hh" 
+       correction is applied to efswtch= "method2"--"method5".
+       Expect changes in runs that use efswtchn="neo_hh",
+       such as wh80 test with runaway electrons. YuP[2020-04-02]
+
+c[317] Adjusted sub.profiles, tdinitl and tdchief for the proper
+c[317] functionality of iprozeff='curr_fit' option.
+c[317] Search "YuP[2020-02-11]" for all related changes and comments.
+
+c[316] Corrected bugs related to saving currv() and pwrrf() 
+c[316] into *.nc file at every time step 
+c[316] (i.e. with netcdfshort='long_jp' option).
+c[316] YuP[2020-02-06]
+
+c[315] Added arrays to be sent/recv in MPI runs. See mpins_par.f
+c[315] and tdchief.f.
+c[315] YuP[2020-02-05]
+
+c[314] Added more arrays needed for eqmod='disabled'
+c[314] (analytical magnetic equilibrium), and adjusted subr. tdplteq
+c[314] so it can plot FP surfaces in case of eqmod='disabled'
+c[314] (if psimodel='spline'). See aingeom.f, tdplteq.f. 
+c[314] YuP[2020-01-31]
+
+
+c[313] version="cql3d_git_200101.1"
+c[313] Corrected sourceko.f. There was procedure for reversing 
+c[313] the direction of source if the electric field is positive,
+c[313] and also removing the portion of the source at upar>0
+c[313] in this case. There is no need to do this.
+c[313] The primary RA electrons (that produce the secondary RA electrons, 
+c[313] i.e., the KO source) can have both upar>0 and upar<0,
+c[313] even for passing electrons. They can originate from hot-tail seed,
+c[313] which produces primary RE at all pitch angles.
+c[313] YuP[2020-01-30] 
+
+c[312] Added a setup for some arrays needed for eqmod='disabled'
+c[312] (analytical magnetic equilibrium). See aingeom.f, micxiniz.f,
+c[312] tdrmshst.f, tdtoarad.f. Search for "YuP[2020-01-29]"
+c[312] Also, in ainsetva.f, added the printout of warning message for
+c[312] "Strongly recommended to use psimodel="spline" "
+c[312] in case of eqmod='disabled'
+c[312] Particularly, some arrays that are used in ampfmod calculations
+c[312] in case of eqmod="disabled" are only setup when psimodel="spline".
+c[312] YuP[2020-01-29]
+
+c[311] In achiefn.f, for the case of kopt.eq.3 (solving Amp-Far eqns) 
+c[311] added (it_ampf.eq.1) in front of "call sourcee"
+c[311] which means  reuse sources from 1st iteration.
+c[311] Similarly, in front of "call cfpcoefc" 
+c[311] which means reuse coll.coeffs from 1st iteration.
+c[311] This is just to save cpu time.
+c[311] YuP[2020-01] 
+        
+c[310] Corrected error in sourcee.f, related to ampfmod.
+c[310] Initialization of source(), xlncur() should be done only at 
+c[310] it_ampf=1 (for ampfmod.eq."enabled" case).
+c[310] That is, when ampfmod.eq."enabled", 
+c[310] initialize the two arrays only at 1st iteration, 
+c[310] and then reuse them at higher iterations, i.e., it_ampf>1.
+c[310] Note: there is if(ampfmod.eq."enabled" .and. it_ampf.gt.1)return
+c[310] clause in sourceko.f. 
+c[310] So, if we don\'t use a corresponding clause in sourcee.f,
+c[310] then at it_ampf>1 the arrays source(), xlncur(1,lr_)  
+c[310] will be set to 0.0 but not computed in sourceko.f.
+c[310] YuP[2020-01]
+
+c[309] Added subroutine profaxis1(e_out,expn1,expm1,e0,e1,rova)
+c[309] where instead of dratio=e(1)/e(0) value, we use 
+c[309] both of these values (e(1)==e1 is for the plasma edge, 
+c[309] and e(0)==e0 is for the plasma center).
+c[309] This modification allows cases of e0=0.0.
+c[309] On output, use, e.g.,  a(ll)=e_out  
+c[309] [so, no need to have a(ll)=a(0)*rn ]
+c[309] Many changes in the code, where the old subroutine was called.
+c[309] Search YuP[2019-12-29] for all changes.  
+
+c[308] Added E(0) field values (only used for plots) for the solution
+c[308] of Amp-Far eqns.
+
+c[307] For the recently introduced option iprozeff.eq."curr_fit",
+c[307] added corrections for the currpar_starnue_n()-currpar_starnue0_n()
+c[307] and bootstrap current. [see the two previous entries].
+c[307] See changes around YuP[2019-12-27].
+
+c[306] Added new namelist variable, ampfadd, to control corrections 
+c[306] introduced into Amp-Far eqn., see the previous entrance.
+c[306] Available values are  "neo+bscd" [default value],
+c[306] "add_bscd", "neosigma", "disabled".
+
+c[305] version="cql3d_git_200101.0"
+c[305] BH+YuP. Added bootstrap current and delta_sigma*E current into
+c[305] Amp-Far equations. See subr. ampfsoln. The coefficient ampfb()
+c[305] is modified to include dbscurm(llp)+dcurr(llp), 
+c[305] and coefficient ampfa() now includes dsig(llp),
+c[305] where dsig= sigma_coll_neo - sigma_banana.
+c[305] Also added arrays into netcdfrw2.f:
+c[305] 'consn','bscurr_e_gen','bscurr_e_maxw',
+c[305] 'bscurr_i_gen','bscurr_i_maxw',
+c[305] 'currpar_starnue0'(Current based on sigma_banana (starnue=0)),
+c[305] 'currpar_starnue'(Current based on sigma_coll-neo (starnue>0)).
+c[305] Also added plots of currpar_starnue_n()-currpar_starnue0_n()
+c[305] [current addition from (sigma_coll-neo -sigma_banana)*E_phi],
+c[305] as radial profiles of current density, and partial integrals. 
+c[305] See YuP[2019-12-18] in ampfar.f, tddiag.f,
+c[305] YuP[2019-12-19] YuP[2019-12-20] in tdpltmne, 
+c[305] YuP[2019-12-23] in netcdfrw2.
+
+c[304] Modifications of bootstrap current calculations,
+c[304] in tdboothi.f (Sauter fit model), tdbootst.f (Hinton-Hazeltine), 
+c[304] and in bsl/bsu model (bootcalc='method1' or 'method2').
+c[304] In particular, tdboothi.f now includes all coefficients
+c[304] from Phys. of Plasmas 6, 2834 (1999), with Erratum, 
+c[304] covering all-collisionality cases.
+c[304] These corrections are migrated from CQL3D-FOW version. 
+c[304] YuP[2019-12-12]
+c[304] Besides, added more modifications:
+c[304] Added cursign in front of bscurm() current.
+c[304] Now the calculated bootstrap current bscurm() is always 
+c[304] in the same direction as the Ohmic current 
+c[304] (I_Ohm>0 corr. to cursign>0, which is in positive phi direction).
+c[304] Positive phi direction is counter-clockwise viewed from above.
+c[304] Suggestion: We could also add bootsign factor in front,
+c[304] for a more general control, and to match bscurm() with current
+c[304] calculated with bootcalc='method1' or 'method2' option.
+c[304] See notes near YuP[2019-12-17] in tdboothi.f.
+c[304] Also added calculation of starnue() directly into tdboothi.f.
+c[304] The problem is that usually starnue is calc-ed
+c[304] in sub.efields, but efields is only called when ampfmod.ne."enabled"
+c[304] or at n=0.  
+c[304] As a by-product, also added calc./update of tauee(l),taueeh(l),sptzr(l).
+c[304] Tests: Almost no increase in cpu time from this addition.
+c[304] See YuP[2019-12-18] in tdboothi.f.
+
+c[303] Added new namelist variable imp_ne_method="ni_list" or "ne_list".
+c[303] Method of adjusting the electron or main-ion densities
+c[303] when an impurity is deposited, and densities of ionization states 
+c[303] are changed in time. Default is 'ne_list'.
+c[303] YuP[2019-12-06]
+
+c[302] Added new namelist variable for the method of deposition of impurity:
+c[302] imp_depos_method='disabled'[default] or "pellet" or "instant".
+c[302] For imp_depos_method="instant", need to specify 
+c[302] dens0_imp(0:lrz) = Density profile of deposited impurity [1/cm^3]
+c[302] and tstart_imp= Instant when impurity is deposited [sec].
+c[302] YuP[2019-12-05]
+
+
+
+c[301] version=cql3d_git_190923.3
+c[301] For restart nlrestrt="ncdfdist" and iprozeff.eq."curr_fit",
+c[301] then added restore of the zeff profile from the prior run.
+c[301] Also, a second (minor) mod: For knockon="enabled", ampfmod="enabled"
+c[301] and nampfmax.gt.1 interations, then the source() from the first
+c[301] call to sourceko is reused. (sub. sourceko takes significant
+c[301] cpu time, and does not change significantly for the iteration
+c[301] time steps. (BH191128, 191201)
+
+c[300] version=cql3d_git_190923.2 (with update6_for_cql3d_190923.2)
+c[300] Added new option iprozeff.eq."curr_fit":
+c[300] Renormalize zeff() in such a way that the current from
+c[300] FPE solution would be "pushed" to match the target current,
+c[300] which is set in totcrt(1:nbctime) in cqlinput.
+c[300] Presently zeff() is simply renormalized in profiles.f by 
+c[300]   renorm= totcurtt/currxjtot,   
+c[300] where totcurtt is the target current at given time step
+c[300] [from totcrt(1:nbctime) values]
+c[300] and currxjtot is the total current from solution of FPE.
+c[300] The new value of zeff is
+c[300]   zeff(ll)=max(1.d0,zeff(ll)/renorm) ! Note that Ip ~ Te^1.5/Zeff
+c[300] The tests show that the current from FPE approaches the target value
+c[300] in several time steps, typically 20 steps.
+c[300]            ! The question now is - How to deal with densities?
+c[300]            ! Presently, cql3d is setup to keep n_e unchanged,
+c[300]            ! and adjust the ion densities (example: reduce D+ density,
+c[300]            ! but increase density of impurity, to keep n_e unchanged).
+c[300]            ! Another approach would be to increase density of impurity,
+c[300]            ! and to increase density of electrons accordingly,
+c[300]            ! while the density of D+ remains unchanged.
+c[300] Also note that the profile of zeff(ll) is changed by same factor
+c[300] at all rho, so that the shape zeff(rho) is not changed;
+c[300] Not very physical.           
+c[300] The changes are in profiles.f, ainsetva.f, tdxinitl.f.
+c[300] Tested for ampfmod='enabled', but could probably work with other options,
+c[300] like efswtch="method1".
+c[300] !YuP[2019-10-29]-YuP[2019-10-31]
+
+
+c[299] Adjusted ainsetva for efswtch="method2","method3" or "method4" 
+c[299] cases, particularly for iprocur.eq."prbola-t" and iprocur.eq."spline-t".
+c[299] Also, for efswtch.eq."method4", check and force efiter="disabled".
+c[299] Also, for these cases [iprocur.eq."prbola-t" and iprocur.eq."spline-t"] 
+c[299] corrected the issue with currxj(ll) getting INF values at n=0.
+c[299] See this note in profiles.f:
+c[299]             !YuP[2019-10-29] The problem here is that at n=0
+c[299]             !darea is not defined yet [it is set in tdrmshst].
+c[299]             !At n=0 sub.profiles is called from sub.tdinitl
+c[299]             !BEFORE tdrmshst. 
+c[299]             !But then sub.profiles is called again at n=0, 
+c[299]             ! from tdchief[Line~575], just before call_achiefn(0).
+c[299]             !At the latter call, darea is defined.
+c[299] To avoid this issue, added if(currxjtot.ne.0.d0) condition
+c[299] At n=0, at first call of profiles, when darea=0 and so currxjtot=0.d0, 
+c[299] do this renormalization in tdrmshst.f(239)        
+c[299] !YuP[2019-10-29]
+
+
+c[298] Made adjustment in sub.achiefn, 
+c[298] for (eseswtch.ne."enabled") section: No need to call sub.efield
+c[298] when ampfmod='enabled', so added  if(ampfmod.ne."enabled") 
+c[298] in front of 'call efield'.
+c[298] Before this adjustment, sub.efield was called 
+c[298] in case of ampfmod='enabled', but (luckily) 
+c[298] this had no effect on value of elecfld()
+c[298] because of eoved=0.0 setting (see efield.f, Line~22 and 180).
+c[298] See "YuP[2019-10-29]"
+
+c[297] Made adjustments/comments in sub.efield related to efswtch.eq."method4"
+c[297] [basically, we need to use psifct1=1.; needs more checking 
+c[297] for method5]. See YuP[2019-10-29]. 
+
+c[296] Corrected pgplot-related subroutines. Some of them were called 
+c[296] with explicit values, like call GSVP2D(.2,.8,.6,.9).
+c[296] Need to use declared variables, like PGSVP(R4P2,R4P8,R4P6,R4P9).
+c[296] Most of changes are in subs. pltends, pltfluxs, pltfofvv, 
+c[296] pltprppr, pltstrml, tdpltjop. Cleaned up other plt* subroutines
+c[296] for unused calls, e.g., in pltmain.  YuP[2019-10-28]
+
+
+c[295] version="git_cql3d_190923.1"
+c[295] Much added related to pellet ablation model, In progress,
+c[295] and TBAdded YuP191001]
+
+c[294] For ampfmod=enabled, fixed bug which prevented update of edge
+c[294] through elecb [BH191012].
+
+c[293] CQL3D begins each simulation at time t=0.  For restart, it would
+c[293] it would be preferable for most namelist purposes and plotting
+c[293] that time would restart at the restart time.  But this would
+c[293] require substantial reworking on the code logic.  As a temporary
+c[293] approach to adjusting time dependent namelist data, t_shift
+c[293] namelist variable is added, which shifts bctime backwards 
+c[293] (subtracts t_shift) so that it the restart runs begins at 
+c[293] code time t=0.  Future work will adjust code time so that it
+c[293] continues continuously for restart cases.  [BH190920].
+
+c[292] version="cql3d_git_190309.3" (Maybe last pre-f90 version)
+c[292] Changes to include enhanced collisions due to particially
+c[292] ionized impurity ions per Hesslow. To be further documented
+c[292] by YuP   [YuP, Pigarov, BH Sept 2019].
+
+c[292] version="cql3d_git_190309.2" (Last pre-f90 version)
+c[292] Explicitly typed REAL*4 variables which are in the arguments
+c[292] of the PGPLOT plotting subroutines.  This enables compiling with
+c[292] gfortran with compiler setting "-fdefault-real-8", which it is
+c[292] henceforth recommended to be used. Without explicitly typing
+c[292] REAL*4 literal constants used by PGPLOT, default-real-8 would
+c[292] make them REAL*8 constants, and thus not work with PGPLOT subs.
+c[292] There is a similar setting for the Intel compiler.
+c[292] With this setting, the compiler:
+c[292] Sets the default REAL type to an 8 byte wide type. Does nothing 
+c[292] if this is already the default. This option also affects the 
+c[292] kind of non-double real constants like 1.0, and also does promote 
+c[292] the default width of "DOUBLE PRECISION" to 16 bytes if possible,
+c[292] unless "-fdefault-double-8" is given, too.
+c[292] However, all DOUBLE PRECISION type settings were changed to REAL*8.
+c[292] [BH, 190729].
+c[292] 
+
+c[291] version="cql3d_git_190309.1" (Last pre-f90 version)
+c[291] Corrected some bugs found during work on f90 version of the code.
+c[291] The changes are mostly in impavnc0.f, tdchiefn.f, netcdfrw2.f, zfreya.f.
+c[291] For details, search "YuP[2019-04", "YuP[2019-05", "YuP[2019-06".
+c[291] The bugs are not critical - test runs give same results.
+c[291] Also adjusted settings related to restart runs - 
+c[291] they cannot be accurately performed 
+c[291] (meaning a bit-to-bit match with no-restart runs)
+c[291] for chang='noneg' and urfdmp='secondd' settings. 
+c[291] It is recommended to use chang='enabled' and urfdmp='firstd'
+c[291] for restart runs. 
+c[291] The sub.ainsetva will check those 
+c[291] variables and issue a warning. 
+c[291] In general, urfdmp='secondd' should be avoided - 
+c[291] It uses sub.urfavg, which has a questionable averaging method
+c[291] that depends on nstop variable. See notes after "YuP[2019-07-15]"
+c[291] in that subroutine.
+c[291] Also, in sub.coefmidt and coefmidv - removed imposing a lower limit
+c[291] for |df(i,j)| and |db(i,j)| coefficients, 
+c[291] and adjusted subs.coefwti and coefwtj
+c[291] to avoid division by 0, related to those lower limits.
+c[291] With this change, the no-RF runs now give exact zero RF power;
+c[291] Before this change such runs were giving a small "ghost" RF power.
+c[291] Also, corrected a bug in losstor (in torloss(k) .eq. "velocity" branch).
+c[291] For details, see "YuP[2019-07"
+
+
+c[290] Added namelist variable bctimescal, which scales the bctime(),
+c[290] for background plasma time-variation.  [BH190102, YuP190309].
+
+c[289] version="cql3d_cswim_180101.3"
+c[289] For nlrestrt="ncdfdist" or "ncregrid", added resetting
+c[289] of elecfld(0:lrz) and elecfldb from distrfunc.nc.
+c[289] Also, disallowed reading of distrfunc.nc with multiple f(,,,)
+c[289] since there are improper netcdfshort settings. [BH181025].
+
+c[288] Added new option for saving distr. function 
+c[288] into mnemonic.nc file, netcdfshort="lngshrtf",
+c[288] which saves f at selected time steps only;
+c[288] The steps are set by specifying nplot()
+c[288] values in cqlinput.
+c[288] The value of time is recorded into 
+c[288] 'time_select' variable in the nc file.
+c[288] YuP[2018-09-28], BH.
+
+c[287] Corrected netcdfrw2.f for storage of arrays
+c[287] denra, ucrit, eoe0.  YuP[2018-09-24]
+
+c[286] Noticed that sometimes Te is getting to 
+c[286] negative values at plasma edge.
+c[286] It is related to interpolation by subroutine tdinterp().
+c[286] When tdinterp() is called by profiles.f, 
+c[286] at the last (upper) point in ryain-coordinate, 
+c[286] it uses iup="free" boundary condition, which means 
+c[286] the first derivative is calculated 
+c[286] by fitting a cubic to 4 last points
+c[286] in original arrays. 
+c[286] This procedure occasionally gives an interpolated value
+c[286] of Te() at the last point in rya() which is zero or negative value.
+c[286] To avoid such condition, an additional option is added 
+c[286] for calling tdinterp() with iup="linear", 
+c[286] which means that the derivative 
+c[286] is set from the last two (outer radius) points in original array,
+c[286]   cd2(nold)= (y(nold)-y(nold-1))/(x(nold)-x(nold-1)), 
+c[286] where x() corresponds to ryain() array, nold==njene.
+c[286] Now this subr. is called with tdinterp("zero","linear",...)
+c[286] for all the spline plasma profiles (in subr. profiles and tdinitl).
+c[286] YuP[2018-09-19]
+
+
+c[285] Improved the definition of reden() through zeff and 
+c[285] density of other species. In original definition, 
+c[285] reden could get a small negative value,
+c[285] because of a rounding error. Added lower limit =0.d0,
+c[285] reden(k,ll)=max(reden(k,ll),zero) .
+c[285] YuP[2018-09-18]
+
+c[284] Fixed bug in diagscal pertaining to scaling density of species k
+c[284] to specified time-dependent values, for spline-t and 
+c[284] lbdry(k)=scale or consscal. [YuP,BH180918]
+
+c[283] Added enerkev and uoc, corresponding to x(:) array to
+c[283] .nc output file (for convenience), in runaway plots.
+c[283] Bug fix: jfl reset to jx for knockon="enabled" affecting fle,
+c[183] but with no noticed effect except proper termination of run.
+c[183] [BH180706]
+
 c[282] version=cql3d_cswim_180101.2
 c[282] For rdcmod="format1"/"aorsa", increased the number of input
 c[282] RF diffusion coefficient files that can be read, 
 c[282] and applied to the same or separate general species.  This
 c[282] modification also enables rdcmod with multiple general species.
-c[282] The mod is not (yet) introduced for rdcmod="format2", but
+c[282] Also adjusted code for multiple general species restart, 
+c[282] using nlrestrt='ncdfdist',nlwritf='ncdfdist'.
+c[282] The rdcmod is not (yet) introduced for rdcmod="format2", but
 c[282] is readily extended to this case as need arises.
 c[282] Namelist nrdc.ge.1 is the number of rdcmod files.  See
 c[282] cqlinput_help for additional new namelist variables,
@@ -172,7 +700,7 @@ c[269] version="cql3d_cswim_170101.3"
 c[269] Re-setting namelist lbdry(k)="scale" to lbdry(k)="consscal" in
 c[269] in ainsetva.f. The "consscal" model for density rescaling
 c[269] is more straight-forward to interpret.
-c[269] This adjustment fixes a problem in lbdry(k)="scale" whihc arose
+c[269] This adjustment fixes a problem in lbdry(k)="scale" which arose
 c[269] due a fix of a "nipple" forming on the distn at v=0.  The "nipple"
 c[269] let to constant density rise in a lbdry(k)="scale" modeling
 c[269] of LHCD in C-Mod.  Problem identified by Syun\'ichi Shiraiwa.

@@ -1,9 +1,21 @@
 CMPIINSERT_INCLUDE
       include 'mpilib.h'
 CMPIINSERT_START
-      call init_mpi
+      call MPI_INIT(mpiierr)
+      call MPI_COMM_SIZE(MPI_COMM_WORLD,mpisize,mpiierr)
+      call MPI_COMM_RANK(MPI_COMM_WORLD,mpirank,mpiierr)
+      if(mpirank.eq.0) PRINT *,'MPISIZE ===',mpisize
+      if(mpisize.le.1) stop '===   Run with number of cores >1   ==='
+      !PRINT *,'Start mpirank=',mpirank
+      if(mpirank.eq.0) then
+         mpitime = MPI_WTIME()
+      endif
 CMPIINSERT_FINISH
-      call close_mpi
+      if(mpirank.eq.0) then
+         write(*,*) 'MPI Full time =',MPI_WTIME()-mpitime
+      endif
+      call MPI_FINALIZE(mpiierr)
+      !PRINT *,'close_mpi:  mpirank===',mpirank
 CMPIINSERT_MPIWORKER
       if(soln_method.eq.'direct' .and. lrzmax.gt.1
      +     ) then
@@ -222,7 +234,30 @@ CMPIINSERT_BCAST_SCAL
       call MPI_BCAST(scal,iyjx*ngen*lrors,
      +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
 CMPIINSERT_BCAST_VELSOU
-      call MPI_BCAST(velsou,iyjx2*ngen*lrors,
+      call MPI_BCAST(velsou,iyjx2*ngen*(lrors+2),
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+CMPIINSERT_BCAST_SOURCE
+      call MPI_BCAST(source,iyjx2*ngen*lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+      call MPI_BCAST(srckotot(1:lrz),lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+      call MPI_BCAST(denfl(1:lrz),lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+      call MPI_BCAST(elecr(1:lrz),lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+      call MPI_BCAST(ucrit(1:ngen,1:lrz),ngen*lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+      call MPI_BCAST(eoe0(1:ngen,1:lrz),ngen*lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+      call MPI_BCAST(jxcrit(1:ngen,1:lrz),ngen*lrz,
+     +     MPI_INTEGER,0,MPI_COMM_WORLD,mpiierr)
+CMPIINSERT_BCAST_XLNCUR
+      call MPI_BCAST(xlncur(1:ngen,1:lrz),ngen*lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+      call MPI_BCAST(xlncurt(1:lrz),lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+CMPIINSERT_BCAST_SORPW_NBI
+      call MPI_BCAST(sorpw_nbi(1:ngen,1:lrz),ngen*lrz,
      +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
 CMPIINSERT_BCAST_ENTR
       call MPI_BCAST(entr(k,-1,l_),1,
@@ -468,5 +503,355 @@ CMPIINSERT_STARTTIME
       endif
 CMPIINSERT_ENDTIME
       if(mpirank.eq.0) then
-         write(*,*) 'MPI Full time =',MPI_WTIME()-mpitime
+         WRITE(*,*) 'MPI Full time =',MPI_WTIME()-mpitime
       endif
+CMPIINSERT_SUB_SEND_DATA
+      subroutine send_data  !used in tdchief. (only)
+      implicit integer (i-n), real*8 (a-h,o-z)
+      include 'param.h'
+      include 'comm.h'
+      include 'mpilib.h'
+
+      real*8, allocatable :: 
+     &        buff(:) ! (mpisz) Buffer for arrays below
+
+      mpifsz= iyjx2*ngen !For send/recv of f(0:iy+1,0:jx+1,1:ngen,lr_),
+                         !and velsou(0:iy+1,0:jx+1,1:ngen,lr_)
+                         !and source(0:iy+1,0:jx+1,1:ngen,lr_) !YuP[2020-02-05] added   
+      mpivsz= mpifsz  != iyjx2*ngen                    
+      mpicsz= iyjx*ngen  !For send/recv of cal(1:iy,1:jx,1:ngen,lr_)
+                         !and other collisional coeffs.,
+                         !and scal(1:iyjx*ngen,lr_)
+      mpisz= mpifsz +11*mpicsz +2*mpifsz +5*ngen +4 ! buffer size
+
+      if(mpirank.eq.0) then ! receive data from other ranks
+         if (.NOT.ALLOCATED(buff)) allocate(buff(mpisz))
+         call MPI_RECV(buff, mpisz, 
+     &        MPI_DOUBLE_PRECISION, 
+     &        MPI_ANY_SOURCE, MPI_ANY_TAG, 
+     &        MPI_COMM_WORLD,mpistatus,mpiierr)
+         mpil_=mpistatus(MPI_TAG) ! determine which flux surface
+         call dcopy(mpifsz,buff(1:mpifsz),1,           
+     &     f(0:iy+1,0:jx+1,1:ngen,mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 0*mpicsz+1),1,
+     &     cal(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 1*mpicsz+1),1,
+     &     cbl(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 2*mpicsz+1),1,
+     &     ccl(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 3*mpicsz+1),1,
+     &     cdl(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 4*mpicsz+1),1,
+     &     cel(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 5*mpicsz+1),1,
+     &     cfl(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 6*mpicsz+1),1,
+     &     eal(1:iy,1:jx,1:ngen,1,mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 7*mpicsz+1),1,
+     &     eal(1:iy,1:jx,1:ngen,2,mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 8*mpicsz+1),1,
+     &     ebl(1:iy,1:jx,1:ngen,1,mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+ 9*mpicsz+1),1,
+     &     ebl(1:iy,1:jx,1:ngen,2,mpil_),1)
+         call dcopy(mpicsz,buff(mpifsz+10*mpicsz+1),1,
+     &     scal(1:iyjx*ngen,      mpil_),1)
+         !--- Velocity source for radial transport (Note: size=mpifsz)
+         call dcopy(mpifsz,buff(mpifsz+11*mpicsz+1),1,
+     &    velsou(0:iy+1,0:jx+1,1:ngen,mpil_),1)
+         !--- Particle source (NBI or KO) !YuP[2020-02-05] added
+         !    and other arrays related to KO
+         in0= mpifsz+11*mpicsz+mpifsz+1
+         call dcopy(mpifsz,        buff(in0:(in0+mpifsz-1)),1,
+     &                 source(0:iy+1,0:jx+1,1:ngen,mpil_),1)
+         in0= in0+mpifsz
+         sorpw_nbi(1:ngen,mpil_)=  buff(in0:(in0+ngen-1))
+         in0= in0+ngen
+         xlncur(1:ngen,mpil_)=     buff(in0:(in0+ngen-1))
+         in0= in0+ngen
+         eoe0(1:ngen,mpil_)=       buff(in0:(in0+ngen-1))
+         in0= in0+ngen
+         ucrit(1:ngen,mpil_)=      buff(in0:(in0+ngen-1))
+         in0= in0+ngen
+         jxcrit(1:ngen,mpil_)= INT(buff(in0:(in0+ngen-1)))
+         in0= in0+ngen
+         xlncurt(mpil_)=           buff(in0)
+         in0= in0+1
+         srckotot(mpil_)=          buff(in0)
+         in0= in0+1
+         elecr(mpil_)=             buff(in0)
+         in0= in0+1
+         denfl(mpil_)=             buff(in0)
+         !PRINT*,'recv: mpirank,mpil_=',mpirank,mpil_
+      else !-> all other ranks send data to rank 0
+         if (.NOT.ALLOCATED(buff)) allocate(buff(mpisz))
+         call dcopy(mpifsz, f(0:iy+1,0:jx+1,1:ngen,lr_),1,
+     &    buff(1),1)
+         call dcopy(mpicsz, cal(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpifsz+ 0*mpicsz+1),1)
+         call dcopy(mpicsz, cbl(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpifsz+ 1*mpicsz+1),1)
+         call dcopy(mpicsz, ccl(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpifsz+ 2*mpicsz+1),1)
+         call dcopy(mpicsz, cdl(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpifsz+ 3*mpicsz+1),1)
+         call dcopy(mpicsz, cel(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpifsz+ 4*mpicsz+1),1)
+         call dcopy(mpicsz, cfl(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpifsz+ 5*mpicsz+1),1)
+         call dcopy(mpicsz, eal(1:iy,1:jx,1:ngen,1,lr_),1,
+     &    buff(mpifsz+ 6*mpicsz+1),1)
+         call dcopy(mpicsz, eal(1:iy,1:jx,1:ngen,2,lr_),1,
+     &    buff(mpifsz+ 7*mpicsz+1),1)
+         call dcopy(mpicsz, ebl(1:iy,1:jx,1:ngen,1,lr_),1,
+     &    buff(mpifsz+ 8*mpicsz+1),1)
+         call dcopy(mpicsz, ebl(1:iy,1:jx,1:ngen,2,lr_),1,
+     &    buff(mpifsz+ 9*mpicsz+1),1)
+         call dcopy(mpicsz, scal(1:iyjx*ngen,      lr_),1,
+     &    buff(mpifsz+10*mpicsz+1),1)
+         !--- Velocity source for radial transport (Note: size=mpifsz)
+         call dcopy(mpifsz,velsou(0:iy+1,0:jx+1,1:ngen,lr_),1,
+     &    buff(mpifsz+11*mpicsz+1),1)
+         !--- Particle source (NBI or KO) !YuP[2020-02-05] added
+         in0= mpifsz+11*mpicsz+mpifsz+1
+         call dcopy(mpifsz,source(0:iy+1,0:jx+1,1:ngen,lr_),1,
+     &                     buff(in0:(in0+mpifsz-1)),1)
+         in0= in0+mpifsz
+         buff(in0:(in0+ngen-1))=sorpw_nbi(1:ngen,lr_)
+         in0= in0+ngen
+         buff(in0:(in0+ngen-1))=xlncur(1:ngen,lr_)
+         in0= in0+ngen
+         buff(in0:(in0+ngen-1))=eoe0(1:ngen,lr_)
+         in0= in0+ngen
+         buff(in0:(in0+ngen-1))=ucrit(1:ngen,lr_)
+         in0= in0+ngen
+         buff(in0:(in0+ngen-1))=DBLE(jxcrit(1:ngen,lr_))
+         in0= in0+ngen
+         buff(in0)=xlncurt(lr_)
+         in0= in0+1
+         buff(in0)=srckotot(lr_)
+         in0= in0+1
+         buff(in0)=elecr(lr_)
+         in0= in0+1
+         buff(in0)=denfl(lr_)
+         mpitag=lr_ ! tag == flux surface number
+         call MPI_SEND(buff, mpisz, 
+     &        MPI_DOUBLE_PRECISION, 
+     &        0, mpitag, 
+     &        MPI_COMM_WORLD,mpiierr)
+         !PRINT*,'SEND: mpirank,lr_=',mpirank,lr_
+      endif
+      return
+      end subroutine send_data
+CMPIINSERT_
+
+CMPIINSERT_SUB_SEND_ENTR
+      subroutine send_entr(k,lefct)  !used in diagimpd (only)
+      !send/recv entr(k,lefct,l_),pwrrf(1:jx,k,l_),pwrrfs(1:jx,k,l_)
+      implicit integer (i-n), real*8 (a-h,o-z)
+      include 'param.h'
+      include 'comm.h'
+      include 'mpilib.h'
+      dimension buff(1+jx)
+      if(mpirank.eq.0) then ! receive data from other ranks
+         call MPI_RECV(buff, 1+jx, 
+     &        MPI_DOUBLE_PRECISION, 
+     &        MPI_ANY_SOURCE, MPI_ANY_TAG, 
+     &        MPI_COMM_WORLD,mpistatus,mpiierr)
+         mpitag=mpistatus(MPI_TAG)
+         lefct_=mpitag-2 ! determine which lefct was sent
+         entr(k,lefct_,l_)=buff(1) ! for a given lefct
+         entr(k,4,l_)=entr(k,4,l_)+buff(1) ! sum
+         if (lefct_.eq.3) then
+           call dcopy(jx,buff(2:jx+1),1,pwrrf(1:jx,k,l_),1)
+           pwrrfs(1,k,l_)=dx(1)*pwrrf(1,k,l_)
+           do j=2,jx  ! sum over j
+             pwrrfs(j,k,l_)=pwrrfs(j-1,k,l_)+dx(j)*pwrrf(j,k,l_)
+           enddo
+         endif
+      else !-> all other ranks send data to rank 0
+         buff(1)=entr(k,lefct,l_) ! for a given lefct
+         mpisz=1
+         if (lefct.eq.3) then
+           call dcopy(jx,pwrrf(1:jx,k,l_),1,buff(2:jx+1),1)
+           mpisz=1+jx
+         endif
+         mpitag=lefct+2 ! 2 added to make mpitag>0 (lefct can be -1)
+         call MPI_SEND(buff, mpisz, 
+     &         MPI_DOUBLE_PRECISION, 
+     &         0, mpitag, 
+     &         MPI_COMM_WORLD,mpiierr)
+      endif
+      return
+      end subroutine send_entr
+CMPIINSERT_
+
+CMPIINSERT_WTIME
+      subroutine mpiwtime(s)  ! Not used but can be, when needed (for debugging/optimization)
+      character(*) s
+      include 'mpilib.h'
+      mpitime1 = MPI_WTIME()
+      mpitime = mpitime1
+      return
+      end subroutine mpiwtime
+CMPIINSERT_
+
+CMPIINSERT_SUB_SEND_DATA_AMPF
+      subroutine send_data_ampf  !used in tdchief. (only)
+      implicit integer (i-n), real*8 (a-h,o-z)
+      include 'param.h'
+      include 'comm.h'
+      include 'mpilib.h'
+
+      real*8, allocatable :: 
+     &        buff(:) ! (mpisz) Buffer for arrays below
+
+      mpif1=  iyjx2 !For send/recv fh,fg(0:iy+1,0:jx+1,1,lr_)
+      mpif2=  mpif1+mpif1
+      mpicsz= iyjx*ngen  !For send/recv of cal(1:iy,1:jx,1:ngen,lr_)
+                         !and other collisional coeffs.,
+                         !and scal(1:iyjx*ngen,lr_)
+      mpivsz= iyjx2*ngen !and velsou(0:iy+1,0:jx+1,1:ngen,lr_)
+                         !and source(0:iy+1,0:jx+1,1:ngen,lr_) !YuP[2020-02-05] added
+      mpifsz= mpivsz != iyjx2*ngen
+      mpisz= mpif2 +11*mpicsz +2*mpivsz +5*ngen +4 ! buffer size
+
+      if(mpirank.eq.0) then ! receive data from other ranks
+         if (.NOT.ALLOCATED(buff)) allocate(buff(mpisz))
+         call MPI_RECV(buff, mpisz, 
+     &        MPI_DOUBLE_PRECISION, 
+     &        MPI_ANY_SOURCE, MPI_ANY_TAG, 
+     &        MPI_COMM_WORLD,mpistatus,mpiierr)
+         mpil_=mpistatus(MPI_TAG) ! determine which flux surface
+         call dcopy(mpif1,buff(1:mpif1),1,           
+     &     fh(0:iy+1,0:jx+1,1:1,mpil_),1)
+         call dcopy(mpif1,buff(mpif1+1:mpif2),1,           
+     &     fg(0:iy+1,0:jx+1,1:1,mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 0*mpicsz+1),1,
+     &     cal(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 1*mpicsz+1),1,
+     &     cbl(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 2*mpicsz+1),1,
+     &     ccl(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 3*mpicsz+1),1,
+     &     cdl(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 4*mpicsz+1),1,
+     &     cel(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 5*mpicsz+1),1,
+     &     cfl(1:iy,1:jx,1:ngen,  mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 6*mpicsz+1),1,
+     &     eal(1:iy,1:jx,1:ngen,1,mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 7*mpicsz+1),1,
+     &     eal(1:iy,1:jx,1:ngen,2,mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 8*mpicsz+1),1,
+     &     ebl(1:iy,1:jx,1:ngen,1,mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+ 9*mpicsz+1),1,
+     &     ebl(1:iy,1:jx,1:ngen,2,mpil_),1)
+         call dcopy(mpicsz,buff(mpif2+10*mpicsz+1),1,
+     &     scal(1:iyjx*ngen,      mpil_),1)
+         !--- Velocity source for radial transport
+         call dcopy(mpivsz,buff(mpif2+11*mpicsz+1),1,
+     &    velsou(0:iy+1,0:jx+1,1:ngen,mpil_),1)
+         !--- Particle source (NBI or KO) !YuP[2020-02-05] added
+         !    and other arrays related to KO
+         in0= mpif2+11*mpicsz+mpivsz+1
+         call dcopy(mpivsz,buff(in0:(in0+mpivsz-1)),1,
+     &                     source(0:iy+1,0:jx+1,1:ngen,mpil_),1)
+         in0= in0+mpivsz
+         sorpw_nbi(1:ngen,mpil_)=  buff(in0:(in0+ngen-1))
+         in0= in0+ngen
+         xlncur(1:ngen,mpil_)=     buff(in0:(in0+ngen-1))
+         in0= in0+ngen
+         eoe0(1:ngen,mpil_)=       buff(in0:(in0+ngen-1))
+         in0= in0+ngen
+         ucrit(1:ngen,mpil_)=      buff(in0:(in0+ngen-1))
+         in0= in0+ngen
+         jxcrit(1:ngen,mpil_)= INT(buff(in0:(in0+ngen-1)))
+         in0= in0+ngen
+         xlncurt(mpil_)=           buff(in0)
+         in0= in0+1
+         srckotot(mpil_)=          buff(in0)
+         in0= in0+1
+         elecr(mpil_)=             buff(in0)
+         in0= in0+1
+         denfl(mpil_)=             buff(in0)
+         !PRINT*,'recv: mpirank,mpil_=',mpirank,mpil_
+      else !-> all other ranks send data to rank 0
+         if (.NOT.ALLOCATED(buff)) allocate(buff(mpisz))
+         call dcopy(mpif1, fh(0:iy+1,0:jx+1,1:1,lr_),1,
+     &    buff(1:mpif1),1)
+         call dcopy(mpif1, fg(0:iy+1,0:jx+1,1:1,lr_),1,
+     &    buff(mpif1+1:mpif2),1)
+         call dcopy(mpicsz, cal(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpif2+ 0*mpicsz+1),1)
+         call dcopy(mpicsz, cbl(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpif2+ 1*mpicsz+1),1)
+         call dcopy(mpicsz, ccl(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpif2+ 2*mpicsz+1),1)
+         call dcopy(mpicsz, cdl(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpif2+ 3*mpicsz+1),1)
+         call dcopy(mpicsz, cel(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpif2+ 4*mpicsz+1),1)
+         call dcopy(mpicsz, cfl(1:iy,1:jx,1:ngen,  lr_),1,
+     &    buff(mpif2+ 5*mpicsz+1),1)
+         call dcopy(mpicsz, eal(1:iy,1:jx,1:ngen,1,lr_),1,
+     &    buff(mpif2+ 6*mpicsz+1),1)
+         call dcopy(mpicsz, eal(1:iy,1:jx,1:ngen,2,lr_),1,
+     &    buff(mpif2+ 7*mpicsz+1),1)
+         call dcopy(mpicsz, ebl(1:iy,1:jx,1:ngen,1,lr_),1,
+     &    buff(mpif2+ 8*mpicsz+1),1)
+         call dcopy(mpicsz, ebl(1:iy,1:jx,1:ngen,2,lr_),1,
+     &    buff(mpif2+ 9*mpicsz+1),1)
+         call dcopy(mpicsz, scal(1:iyjx*ngen,      lr_),1,
+     &    buff(mpif2+10*mpicsz+1),1)
+         !--- Velocity source for radial transport
+         call dcopy(mpivsz,velsou(0:iy+1,0:jx+1,1:ngen,lr_),1,
+     &    buff(mpif2+11*mpicsz+1),1)
+         !--- Particle source (NBI or KO) !YuP[2020-02-05] added
+         in0= mpif2+11*mpicsz+mpivsz+1
+         call dcopy(mpifsz,source(0:iy+1,0:jx+1,1:ngen,lr_),1,
+     &                     buff(in0:(in0+mpivsz-1)),1)
+         in0= in0+mpivsz
+         buff(in0:(in0+ngen-1))=sorpw_nbi(1:ngen,lr_)
+         in0= in0+ngen
+         buff(in0:(in0+ngen-1))=xlncur(1:ngen,lr_)
+         in0= in0+ngen
+         buff(in0:(in0+ngen-1))=eoe0(1:ngen,lr_)
+         in0= in0+ngen
+         buff(in0:(in0+ngen-1))=ucrit(1:ngen,lr_)
+         in0= in0+ngen
+         buff(in0:(in0+ngen-1))=DBLE(jxcrit(1:ngen,lr_))
+         in0= in0+ngen
+         buff(in0)=xlncurt(lr_)
+         in0= in0+1
+         buff(in0)=srckotot(lr_)
+         in0= in0+1
+         buff(in0)=elecr(lr_)
+         in0= in0+1
+         buff(in0)=denfl(lr_)
+         mpitag=lr_ ! tag == flux surface number
+         call MPI_SEND(buff, mpisz, 
+     &        MPI_DOUBLE_PRECISION, 
+     &        0, mpitag, 
+     &        MPI_COMM_WORLD,mpiierr)
+         !PRINT*,'SEND: mpirank,lr_=',mpirank,lr_
+      endif
+      return
+      end subroutine send_data_ampf
+CMPIINSERT_
+
+CMPIINSERT_SEND_RECV_AMPF
+      if(soln_method.eq.'direct' .and. lrzmax.gt.1) then
+      ! Parallelization for the impavnc0 solver is limited 
+      ! for soln_method='direct' (for now)
+      if(mpirank.eq.0.or.mpirank.eq.mpiworker) then
+         call send_data_ampf ! send or recv data on fh,fg,coll.coeffs.
+      endif
+      endif
+CMPIINSERT_
+
+CMPIINSERT_BCAST_DISTRIBUTION_AMPF
+      call MPI_BCAST(fh,iyjx2*1*lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+      call MPI_BCAST(fg,iyjx2*1*lrz,
+     +     MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpiierr)
+CMPIINSERT_

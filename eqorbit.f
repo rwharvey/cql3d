@@ -1,12 +1,21 @@
 c
 c
-      subroutine eqorbit(epsicon_)
+      subroutine eqorbit(kopt,epsicon_,rstart,zstart)
       implicit integer (i-n), real*8 (a-h,o-z)
       save
       include 'param.h'
       include 'comm.h'
 
       dimension slrz(2),rwork(80),iwork(30),epsierr(lfielda)
+      
+      !YuP[2020-06-30] Added kopt=2, which allows tracing surface
+      ! directly from point (rstart,zstart) when it is given in INPUT
+      ! (in this case value of epsicon_ is not needed).
+      ! For the original design, use kopt=1,
+      ! which means: find the starting point from knowledge of epsicon_ 
+      ! and zmag coordinate, see below.
+      integer kopt
+      real*8 rstart,zstart
 
 c     Temp storage
       dimension d2bpsi_(:),d2solr_(:),d2solz_(:)
@@ -54,6 +63,15 @@ c     Setup temp storage for non-updown-symm case
          call bcast(solz_new,zero,SIZE(solz_new))
       endif
 
+
+      if(kopt.eq.1) then
+      !YuP[2020-06-30] Added kopt=2, which allows tracing surface
+      ! directly from point (rstart,zstart) when it is given in INPUT
+      ! (in this case value of epsicon_ is not needed).
+      ! For the original design, use kopt=1,
+      ! which means: find the starting point from knowledge of epsicon_ 
+      ! and zmag coordinate, see below.
+
       if(epsicon_.le.psilim) then ! YuP[2015/05/03] Just in case:
          write(*,*)'eqorbit: WARNING: epsicon_.le.psilim'
          write(*,*)'eqorbit: epsicon_, psilim =', epsicon_, psilim
@@ -62,11 +80,8 @@ c     Setup temp storage for non-updown-symm case
          write(*,*)'eqorbit: epsicon_, psilim =', epsicon_, psilim
       endif
       
-c..................................................................
-c     Determine f(psi) and df(psi)/dpsi.
-c..................................................................
-
-      call eqfpsi(epsicon_,fpsi_,fppsi_)
+      !Determine f(psi) and df(psi)/dpsi.
+      !YuP[2020-06-30] Moved few lines down: call eqfpsi(epsicon_,fpsi_,fppsi_)
 
 c..................................................................
 c     Determine the first radial mesh point iless such that the 
@@ -75,11 +90,12 @@ c     the contour of interest), that is, point is outside epsicon_
 c     contour.  The search is performed at the magnetic axis height,
 c     zmag, at the er() radial grid points.
 c..................................................................
-
+      
       do 10 i=imag+1,nnr
          psi2=terp2(er(i),zmag,nnr,er,nnz,ez,epsi,epsirr,epsizz,
      +        epsirz,nnra,0,0)
-         
+         !Note: psi2 (and psi1, see below) are only needed for 
+         ! accuracy control during iterations to find rcon value.
          if (psi2.lt. epsicon_) then
             iless=i
             go to 11
@@ -98,7 +114,7 @@ c..................................................................
       imore=iless-1
       ivalue=imore
       if (imore.eq.imag) ivalue=iless
-      rcon=er(ivalue)
+      rcon=er(ivalue) ! Initial guess for rcon
       epsitst=terp2(rcon,zmag,nnr,er,nnz,ez,epsi,epsirr,epsizz,
      1     epsirz,nnra,0,0)
       if( ivalue.eq.imore) then
@@ -108,26 +124,28 @@ c..................................................................
      1     epsirz,nnra,0,0)
       endif
          
- 15   continue
+ 15   continue !----------------------- Iteration handle to find rcon
       dpsidr=terp2(rcon,zmag,nnr,er,nnz,ez,epsi,epsirr,epsizz,
      1  epsirz,nnra,1,0)
       a=(epsicon_-epsitst)/dpsidr
-
-c..................................................................
-c     New value for rcon..
-c..................................................................
-
+      ! New value for rcon..
       rcon=rcon+a
       epsitst=terp2(rcon,zmag,nnr,er,nnz,ez,epsi,epsirr,epsizz,
      1  epsirz,nnra,0,0)
       err=abs((epsicon_-epsitst)/(psi1+psi2))
-      if (err .lt. 1.e-6) go to 20
+      if (err .lt. 1.e-6) go to 20 !Excellent, rcon is found
       iter=iter+1
-      if (iter.gt.100 .and. err.lt.0005) go to 20
-      if (iter.gt.150) call eqwrng(2)
-      go to 15
- 20   continue
+      if (iter.gt.100 .and. err.lt.0005) go to 20 !Good enough, rcon is found
+      if (iter.gt.150) call eqwrng(2) !Could not be found.
+      go to 15 ! Another Iteration to find rcon     
+ 20   continue !----------------------- Here: rcon is found.
+ 
+      !For kopt=1, (rstart,zstart) are not needed but we save them as output:
+      rstart=rcon ! Could be useful for printout
+      zstart=zmag 
 
+      endif ! kopt=1
+      
 c..................................................................
 c     (rcon,zmag) is the coordinate of the initial value for the orbit
 c     integrator. Before doing the integration make a guess as to the
@@ -135,7 +153,18 @@ c     length of the field line.
 c     Guess B-pol for this flux surface; Guess field line length.
 c     From these determine a step size for the integrator which
 c     will hopefully finish integration after lfield steps or so.
-c..................................................................
+
+      if(kopt.eq.2)then
+        rcon=rstart ! For kopt=2, rcon is taken from INPUT.
+        zstart=zmag ! zstart should be set in input, from calling subroutine;
+        !           ! but we over-write it here to zmag, anyway.
+        !To find fpsi_ for a given (R,Z) point, use:
+        epsicon_=terp2(rstart,zstart,nnr,er,nnz,ez,epsi,epsirr,epsizz,
+     &    epsirz,nnra,0,0)    ! And then call eqfpsi()
+      endif ! kopt=2
+      
+      !Determine f(psi) and df(psi)/dpsi.
+      call eqfpsi(epsicon_,fpsi_,fppsi_)
       
       rad=abs(rcon-rmag)
       dpsidr=terp2(rmag,rad,nnr,er,nnz,ez,epsi,epsirr,epsizz,
@@ -455,7 +484,7 @@ c.......................................................................
             if (bpsi_(l-1).gt.bpsi_(l)) then
                iwarn=iwarn+1
                if (iwarn.eq.1) then 
-                 write(*,1000),l,rmag,rcon
+                 WRITE(*,1000),l,rmag,rcon
                  !print*,bpsi_(1:l)
                end if
                bpsi_(l)=bpsi_(l-1)+em40 !YuP[2015/05/03] redefine: increasing

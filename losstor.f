@@ -67,7 +67,7 @@ c..................................................................
       if (torloss(k) .eq. "velocity") then
         do 10 j=1,jx
           if (j .eq. 1) then
-             do i=i,iy
+             do i=1,iy  !YuP[2019-07-03] Was i=i,iy  BUG?
                 taulos(i,j,indxlr_)=tauloss(1,k)
              enddo
           else

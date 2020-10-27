@@ -13,6 +13,8 @@ CMPIINSERT_INCLUDE
       character*8 pltvlhb
       character*8 pltovlp
 
+      REAL*4 :: R410=10.,R40=0.
+
       data pltvlhb /'enabled'/
       data pltovlp /'enabled'/
 
@@ -40,7 +42,7 @@ c$$   do 560 k=1,mrfn
      +     'Contours of RdcB vs. v_parallel,v_perp',7)
       write(t_,552) lr_
  552  format(" Flux surface number",i3,";   all modes, krf=",i2)
-      CALL PGMTXT('B',10.,0.,0.,t_)
+      CALL PGMTXT('B',R410,R40,R40,t_)
       
 c$$$  560    continue
       

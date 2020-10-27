@@ -14,7 +14,7 @@ c      integer pgbeg
       integer pgopen
 
       INTEGER PG_I, PG_L, PG_C1, PG_C2, PG_NC !YuP
-      CHARACTER*16 PG_VAL ! YuP
+      CHARACTER*256 PG_VAL ! YuP[2020-06-29] changed 16 to 256
 
 CMPIINSERT_IF_RANK_NE_0_RETURN
  ! make plots on mpirank.eq.0 only

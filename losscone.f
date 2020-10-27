@@ -365,7 +365,9 @@ c     Check enorm for notlost data:
             else
                enormc=(gammac-1.d0)*fmass(1)*clite2/ergtkev
             endif
+            if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
             write(*,*)'Enorm in losscone, gammac =',enormc,gammac
+            endif
 
 c.................................................................
 c     The rho_a radial mesh and associated coeffc will be reduced
@@ -390,7 +392,9 @@ c     points from 64, or 64 radial points from 128.
 c.................................................................
 
          n_psi=n_psi/2
+         if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
          write(*,*)'losscone: n_psi,lrz=',n_psi,lrz
+         endif
          do i_psi=1,n_psi
             rho_a(i_psi)=rho_a(2*i_psi)
             do i_upar=1,n_upar
@@ -401,9 +405,11 @@ c.................................................................
             enddo
          enddo
          
+         if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
          write(*,*)'losscone: rho_a, no. elements/2:',
      +        (rho_a(i),i=1,n_psi)
-         
+         endif
+                 
       endif
 
       if (n_psi.ne.lrz) then
@@ -485,8 +491,10 @@ c    this at constant pitch angle to the jx edge of the mesh.
          jc=luf(vc_cgs/vnorm,x,jx)-1 !Will be less than jx if
                                   !vc_cgs/vnorm.lt.x(jx-1)
 
+         if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
          write(*,*)'losscone: jx,jc=',jx,jc
-
+         endif
+         
          do i=1,iy
          if (jc.lt.jx .and. gone(i,jc,k,ll).eq.-one) then
             do j=jc,jx

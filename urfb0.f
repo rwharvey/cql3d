@@ -25,14 +25,14 @@ CMPIINSERT_INCLUDE
       
       if (.NOT. ALLOCATED(urfbwk)) then
         allocate( urfbwk(iyjx*lrz*4) )  ! used for MPI send/recv
-        call bcast(urfbwk,zero,iyjx*lrz*4)
+        urfbwk=zero !call bcast(urfbwk,zero,iyjx*lrz*4)
       endif
       
 c..................................................................
 c     Zero out the coefficients: all flux surfaces 
 c..................................................................
-      call bcast(urfb(1,1,1,1),zero,iyjx*lrz*mrfn)
-      call bcast(urfc(1,1,1,1),zero,iyjx*lrz*mrfn)
+      urfb=zero !call bcast(urfb(1,1,1,1),zero,iyjx*lrz*mrfn)
+      urfc=zero !call bcast(urfc(1,1,1,1),zero,iyjx*lrz*mrfn)
       !call bcast(urfe(1,1,1,1),zero,iyjx*lrz*mrfn)
       !call bcast(urff(1,1,1,1),zero,iyjx*lrz*mrfn)
 !YuP[03/18/2015] urfe,urff are expressed through urfb,urfc
@@ -205,11 +205,13 @@ c..................................................................
                ! locatn16 specifies the storage location 
                ! in the compressed arrays
                !if(urfb_version.eq.1)then ! 2 is the new version developed by YuP
-                 ! if 1, it will use the original version
-                 call unpack(ilowp(locatn,krf),8,ilim1(1),jjx)
-                 call unpack(iupp(locatn,krf),8,ilim2(1),jjx)
-                 call unpack16(ifct1_(locatn16,krf),8,ifct1(1),jjx)
-                 call unpack16(ifct2_(locatn16,krf),8,ifct2(1),jjx)
+               ! if 1, it will use the original version
+               jjxl=jjx+locatn-1
+               call unpack(ilowp(locatn:jjxl,krf),8,ilim1(1:jjx),jjx)
+               call unpack( iupp(locatn:jjxl,krf),8,ilim2(1:jjx),jjx)
+             jjxl=jjx+locatn16-1
+             call unpack16(ifct1_(locatn16:jjxl,krf),8,ifct1(1:jjx),jjx)
+             call unpack16(ifct2_(locatn16:jjxl,krf),8,ifct2(1:jjx),jjx)
                !endif
 
                do 40 j=jmin,jmax
@@ -444,8 +446,8 @@ CMPIINSERT_ENDIF_RANK
       enddo             ! krf=1,mrfn
       
 CMPIINSERT_IF_RANK_EQ_0   
-      WRITE(*,'(a,e12.3)')
-     + 'urfb0/AFTER renorm: sum(urfb)=', sum(urfb)
+      WRITE(*,*)
+     + 'urfb0/AFTER renorm: sum(urfb)=', n,sum(urfb)
 CMPIINSERT_ENDIF_RANK
 
        
@@ -550,7 +552,7 @@ c.......................................................................
       else ! res.region is shifted from upar=0 point
          umn= min(abs(vparlo),abs(vparup))
          umn_norm= umn/vnorm
-         jmn= luf_bin(umn_norm,x,jx) ! x(jmn-1) <= umn_norm <  x(jmn)
+         jmn= luf_bin(umn_norm,x(1:jx),jx) ! x(jmn-1) <= umn_norm <  x(jmn)
          jmn= max(2,jmn)  ! to be sure jmn>1
          jmn= min(jmn,jx) ! to be sure jmn is not exceeding jx
       endif
@@ -737,7 +739,7 @@ c   10       continue !Handle to skip FOW for lr_, and use ZOW (for test)
             sinn0= min(sinn0,one-em6) !make sure sin(theta0)<1.
             coss0= upar0/u0 ! |cos(theta0)|
             theta0=asin(sinn0) ! <pi/2
-            i=luf_bin(theta0,ymid(1,l_),iyh) ! nearest i in theta0-grid
+            i=luf_bin(theta0,ymid(1:iyh,l_),iyh) ! nearest i in theta0-grid
             ! Note: from the above line, i<iyh, or at most i=iyh
             
             !YuP[09-16-2015] Indicator for 

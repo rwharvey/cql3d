@@ -6,8 +6,12 @@ c
       include 'param.h'
       include 'comm.h'
 
-      REAL RTAM1(jx),RTAM2(jx)
-      REAL REMAX,REMIN
+      REAL*4 RTAM1(jx),RTAM2(jx)
+      REAL*4 REMAX,REMIN
+      REAL*4 :: R4P2=.2,R4P8=.8,R4P35=.35,R4P9=.9
+      REAL*4 :: R40=0.,R41P44=1.44
+      REAL*4 :: R47=7.,R48=8.,R49=9.,R410=10.
+
       CHARACTER*64 TX_
       real*8 wkd(jx) 
 
@@ -130,17 +134,17 @@ c-----------------------------
 
         CALL PGPAGE
 
-        CALL PGSVP(.2,.8,.35,.9)
+        CALL PGSVP(R4P2,R4P8,R4P35,R4P9)
         IF ( ReMAX-ReMIN .le. 1.e-16 ) THEN ! YuP [02-23-2016]
            ReMAX= ReMIN+1.e-16
         ENDIF
         CALL PGSWIN(Rtam1(1),Rtam1(jxq),Remin,Remax)
         CALL PGSAVE
-        CALL PGSCH(0.8)
-        CALL PGBOX('BCNST',0.,0,'BCNSTL',0.,0)
+        CALL PGSCH(R4P8)
+        CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
         CALL PGUNSA
         CALL PGSAVE
-        CALL PGSCH(1.44)
+        CALL PGSCH(R41P44)
         CALL PGLAB(TX_, 'f', 'Cuts of f vs. v, at cnst pitch angle')
         CALL PGUNSA
 
@@ -182,16 +186,16 @@ c-----------------------------
           write(t_,10020) 
        endif
 
-        CALL PGMTXT('B',7.,0.,0.,t_)
+        CALL PGMTXT('B',R47,R40,R40,t_)
         write(T_,10023) K,ENORM
-        CALL PGMTXT('B',8.,0.,0.,t_)
+        CALL PGMTXT('B',R48,R40,R40,t_)
 
 
 
        write(t_,10010) n,timet
-        CALL PGMTXT('B',9.,0.,0.,t_)
+        CALL PGMTXT('B',R49,R40,R40,t_)
        write(t_,10011) rovera(lr_),rr
-        CALL PGMTXT('B',10.,0.,0.,t_)
+        CALL PGMTXT('B',R410,R40,R40,t_)
 
 c        CALL PGEND
 c        STOP

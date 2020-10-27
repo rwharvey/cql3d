@@ -101,7 +101,9 @@ CMPIINSERT_INCLUDE
       if(nv_npa.gt.nva) stop 'nv_npa.gt.nva in tdnpa0'
       
       if(nen_npa.gt.nena) then
-         write (*,1000) nen_npa, nena    
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE (*,1000) nen_npa, nena    
+CMPIINSERT_ENDIF_RANK  
  1000    format("nen_npa = ",i3, "is too large. Reset to ",i5)
          nen_npa=nena
       endif
@@ -115,8 +117,7 @@ cBH121115      itempp=int(15*lrzmax*nv_npa/fds)
       allocate(tempp5(itempp),STAT=istat5)
       allocate(tempp6(itempp),STAT=istat6)
       if (istat4.ne.0 .or. istat5.ne.0 .or. istat6.ne.0) then
-         write(*,*)'tdsxr0, tempp1: allocation problem'
-         STOP
+         STOP 'tdnpa0: tempp4-tempp6 allocation problem'
       endif
 c.......................................................................
 
@@ -274,9 +275,11 @@ c.......................................................................
 
         if (eqmod.ne."enabled")  then
 
-           write(*,*)
-           write(*,*)'tdnpa0:CAUTION: Circular SXR NOT ADJUSTED FOR NPA'
-           write(*,*)
+CMPIINSERT_IF_RANK_EQ_0
+           WRITE(*,*)
+           WRITE(*,*)'tdnpa0:CAUTION: Circular SXR NOT ADJUSTED FOR NPA'
+           WRITE(*,*)
+CMPIINSERT_ENDIF_RANK  
 
 c.......................................................................
 c     Minor radius of source point
@@ -291,8 +294,10 @@ c     or more than 1000/fds_npa steps are taken.
 c.......................................................................
 
           if(istep.gt.(1000/fds_npa).and.istart.eq.1)  then
-             write(*,*) 'Warning: NPA sightline',nn,
+CMPIINSERT_IF_RANK_EQ_0
+             WRITE(*,*) 'Warning: NPA sightline',nn,
      +                  " missed or didn't reach plasma"
+CMPIINSERT_ENDIF_RANK  
              go to 420
           endif
           if(rs.ge.radmin.and.istart.eq.1)  go to 100
@@ -450,9 +455,10 @@ c     or more than 1000/fds_npa steps are taken.
 c.......................................................................
 
  165      if(istep.gt.(1000/fds_npa).and.istart.eq.1)  then
-             write(*,*) 'Warning: npa sightline',nn,
+CMPIINSERT_IF_RANK_EQ_0
+             WRITE(*,*) 'Warning: npa sightline',nn,
      +                  " missed or didn't reach plasma"
-
+CMPIINSERT_ENDIF_RANK  
              go to 420
           endif
           if(((iongrid.eq.0).or.(ppsi.le.psilim)).and.

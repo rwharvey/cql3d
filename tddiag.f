@@ -21,8 +21,13 @@ c.......................................................................
 
 c.......................................................................
 c     Bootstrap current calculation:
-c     If jhirsh=88, use Hirshman '88 banana regime calc, 
-c     If jhirsh=99, use Sauter et al '99, in banana regime, calc, 
+c     If jhirsh=88, use Hirshman '88 banana regime calc;
+c     If jhirsh=99, use Sauter, Angioni, and Lin-Liu, PoP, 2834 (1999),
+!         Corrected according to Erratum in Phys.Plasmas 2002,v.9,p.5140;
+!         good now for any collisionality (coded by YuP 2019-12)
+!         aspect ratios, general eqdsk data. For details,
+!         see comments in subr. tdboothi.
+!         This is the best jhirsh option. 
 c     If jhirsh=0 , use Hinton and Haseltine multi-regime,
 c     high-aspect ratio formula. 
 c     (default=0, but 99 is best for comparison with cql3d).
@@ -33,6 +38,65 @@ c.......................................................................
       else
          call tdbootst
       endif
+      
+      !===> YuP[2019-12-19] Added calculation of resistivity.
+      !Normally something similar is done in tdoutput, 
+      !but not necessarily at every time step. 
+      call starnue_sptz !Get starnue(),tauee(),taueeh(),sptzr(); all lr
+      do lll=1,lrz 
+          call tdnflxs(lll) ! determine l_,lr_, etc.
+          call restcon ! for given l_, lr_
+          !We would not need to call restcon at each time step,
+          ! but because such output values as xconn are not saved
+          ! for each lr_, we have to call it each time.
+          ! resthks uses starnue(lr_) and xconn as input.
+          ! starnue() was calculated in call_tdboothi above.
+          starnue_save=starnue(lr_) ! save
+          !YuP[2020-02-12] Call subr.resthks with starnue>0,
+          !and use zressau2 as the value corresponding to starnue>0,
+          !while zressau1 corresponds to starnue=0 
+          !(so, no need to call this subr. twice)
+          call resthks(l_,lr_,lmdpln_,
+     &         zreshin(lr_),zreskim(lr_),zressau1,zressau2)
+          sig_starnue(lll)=  1.d0/(zressau2*sptzr(l_)) ! sigma [cgs]
+          sig_starnue0(lll)= 1.d0/(zressau1*sptzr(l_)) ! sigma [cgs]
+!          !Before YuP[2020-02-12] :
+!          !-1-> call resthks with collisional starnue:
+!          !Neoclassical resistivity, including collisionality:
+!          call resthks(l_,lr_,lmdpln_,
+!     &         zreshin(lr_),zreskim(lr_),zressau1,zressau2)
+!          sig_starnue(lll)= 1.d0/(zreshin(lr_)*sptzr(l_)) ! sigma [cgs]
+!          !-2-> call resthks with starnue=0:
+!          starnue(lr_)=zero
+!          call resthks(l_,lr_,lmdpln_,
+!     &         zreshin(lr_),zreskim(lr_),zressau1,zressau2)
+!          sig_starnue0(lll)= 1.d0/(zreshin(lr_)*sptzr(l_)) ! sigma [cgs]
+!          !-3-> Restore collisional starnue
+!          starnue(lr_)=starnue_save ! restored 
+        !Save some values:
+        !Note: elecfld is found below (after call_dgesv) as 
+        ! elecfld(ll)=elecfldn(ll,nn,it)*300.d0 ! V/cm
+        !Therefore, here elecfld is from previous iteration 'it'
+        elec_cgs=elecfld(lr_)/300.
+        currpar_starnue(lll)= elec_cgs*sig_starnue(lll)/3.d9 ![A/cm^2]
+        currpar_starnue0(lll)=elec_cgs*sig_starnue0(lll)/3.d9 ![A/cm^2]
+        !From printout, currpar_* is same order of magn. 
+        !as current based on distr.func.
+        !Save values at this time step - to be used at next step:
+        sig_starnue_n(lll)= sig_starnue(lll)
+        sig_starnue0_n(lll)=sig_starnue0(lll)
+        currpar_starnue_n(lll)= currpar_starnue(lll)
+        currpar_starnue0_n(lll)=currpar_starnue0(lll)
+        bscurm_n(lll)=bscurm(lll,1,2) !YuP[2019-12-18] saved
+        !bscurm(1:lrz,1,2) is for '1'==electrons, '2'==non-maxwellian
+         if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+         write(*,'(a,3e14.6)')'rya(lll), bscurm_n, dj[A/cm2]',
+     &   rya(lll), bscurm_n(lll), 
+     &   currpar_starnue_n(lll)-currpar_starnue0_n(lll)
+         endif
+      enddo ! lll YuP[2019-12-19] done
+      write(*,*)'---tddiag: n=',n
+      
 
       psynct=0.0
       do 1 k=1,ngen

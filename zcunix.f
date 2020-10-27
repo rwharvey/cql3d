@@ -1304,7 +1304,7 @@ cmnt  argument and integer order.
 
 cmnt  explanation of variables in the calling sequence
 
-cmnt  x (was single) DOUBLE precision real argument for which i,s or j,s
+cmnt  x (was single) real*8 real argument for which i,s or j,s
 cmnt  are to be calculated.  if i,s are to be calculated,
 cmnt  abs(x) must be less than exparg (which see below).
 
@@ -1314,7 +1314,7 @@ cmnt  it must be positive.
 cmnt  ize     integer type.  zero if j,s are to be calculated,
 cmnt  1 if i,s are to be calculated.
 
-cmnt  b (was single) DOUBLE precision vector of length nb, need not be
+cmnt  b (was single) real*8 vector of length nb, need not be
 cmnt  initialized by user.  if the routine terminates
 cmnt  normally (ncalc=nb), it returns j(or i) -sub-zero
 cmnt  through j(or i) -sub-nb-minus-one of x in this
@@ -1330,7 +1330,7 @@ cmnt  explanation of machine-dependent constants
 
 cmnt  nsig    decimal significance desired.  should be set to
 cmnt  ifix(alog10(2)*nbit+1), where nbit is the number of
-cmnt  bits in the mantissa of a double precision variable.
+cmnt  bits in the mantissa of a real*8 variable.
 cmnt  setting nsig lower will result in decreased accuracy
 cmnt  while setting nsig higher will increase cpu time
 cmnt  without increasing accuracy.  the truncation error

@@ -1096,7 +1096,7 @@ c                                  dec
 c
       dimension          a(ia,*),b(ia,*),wkarea(*)
       dimension ipvt(n) ! YuP: added  ipvt - permutation indices.
-****  double precision   a,b,wkarea,d1,d2,wa
+****  real*8   a,b,wkarea,d1,d2,wa
 c
       ier = 0
 c                                  decompose a
@@ -1376,7 +1376,7 @@ c   latest revision     - april 11,1975
 c                                  dec
 c
       dimension          a(ia,*),b(*),ipvt(*),x(*)
-****  double precision   a,b,x,sum
+****  real*8   a,b,x,sum
 c                                  solve ly = b for y
       do 5 i=1,n
     5 x(i) = b(i)
@@ -2470,3 +2470,194 @@ C                                    R IS THE ROUTINE NAME
       END
 
     
+!======================================================================
+!   IMSL ROUTINE NAME   - ZBRENT
+! YuP[2020-07-13] Imported by Yu.Petrov, changed to real*8
+!-----------------------------------------------------------------------
+!
+!   COMPUTER            - DEC11/SINGLE
+!
+!   LATEST REVISION     - JANUARY 1, 1978
+!
+!   PURPOSE             - ZERO OF A FUNCTION WHICH CHANGES SIGN IN A
+!                           GIVEN INTERVAL (BRENT ALGORITHM)
+!
+!   USAGE               - CALL ZBRENT (F,EPS,NSIG,A,B,MAXFN,IER)
+!
+!   ARGUMENTS    F      - AN EXTERNAL FUNCTION SUBPROGRAM F(X)
+!                           PROVIDED BY THE USER WHICH COMPUTES F FOR
+!                           ANY X IN THE INTERVAL (A,B). (INPUT)
+!                           F MUST APPEAR IN AN EXTERNAL STATEMENT IN
+!                           THE CALLING PROGRAM
+!                EPS    - FIRST CONVERGENCE CRITERION (INPUT).  A ROOT,
+!                           B, IS ACCEPTED IF ABS(F(B)) IS LESS THAN OR
+!                           EQUAL TO EPS.  EPS MAY BE SET TO ZERO.
+!                NSIG   - SECOND CONVERGENCE CRITERION (INPUT).  A ROOT,
+!                           B, IS ACCEPTED IF THE CURRENT APPROXIMATION
+!                           AGREES WITH THE TRUE SOLUTION TO NSIG
+!                           SIGNIFICANT DIGITS.
+!                A,B    - ON INPUT, THE USER MUST SUPPLY TWO POINTS, A
+!                           AND B, SUCH THAT F(A) AND F(B) ARE OPPOSITE
+!                           IN SIGN.
+!                           ON OUTPUT, BOTH A AND B ARE ALTERED.  B
+!                           WILL CONTAIN THE BEST APPROXIMATION TO THE
+!                           ROOT OF F. SEE REMARK 1.
+!                MAXFN  - ON INPUT, MAXFN SHOULD CONTAIN AN UPPER BOUND
+!                           ON THE NUMBER OF FUNCTION EVALUATIONS
+!                           REQUIRED FOR CONVERGENCE.  ON OUTPUT, MAXFN
+!                           WILL CONTAIN THE ACTUAL NUMBER OF FUNCTION
+!                           EVALUATIONS USED.
+!                IER    - ERROR PARAMETER. (OUTPUT)
+!                         TERMINAL ERROR
+!                           IER = 129 INDICATES THE ALGORITHM FAILED TO
+!                             CONVERGE IN MAXFN EVALUATIONS.
+!                           IER = 130 INDICATES F(A) AND F(B) HAVE THE
+!                             SAME SIGN.
+!
+!   PRECISION/HARDWARE  - SINGLE AND DOUBLE/H32
+!                       - SINGLE/H36,H48,H60
+!
+!   REQD. IMSL ROUTINES - UERTST,UGETIO
+!
+!   NOTATION            - INFORMATION ON SPECIAL NOTATION AND
+!                           CONVENTIONS IS AVAILABLE IN THE MANUAL
+!                           INTRODUCTION OR THROUGH IMSL ROUTINE UHELP
+!
+!   REMARKS  1.  ON EXIT FROM ZBRENT, WHEN IER=0, A AND B SATISFY THE
+!                FOLLOWING,
+!                F(A)*F(B) .LE.0,
+!                ABS(F(B)) .LE. ABS(F(A)), AND
+!                EITHER ABS(F(B)) .LE. EPS OR
+!                ABS(A-B) .LE. MAX(ABS(B),0.1)*10.0**(-NSIG).
+!                THE PRESENCE OF 0.1 IN THIS ERROR CRITERION CAUSES
+!                LEADING ZEROES TO THE RIGHT OF THE DECIMAL POINT TO BE
+!                COUNTED AS SIGNIFICANT DIGITS. SCALING MAY BE REQUIRED
+!                IN ORDER TO ACCURATELY DETERMINE A ZERO OF SMALL
+!                MAGNITUDE.
+!            2.  ZBRENT IS GUARANTEED TO REACH CONVERGENCE WITHIN
+!                K = (ALOG((B-A)/D)+1.0)**2 FUNCTION EVALUATIONS WHERE
+!                  D=MIN(OVER X IN (A,B) OF
+!                    MAX(ABS(X),0.1)*10.0**(-NSIG)).
+!                THIS IS AN UPPER BOUND ON THE NUMBER OF EVALUATIONS.
+!                RARELY DOES THE ACTUAL NUMBER OF EVALUATIONS USED BY
+!                ZBRENT EXCEED SQRT(K). D CAN BE COMPUTED AS FOLLOWS,
+!                  P = AMIN1(ABS(A),ABS(B))
+!                  P = AMAX1(0.1,P)
+!                  IF ((A-0.1)*(B-0.1).LT.0.0) P = 0.1
+!                  D = P*10.0**(-NSIG)
+!
+!   COPYRIGHT           - 1977 BY IMSL, INC. ALL RIGHTS RESERVED.
+!
+!   WARRANTY            - IMSL WARRANTS ONLY THAT IMSL TESTING HAS BEEN
+!                           APPLIED TO THIS CODE. NO OTHER WARRANTY,
+!                           EXPRESSED OR IMPLIED, IS APPLICABLE.
+!
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE ZBRENT(F,EPS,NSIG,A,B,MAXFN,IER)
+      implicit none
+!                                  SPECIFICATIONS FOR ARGUMENTS
+      INTEGER            NSIG,MAXFN,IER
+      REAL*8             F,EPS,A,B
+!                                  SPECIFICATIONS FOR LOCAL VARIABLES
+      INTEGER            IC
+      REAL*8             ZERO,HALF,ONE,THREE,TEN,
+     &                   T,FA,FB,C,FC,D,E,TOL,RM,S,P,Q,R,RONE,TEMP
+
+      DATA               ZERO/0.d0/,HALF/.5d0/,ONE/1.d0/,THREE/3.d0/,
+
+     &                   TEN/10.d0/
+
+!                                  FIRST EXECUTABLE STATEMENT
+      IER = 0
+      T = TEN**(-NSIG)
+      IC = 2
+      S = A
+      FA = F(S)
+      S = B
+      FB = F(S)
+!                                  TEST FOR SAME SIGN
+      IF (FA*FB.GT.ZERO) GO TO 50
+    5 C = A
+      FC = FA
+      D = B-C
+      E = D
+   10 IF (ABS(FC).GE.ABS(FB)) GO TO 15
+      A = B
+      B = C
+      C = A
+      FA = FB
+      FB = FC
+      FC = FA
+   15 CONTINUE
+      TOL = T*MAX(ABS(B),0.1d0)
+      RM = (C-B)*HALF
+!                                  TEST FOR FIRST CONVERGENCE CRITERIA
+      IF (ABS(FB).LE.EPS) GO TO 40
+!                                  TEST FOR SECOND CONVERGENCE CRITERIA
+      IF (ABS(C-B).LE.TOL) GO TO 40
+!                                  CHECK EVALUATION COUNTER
+      IF (IC.GE.MAXFN) GO TO 45
+!                                  IS BISECTION FORCED
+      IF (ABS(E).LT.TOL) GO TO 30
+      IF (ABS(FA).LE.ABS(FB)) GO TO 30
+      S = FB/FA
+      IF (A.NE.C) GO TO 20
+!                                  LINEAR INTERPOLATION
+      P = (C-B)*S
+      Q = ONE-S
+      GO TO 25
+!                                  INVERSE QUADRATIC INTERPOLATION
+   20 Q = FA/FC
+      R = FB/FC
+      RONE = R-ONE
+      P = S*((C-B)*Q*(Q-R)-(B-A)*RONE)
+      Q = (Q-ONE)*RONE*(S-ONE)
+   25 IF (P.GT.ZERO) Q = -Q
+      IF (P.LT.ZERO) P = -P
+      S = E
+      E = D
+!                                  IF ABS(P/Q).GE.75*ABS(C-B) THEN
+!                                     FORCE BISECTION
+      IF (P+P.GE.THREE*RM*Q) GO TO 30
+!                                  IF ABS(P/Q).GE..5*ABS(S) THEN FORCE
+!                                     BISECTION. S = THE VALUE OF P/Q
+!                                     ON THE STEP BEFORE THE LAST ONE
+      IF (P+P.GE.ABS(S*Q)) GO TO 30
+      D = P/Q
+      GO TO 35
+!                                  BISECTION
+   30 E = RM
+      D = E
+!                                  INCREMENT B
+   35 A = B
+      FA = FB
+      TEMP = D
+      IF (ABS(TEMP).LE.HALF*TOL) TEMP = SIGN(HALF*TOL,RM)
+      B = B+TEMP
+      S = B
+      FB = F(S)
+      IC = IC+1
+      IF (FB*FC.LE.ZERO) GO TO 10
+      GO TO 5
+!                                  CONVERGENCE OF B
+   40 A = C
+      MAXFN = IC
+      GO TO 9005
+!                                  MAXFN EVALUATIONS
+   45 IER = 129
+      A = C
+      MAXFN = IC
+      GO TO 9000
+!                                  TERMINAL ERROR - F(A) AND F(B) HAVE
+!                                  THE SAME SIGN
+   50 IER = 130
+      MAXFN = IC
+ 9000 CONTINUE
+      CALL UERTST1(IER,'ZBRENT')
+ 9005 RETURN
+      END SUBROUTINE ZBRENT
+
+
+
+     

@@ -87,8 +87,7 @@ cBH121115      itempp=int(25*lrzmax*nv/fds)
       allocate(tempp5(itempp),STAT=istat5)
       allocate(tempp6(itempp),STAT=istat6)
       if (istat4.ne.0 .or. istat5.ne.0 .or. istat6.ne.0) then
-         write(*,*)'tdsxr0, tempp1: allocation problem'
-         STOP
+         STOP 'tdsxr0: tempp4-tempp6 allocation problem'
       endif
 c.......................................................................
       
@@ -223,8 +222,10 @@ c.......................................................................
 cBH180207          if(istep.gt.(1000/fds).and.istart.eq.1)  then
 cBH180207: Needed a few more steps for a difficult case.
           if(istep.gt.(2000/fds).and.istart.eq.1)  then
-             write(*,*) 'Warning: SXR sightline',nn,
+CMPIINSERT_IF_RANK_EQ_0
+             WRITE(*,*) 'Warning: SXR sightline',nn,
      +                  " missed or didn't reach plasma"
+CMPIINSERT_ENDIF_RANK  
              go to 420
           endif
           if(rs.ge.radmin.and.istart.eq.1)  go to 100
@@ -387,9 +388,10 @@ c.......................................................................
 cBH180207     165   if(istep.gt.(1000/fds).and.istart.eq.1)  then
 cBH180207: Needed a few more steps for a difficult case.
  165      if(istep.gt.(2000/fds).and.istart.eq.1)  then
-             write(*,*) 'Warning: SXR sightline',nn,
+CMPIINSERT_IF_RANK_EQ_0
+             WRITE(*,*) 'Warning: SXR sightline',nn,
      +                  " missed or didn't reach plasma"
-
+CMPIINSERT_ENDIF_RANK  
              go to 420
           endif
           if(((iongrid.eq.0).or.(ppsi.le.psilim)).and.
@@ -430,8 +432,7 @@ c     Continuing in decreasing mode.
 c.......................................................................
           ibin1=ibin1-1
           if(ibin1.lt.1) then
-             write(*,*) 'stop 4 in tdsxr0'
-             stop
+             stop 'stop 4 in tdsxr0'
           endif
           go to 190
 c.......................................................................
@@ -581,7 +582,9 @@ c     (Check nen.le.nena)
 c.......................................................................
 
         if(nen.le.nena)  go to 299
-        write (*,1000) nen, nena
+CMPIINSERT_IF_RANK_EQ_0
+        WRITE(*,1000) nen, nena
+CMPIINSERT_ENDIF_RANK  
  1000   format("nen = ",i3, "is too large. Reset automatically to ",i5)
         nen=nena
  299    den=(enmax-enmin)/(nen-1.)

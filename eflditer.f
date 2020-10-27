@@ -86,8 +86,8 @@ c     the toroidal current, in the usual tokamak case.
 c     curr is not an accurate physically meaningful quantity, 
 c     and should be excised from the code. (BobH, 010301).
      
-      curr(1,lr_)=currm(1,l_)*psifct
-      currtp(lr_)=currtp(lr_)+curr(1,lr_)
+      curr(1,lr_)=currm(1,l_)*psifct ! FSA now
+      currtp(lr_)=currtp(lr_)+curr(1,lr_) ! FSA
       curra(1,l_)=faccur*psifct*curra(1,l_)
 c     Following statement for consistency with diaggnde
       call dscal(jx,faccur*psifct,currv(1,1,l_),1)
@@ -97,9 +97,17 @@ c     (End of following subroutine diaggnde.)
          call restcon
          call resthks(l_,lr_,lmdpln_,
      +        zreshin(lr_),zreskim(lr_),zressau1,zressau2)
+         !Original version that uses zreshin [Hinton and Hazeltine]:
          currpar(lr_)=(curra(kelec,l_)+
      +        elecfld(lr_)/300./(zreshin(lr_)*sptzr(l_)))/3.e9
-      else
+         !YuP[2020-04-02] We could change to version with zressau1
+         !similar to subr.efield.
+         !Based on Sauter, Angioni and Lin-Liu, Phys.Plasmas 6, 1834 (1999) :
+!---         currpar(lr_)=(curra(kelec,l_)+
+!---     +        elecfld(lr_)/300./(zressau1*sptzr(l_)))/3.e9
+     
+         !This currpar() is used below, for efswtch=method5
+      else ! efswtchn.eq."disabled" (default value) Use total Ip (Ohmic+RE)
          currpar(lr_)=currtp(lr_)/3.e9
       endif
 

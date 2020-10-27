@@ -12,6 +12,9 @@ CMPIINSERT_INCLUDE
 
       character*8 pltovlp
 
+      REAL*4 :: R40=0.
+      REAL*4 :: R410=10.,R411=11.,R412=12.,R413=13.
+
       data pltovlp /'enabled'/
 
 
@@ -22,8 +25,15 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
 cBH081105      iiplt3d=0
       iiplt3d=-1
       do i=1,nplota
-         if (n.eq.nplt3d(i)) iiplt3d=n
+         if (n+1.eq.nplt3d(i)) iiplt3d=n !YuP[2020-10-02] was (n.eq.nplt3d(i))
       enddo
+      !YuP/note: When subr.ufrbplt is called, 
+      !the time step is not advanced yet,
+      !so if nstop=2, then n in (n.eq.nplt3d(i)) can only get to 1.
+      !It means that if nplt3d(i) is set to nstop,
+      !the condition n.eq.nplt3d(i) is never satisfied.
+      !Changed (n.eq.nplt3d(i)) to (n+1.eq.nplt3d(i)).
+      !YuP[2020-10-02]
          
 c      if (n/nplt3d*nplt3d.ne.n .and. n.ne.1) return
 cBH081105      if (iiplt3d.eq.0 .and. n.ne.1) return
@@ -59,13 +69,13 @@ c       This do 560 loop was overlapping the modes on one plot.
              call pltcont(k,1,'Contours of UrfB vs. v_parallel,v_perp',
      +         itype) !YuP:summed-up
              write(t_,552) 
-             CALL PGMTXT('B',10.,0.,0.,t_)
+             CALL PGMTXT('B',R410,R40,R40,t_)
              write(t_,553) lr_
-             CALL PGMTXT('B',11.,0.,0.,t_)
+             CALL PGMTXT('B',R411,R40,R40,t_)
              write(t_,692) MAXVAL(temp1) !YuP[10-2016] max value for this krf
-             CALL PGMTXT('B',12.,0.,0.,t_)
+             CALL PGMTXT('B',R412,R40,R40,t_)
              write(t_,693) k 
-             CALL PGMTXT('B',13.,0.,0.,t_)
+             CALL PGMTXT('B',R413,R40,R40,t_)
            endif
         enddo ! k species
         
@@ -86,13 +96,13 @@ c     This do 680 loop plots the individual mode contributions:
           call pltcont(k,1,'Contours of UrfB vs. v_parallel,v_perp',
      +      itype)
           write(t_,690) 
-          CALL PGMTXT('B',10.,0.,0.,t_)
+          CALL PGMTXT('B',R410,R40,R40,t_)
           ! write flux surface number and mode number;
           ! also harmonic number and species number (added YuP[10-2016])
           write(t_,691) lr_ ,krf,nharm(krf),k 
-          CALL PGMTXT('B',11.,0.,0.,t_)
+          CALL PGMTXT('B',R411,R40,R40,t_)
           write(t_,692) MAXVAL(temp1) !YuP[10-2016] max value for this krf
-          CALL PGMTXT('B',12.,0.,0.,t_)
+          CALL PGMTXT('B',R412,R40,R40,t_)
          endif
          endif
  680  continue ! krf

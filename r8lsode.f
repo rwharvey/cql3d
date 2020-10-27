@@ -15,7 +15,7 @@ c /ls_lsode/ and /eh_lsode/
       save
       external f, jac
       integer neq, itol, itask, istate, iopt, lrw, iwork, liw, mf
-      double precision y, t, tout, rtol, atol, rwork
+      real*8 y, t, tout, rtol, atol, rwork
       dimension neq(*), y(*), rtol(*), atol(*), rwork(lrw), iwork(liw)
 c-----------------------------------------------------------------------
 c this is the march 30, 1987 version of
@@ -168,7 +168,7 @@ c at the end of the run, statistical quantities of interest are
 c printed (see optional outputs in the full description below).
 c
 c     external fex, jex
-c     double precision atol, rtol, rwork, t, tout, y
+c     real*8 atol, rtol, rwork, t, tout, y
 c     dimension y(3), atol(3), rwork(58), iwork(23)
 c     neq = 3
 c     y(1) = 1.d0
@@ -203,7 +203,7 @@ c     stop
 c     end
 c
 c     subroutine fex (neq, t, y, ydot)
-c     double precision t, y, ydot
+c     real*8 t, y, ydot
 c     dimension y(3), ydot(3)
 c     ydot(1) = -.04d0*y(1) + 1.d4*y(2)*y(3)
 c     ydot(3) = 3.d7*y(2)*y(2)
@@ -212,7 +212,7 @@ c     return
 c     end
 c
 c     subroutine jex (neq, t, y, ml, mu, pd, nrpd)
-c     double precision pd, t, y
+c     real*8 pd, t, y
 c     dimension y(3), pd(nrpd,3)
 c     pd(1,1) = -.04d0
 c     pd(1,2) = 1.d4*y(3)
@@ -512,7 +512,7 @@ c          iopt = 0 means no optional inputs are being used.
 c                   default values will be used in all cases.
 c          iopt = 1 means one or more optional inputs are being used.
 c
-c rwork  = a real working array (double precision).
+c rwork  = a real working array (real*8).
 c          the length of rwork must be at least
 c             20 + nyh*(maxord + 1) + 3*neq + lwm    where
 c          nyh    = the initial value of neq,
@@ -963,9 +963,9 @@ c-----------------------------------------------------------------------
      1   maxord, maxcor, msbp, mxncf, n, nq, nst, nfe, nje, nqu
       integer i, i1, i2, iflag, imxer, kgo, lf0,
      1   leniw, lenrw, lenwm, ml, mord, mu, mxhnl0, mxstp0
-      double precision rowns,
+      real*8 rowns,
      1   ccmax, el0, h, hmin, hmxi, hu, rc, tn, uround
-      double precision atoli, ayi, big, ewti, h0, hmax, hmx, rh, rtoli,
+      real*8 atoli, ayi, big, ewti, h0, hmax, hmx, rh, rtoli,
      1   tcrit, tdist, tnext, tol, tolsf, tp, size, sum, w0,
      2   d1mach, vnorm_lsode
       dimension mord(2)
@@ -1540,7 +1540,7 @@ c   lunit  = default value of logical unit number for printing of error
 c            messages.
 c-----------------------------------------------------------------------
       integer illin, iduma, ntrep, idumb, iowns, icomm, mesflg, lunit
-      double precision rowns, rcomm
+      real*8 rowns, rcomm
       common /ls_lsode/ rowns(209), rcomm(9),
      1   illin, iduma(10), ntrep, idumb(2), iowns(6), icomm(19)
       common /eh_lsode/ mesflg, lunit
@@ -1554,8 +1554,8 @@ c----------------------- end of block data -----------------------------
 clll. optimize
       integer meth
       integer i, ib, nq, nqm1, nqp1
-      double precision elco, tesco
-      double precision agamq, fnq, fnqm1, pc, pint, ragq,
+      real*8 elco, tesco
+      real*8 agamq, fnq, fnqm1, pc, pint, ragq,
      1   rqfac, rq1fac, tsign, xpin
       dimension elco(13,12), tesco(3,12)
 c-----------------------------------------------------------------------
@@ -1672,7 +1672,7 @@ c depending on the value of itol.
 c-----------------------------------------------------------------------
       integer n, itol
       integer i
-      double precision rtol, atol, ycur, ewt
+      real*8 rtol, atol, ycur, ewt
       dimension rtol(*), atol(*), ycur(n), ewt(n)
 c
       go to (10, 20, 30, 40), itol
@@ -1701,10 +1701,10 @@ clll. optimize
      1   icf, ierpj, iersl, jcur, jstart, kflag, l, meth, miter,
      2   maxord, maxcor, msbp, mxncf, n, nq, nst, nfe, nje, nqu
       integer i, ic, j, jb, jb2, jj, jj1, jp1
-      double precision t, yh, dky
-      double precision rowns,
+      real*8 t, yh, dky
+      real*8 rowns,
      1   ccmax, el0, h, hmin, hmxi, hu, rc, tn, uround
-      double precision c, r, s, tp
+      real*8 c, r, s, tp
       dimension yh(nyh,*), dky(*)
       common /ls_lsode/ rowns(209),
      2   ccmax, el0, h, hmin, hmxi, hu, rc, tn, uround,
@@ -1788,10 +1788,10 @@ clll. optimize
      2   maxord, maxcor, msbp, mxncf, n, nq, nst, nfe, nje, nqu
       integer i, i1, i2, ier, ii, j, j1, jj, lenp,
      1   mba, mband, meb1, meband, ml, ml3, mu, np1
-      double precision y, yh, ewt, ftem, savf, wm
-      double precision rowns,
+      real*8 y, yh, ewt, ftem, savf, wm
+      real*8 rowns,
      1   ccmax, el0, h, hmin, hmxi, hu, rc, tn, uround
-      double precision con, di, fac, hl0, r, r0, srur, yi, yj, yjj,
+      real*8 con, di, fac, hl0, r, r0, srur, yi, yj, yjj,
      1   vnorm_lsode
       dimension neq(*), y(*), yh(nyh,*), ewt(*), ftem(*), savf(*),
      1   wm(*), iwm(*)
@@ -1956,10 +1956,10 @@ clll. optimize
      1   icf, ierpj, iersl, jcur, jstart, kflag, l, meth, miter,
      2   maxord, maxcor, msbp, mxncf, n, nq, nst, nfe, nje, nqu
       integer i, meband, ml, mu
-      double precision wm, x, tem
-      double precision rowns,
+      real*8 wm, x, tem
+      real*8 rowns,
      1   ccmax, el0, h, hmin, hmxi, hu, rc, tn, uround
-      double precision di, hl0, phl0, r
+      real*8 di, hl0, phl0, r
       dimension wm(*), iwm(*), x(*), tem(*)
       common /ls_lsode/ rowns(209),
      2   ccmax, el0, h, hmin, hmxi, hu, rc, tn, uround,
@@ -2034,7 +2034,7 @@ c-----------------------------------------------------------------------
       integer isav, job
       integer ieh, ils
       integer i, lenils, lenrls
-      double precision rsav,   rls
+      real*8 rsav,   rls
       dimension rsav(*), isav(*)
       common /ls_lsode/ rls(218), ils(39)
       common /eh_lsode/ ieh(2)
@@ -2069,10 +2069,10 @@ clll. optimize
      1   icf, ierpj, iersl, jcur, jstart, kflag, l, meth, miter,
      2   maxord, maxcor, msbp, mxncf, n, nq, nst, nfe, nje, nqu
       integer i, i1, iredo, iret, j, jb, m, ncf, newq
-      double precision y, yh, yh1, ewt, savf, acor, wm
-      double precision conit, crate, el, elco, hold, rmax, tesco,
+      real*8 y, yh, yh1, ewt, savf, acor, wm
+      real*8 conit, crate, el, elco, hold, rmax, tesco,
      2   ccmax, el0, h, hmin, hmxi, hu, rc, tn, uround
-      double precision dcon, ddn, del, delp, dsm, dup, exdn, exsm, exup,
+      real*8 dcon, ddn, del, delp, dsm, dup, exdn, exsm, exup,
      1   r, rh, rhdn, rhsm, rhup, told, vnorm_lsode
       dimension neq(*), y(*), yh(nyh,*), yh1(*), ewt(*), savf(*),
      1   acor(*), wm(*), iwm(*)
@@ -2533,7 +2533,7 @@ c-----------------------------------------------------------------------
       return
 c----------------------- end of subroutine stode -----------------------
       end
-      double precision function vnorm_lsode(n, v, w)
+      real*8 function vnorm_lsode(n, v, w)
 clll. optimize
 c-----------------------------------------------------------------------
 c this function routine computes the weighted root-mean-square norm
@@ -2542,7 +2542,7 @@ c contained in the array w of length n..
 c   vnorm_lsode = sqrt( (1/n) * sum( v(i)*w(i) )**2 )
 c-----------------------------------------------------------------------
       integer n,   i
-      double precision v, w,   sum
+      real*8 v, w,   sum
       dimension v(n), w(n)
       sum = 0.0d0
       do 10 i = 1,n
@@ -2554,7 +2554,7 @@ c----------------------- end of function vnorm_lsode -------------------------
       subroutine xerrwv (msg, nmes, nerr, level, ni, i1, i2, nr, r1, r2)
       integer msg, nmes, nerr, level, ni, i1, i2, nr,
      1   i, lun, lunit, mesflg, ncpw, nch, nwds
-      double precision r1, r2
+      real*8 r1, r2
       dimension msg(nmes)
 c-----------------------------------------------------------------------
 c subroutines xerrwv, xsetf, and xsetun, as given here, constitute
@@ -2695,7 +2695,7 @@ c----------STUB-ROUTINES: Full versions need to be brought in from
 c----------LINPACK, if they are to be called.  [BH, 100622]
 
       subroutine dgesl(dum,idum1,idum2,idum3,ddum,idum4)
-      double precision dum,ddum
+      real*8 dum,ddum
       dimension ddum(*)
       integer idum1,idum2,idum3,idum4
       write(*,*)'LINPACK subroutine dgesl not presently installed'
@@ -2705,7 +2705,7 @@ c----------LINPACK, if they are to be called.  [BH, 100622]
 
       subroutine dgbsl(dum,idum1,idum2,idum3,idum4,idum5,
      +     ddum,idum6)
-      double precision dum,ddum
+      real*8 dum,ddum
       dimension ddum(*)
       integer idum1,idum2,idum3,idum4,idum5,idum6
       write(*,*)'LINPACK subroutine dgbsl not presently installed'
@@ -2714,7 +2714,7 @@ c----------LINPACK, if they are to be called.  [BH, 100622]
       end
 
       subroutine dgefa(dum,idum1,idum2,idum3,idum4)
-      double precision dum
+      real*8 dum
       integer idum1,idum2,idum3,idum4
       write(*,*)'LINPACK subroutine dgefa not presently installed'
       STOP
@@ -2723,7 +2723,7 @@ c----------LINPACK, if they are to be called.  [BH, 100622]
 
       subroutine dgbfa(dum,idum1,idum2,idum3,idum4,
      +     idum5,idum6)
-      double precision dum
+      real*8 dum
       integer idum1,idum2,idum3,idum4,idum5,idum6
       write(*,*)'LINPACK subroutine dgbfa not presently installed'
       STOP

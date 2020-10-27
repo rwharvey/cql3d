@@ -11,6 +11,7 @@ CMPIINSERT_INCLUDE
 
       character*8 pltvlhb
       character*8 pltovlp
+      REAL*4 :: R47=7.,R48=8.,R49=9.,R40=0.,R410=10.,R411=11.
 
       save pltvlhb,pltovlp
       data pltvlhb /'enabled'/
@@ -37,11 +38,9 @@ ccc        call bcast(temp1(1,0),zero,iy*(jx+1))  ! YuP-101215: error?
           itype=6 ! means: plots are made for vlhb
           call pltcont(1,1,'Contours of CqlB vs. v_parallel,v_perp',
      +                 itype)
-c$$$          call gstxno(80.)
-c$$$          call gscpvs(.15,.35)
           write(t_,552) lr_
  552      format(" Flux surface number",i3,";   all modes")
-          CALL PGMTXT('B',10.,0.,0.,t_)
+          CALL PGMTXT('B',R410,R40,R40,t_)
 
  560    continue
 
@@ -84,12 +83,10 @@ c
         CALL PGPAGE
         itype=6 ! means: plots are made for vlhb
         call pltcont(1,1,'Contours of CqlB vs. v_parallel,v_perp',itype)
-c$$$        call gstxno(80.)
-c$$$        call gscpvs(.15,.35)
         write(t_,660) lr_,k
-        CALL PGMTXT('B',10.,0.,0.,t_)
+        CALL PGMTXT('B',R410,R40,R40,t_)
         write(t_,661) vpar21dv,vpar11dv
-        CALL PGMTXT('B',11.,0.,0.,t_)
+        CALL PGMTXT('B',R411,R40,R40,t_)
 
  680  continue
  660  format("Flux surface number",i3," mode=",i1)

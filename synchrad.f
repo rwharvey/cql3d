@@ -36,10 +36,10 @@ c     Temporary, for writing:
       do  j=1,jx
          do  i=1,iy
             synca(i,j,indxlr_)=coefnt*vptb(i,lr_)*sinn(i,l_)**2*xcu(j)*
-     *           psicu(i,lr_)*gamma(j)
+     *           psicu(i,lr_)*gamma(j) ! A ~gamma  (YuP: correct)
             syncd(i,j,indxlr_)=coefnt*vptb(i,lr_)*xsq(j)*gammi(j)*
      *           sinn(i,l_)**2/coss(i,l_)*
-     *           (psisq(i,lr_)-sinn(i,l_)**2*psicu(i,lr_))
+     *           (psisq(i,lr_)-sinn(i,l_)**2*psicu(i,lr_)) ! D ~1/gamma  (YuP: correct)
          enddo
       enddo
 
@@ -47,7 +47,7 @@ c     Temporary, for writing:
       call bcast(syncd_gyro,zero,jx)
       do j=1,jx
 c         do i=1,iy
-          i=11 !   comment from YuP[2018-01-16] Why i=11 only ?
+          i=11 !   comment from YuP[2018-01-16] Why i=11 only ? Only for printout, anyway.
             synca_gyro(j)=synca_gyro(j)+
 c     *                    sinn(i,l_)*dy(i,l_)*synca(i,j,indxlr_)
      *                    synca(i,j,indxlr_)
@@ -69,20 +69,23 @@ c         enddo
       
       call bcast(synca_geom,zero,jx)
       call bcast(syncd_geom,zero,jx)
+      !Curvature-B related terms
       do  j=1,jx
          do  i=1,iy
             
             sync1=  +coefnt1*vptb(i,lr_)*
-     *           xcu(j)*xsq(j)*vnorm2*gammi(j)*reffm2*
+     *           xcu(j)*xsq(j)*vnorm2*gamma(j)*reffm2*
      *           (1.-2.*sinn(i,l_)**2*psiba(i,lr_)+
-     *           sinn(i,l_)**4*psisq(i,lr_))
+     *           sinn(i,l_)**4*psisq(i,lr_)) ! was A ~1/gamma  (YuP: wrong)
+                 !YuP[2020-06-18] Corrected error in the above: Should be A ~gamma
+                 !See YuP_2020_Synchrotron_derivations.pdf
             synca(i,j,indxlr_)=synca(i,j,indxlr_)+sync1
             sync2=  -coefnt1*vptb(i,lr_)*
      *           xcu(j)*x(j)*vnorm2*gammi(j)*reffm2*
      *           sinn(i,l_)**2/coss(i,l_)*
      *           (1.-2.*sinn(i,l_)**2*psiba(i,lr_)+
      *           sinn(i,l_)**4*psisq(i,lr_))
-            syncd(i,j,indxlr_)=syncd(i,j,indxlr_)+sync2
+            syncd(i,j,indxlr_)=syncd(i,j,indxlr_)+sync2 ! D ~1/gamma  (YuP: correct)
 
             if (i.eq.1) then
             synca_geom(j)=synca_geom(j)+
@@ -97,10 +100,12 @@ c     *                    sinn(i,l_)*dy(i,l_)*sync1
 
       endif
 
-      write(*,*) 'syncrad: synca_gyro: ',synca_gyro
-      write(*,*) 'syncrad: syncd_gyro: ',syncd_gyro
-      write(*,*) 'syncrad: synca_geom: ',synca_geom
-      write(*,*) 'syncrad: syncd_geom: ',syncd_geom
+      if (ioutput(1).ge.2) then !YuP[2020] diagnostic printout
+      write(*,*) 'synchrad: synca_gyro: ',synca_gyro
+      write(*,*) 'synchrad: syncd_gyro: ',syncd_gyro
+      write(*,*) 'synchrad: synca_geom: ',synca_geom
+      write(*,*) 'synchrad: syncd_geom: ',syncd_geom
+      endif
 
 
       return

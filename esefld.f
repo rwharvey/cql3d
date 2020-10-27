@@ -15,7 +15,9 @@ c.......................................................................
 
 c..... input: ls,dz,flux0,flux1,flux2
 
-      dimension dz(0:ls+1),flux1(0:ls+1),flux2(0:ls+1)
+      dimension dz(1:ls),flux1(0:ls+1),flux2(0:ls+1)
+         !YuP[2019-05-30] corrected sub.efld_cd
+         !                so that dz argument starts with index 1.
     
 c.....input/output: 
       dimension elparnw(0:ls+1)
@@ -43,7 +45,7 @@ c.......................................................................
       end  
 c
 c
-      double precision function fluxpar
+      real*8 function fluxpar
      +     (kopt,x,coss,cynt2,cint2,f,iy,jx)
       implicit integer (i-n), real*8 (a-h,o-z)
 

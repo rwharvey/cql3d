@@ -261,10 +261,14 @@ CMPIINSERT_ENDIF_RANK
         !-YuP 101121:  These are usually large arrays:
         allocate(ilowp(ipack,mrfn),STAT=istat)
         istat_tot=istat_tot+istat
-        write(*,*)'urfalloc  ilowp: istat=',istat
+CMPIINSERT_IF_RANK_EQ_0
+        WRITE(*,*)'urfalloc  ilowp: istat=',istat
+CMPIINSERT_ENDIF_RANK
         allocate(iupp(ipack,mrfn),STAT=istat)
         istat_tot=istat_tot+istat
-        write(*,*)'urfalloc   iupp: istat=',istat
+CMPIINSERT_IF_RANK_EQ_0
+        WRITE(*,*)'urfalloc   iupp: istat=',istat
+CMPIINSERT_ENDIF_RANK
         allocate(ifct1_(ipack16,mrfn),STAT=istat)
         istat_tot=istat_tot+istat
 CMPIINSERT_IF_RANK_EQ_0

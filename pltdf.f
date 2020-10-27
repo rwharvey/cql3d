@@ -17,7 +17,8 @@ c..................................................................
       include 'param.h'
       include 'comm.h'
 
-      REAL RILIN
+      REAL*4 RILIN
+      REAL*4 :: R40=0.,R4MP2=-0.2
 
 
       if (noplots.eq."enabled1") return
@@ -38,7 +39,7 @@ c..................................................................
         write(t_,560)
  560    format("Contour values:")
         RILIN=10.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
 
         do 11 jcs=1,ncont,4
@@ -48,7 +49,7 @@ c..................................................................
             t_(icend:icend)="$"
           endif
           RILIN=RILIN+1.
-          CALL PGMTXT('B',RILIN,-.2,0.,t_)
+          CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
  11     continue
         
  
@@ -70,7 +71,7 @@ c..................................................................
         call pltcont(k,1,t_,itype) ! for df
         RILIN=10.
         write(t_,560)
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
         do 12 jcs=1,ncont,4
           write(t_,570) (tempcntr(jc),jc=jcs,min(jcs+3,ncont))
@@ -79,7 +80,7 @@ c..................................................................
             t_(icend:icend)="$"
           endif
           RILIN=RILIN+1.
-          CALL PGMTXT('B',RILIN,-.2,0.,t_)
+          CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
  12     continue
  
       endif !  pltd.eq."df" .or. pltd.eq."df_color"

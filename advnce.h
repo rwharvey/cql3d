@@ -348,7 +348,7 @@ c.......................................................................
      1  -2.*dd(itl,j)*di(itl,j,k,l_)
      1  +2.*df(itl,j)*eyp5(itl,l_)-dd(itu,j)
      1  *di(itu,j,k,l_)
-     1  +df(itu,j)*eyp5(itu,l_))-vptb(i,lr_)*cah(itl,j)
+     1  +df(itu,j)*eyp5(itu,l_))-vptb(itl,lr_)*cah(itl,j)
 
       t0p(j)=qz(j)*(-da(itl,j)*(1.-dj(itl,j,k,l_))-db(itl,j)*exp5(j)
      1  -cl(itl-1,j)*eym5(itl,l_)*(1.-dj(itl,j,k,l_))+2.*cl(itl+1,j)

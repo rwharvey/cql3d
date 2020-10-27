@@ -670,7 +670,7 @@ c           Must also shift URF ray data, after it is read in.
       write(*,598) rmag,zmag,psimag,psilim,qar(1),qar(nnv)
 598   format('ADJUSTED (possible sign change; rescaled) [cgs]: 
      +rmag,zmag,psimag,psilim,qar(1),qar(nnv)=',  6(1pe12.4))
-      write(*,*)' btor,bsign,fpsiar(nnv)',btor,bsign,fpsiar(nnv)
+      write(*,'(a,e12.3,2f5.1)')' btor,bsign,cursign',btor,bsign,cursign
       write(*,*)'equilib/setup: done'
       !pause
 

@@ -31,7 +31,9 @@ c---------------------------------------------------------------------
       if (eqsym.eq."none" .and. iupdown.eq.-1) isign=-1
 
       if (yval.lt.1. .or. yval.gt.psimx(lr_)) then
+        if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
         write(*,*)'psiinv: lr_, yval, psimx(lr_)=', lr_, yval,psimx(lr_)
+        endif
         call diagwrng(7)
       else if (yval.eq.1.) then
         psiinv=0.

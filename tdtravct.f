@@ -390,9 +390,11 @@ c     +   'tdtravct: tr1','tr2','tr3','dentarget','reden','h_r','d_r'
                 d_r(i,j,k,l)=adv(k,l)*drrt(k)*d_rr(i,j,k,l)
              enddo ! j
           enddo ! i
+          if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
           write(*,'(i4,7e11.3)')
      +    l, tr1(l),tr2(l),tr3(l), dentarget(l),reden(k,l),
      +    h_r(l), d_r(iy/4,jx/2,k,l)
+          endif
        enddo ! l
 
 c=======================================================================            
@@ -463,7 +465,9 @@ c.......................................................................
                   d_r(i,j,k,l)=adv(k,l)*drrt(k)*d_rr(i,j,k,l)
                enddo
             enddo ! i
+            if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
             write(*,'(i4,3e15.5)') l,adv(k,l),d_r(iy/4,jx/2,k,l),xx(l)
+            endif
          enddo ! l
       elseif (pinch.eq."case2n") then
          do l=1,lrz-1
@@ -473,7 +477,9 @@ c.......................................................................
                   d_r(i,j,k,l)=adv(k,l)
                enddo
             enddo ! i
+            if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
             write(*,'(i4,3e15.5)') l,adv(k,l),d_r(iy/4,jx/2,k,l),xx(l)
+            endif
          enddo ! l
       endif
 

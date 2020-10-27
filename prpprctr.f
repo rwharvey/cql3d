@@ -12,8 +12,9 @@ c     using PGPLOT + GRAFLIBtoPGPLOT.f routines (put in pltmain.f).
 c     Still need to finish contour modifications of GPCTV3.
 c
 
-      REAL RILIN !-> For PGPLOT (text output positioning)
-
+      REAL*4 RILIN !-> For PGPLOT (text output positioning)
+      REAL*4 :: R40=0.,R41=1.
+      REAL*4 :: R4P2=.2,R4P8=.8,R4P6=.6,R4P9=.9
 c...............................................................
 c     This routine performs contour plots of data
 c     set in tempcntr by subroutine pltcont
@@ -87,19 +88,19 @@ c990131        smaxm=alog(-dmin)
         endif
       endif
       
-      call GXGLFR(0) ! new page
-      call GSVP2D(.2,.8,.6,.9)
-      CALL PGSCH(1.) ! set character size; default is 1.
+      CALL PGPAGE ! new page
+      call PGSVP(R4P2,R4P8,R4P6,R4P9)
+      CALL PGSCH(R41) ! set character size; default is 1.
       call GSWD2D("linlin$",xpar(1),xpar(jpxy),xperp(1),xperp(ipxy))
       call PGLAB('u/unorm_par','u/unorm_perp',' ')
       if (k2.gt.1) then
-        call GSLNST(2)
-        call GSLNSZ(.2)
-        call GSLNSZ(0.)
+        CALL PGSLS(2)
+        call GSLNSZ(R4P2)
+        call GSLNSZ(R40)
       endif
-      call GSLNST(1)
-      call GSLNSZ(.2)
-      call GSLNSZ(0.)
+      CALL PGSLS(1)
+      call GSLNSZ(R4P2)
+      call GSLNSZ(R40)
       
       CALL PGSLS(1) ! restore: solid line
       CALL PGSLW(lnwidth) ! restore linewidth

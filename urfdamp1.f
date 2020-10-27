@@ -1,6 +1,8 @@
 c
 c
       subroutine urfdamp1(krf)
+      !YuP: Somewhat confusing: urfdamp1 is called for each wave mode (in 1:mrfn)
+      !rather than wave type (in 1:mrf). Better use 'krfmode' notation here.
       implicit integer (i-n), real*8 (a-h,o-z)
 cyup      save
 
@@ -188,10 +190,12 @@ c..................................................................
           ! in the compressed arrays
           !if(urfb_version.eq.1)then ! 2 is the new version developed by YuP
             ! if 1, it will use the original version
-            call unpack(ilowp(locatn,krf),8,ilim1(1),jjx)
-            call unpack(iupp(locatn,krf),8,ilim2(1),jjx)
-            call unpack16(ifct1_(locatn16,krf),8,ifct1(1),jjx)
-            call unpack16(ifct2_(locatn16,krf),8,ifct2(1),jjx)
+            jjxl=jjx+locatn-1
+            call unpack(ilowp(locatn:jjxl,krf),8,ilim1(1:jjx),jjx)
+            call unpack( iupp(locatn:jjxl,krf),8,ilim2(1:jjx),jjx)
+            jjxl=jjx+locatn16-1
+            call unpack16(ifct1_(locatn16:jjxl,krf),8,ifct1(1:jjx),jjx)
+            call unpack16(ifct2_(locatn16:jjxl,krf),8,ifct2(1:jjx),jjx)
           !endif
 
           prf_rayel=0.d0 !sum-up contribution from a given ray element.
@@ -381,7 +385,7 @@ c.............................................................
  
 CMPIINSERT_IF_RANK_EQ_0
       if(prf_ray_sum.gt.0.1)then
-      WRITE(*,'(a,3i4,e12.4)')'URFDAMP1: n,iray,krf, prf_ray_sum=',
+      WRITE(*,'(a,3i4,e17.9)')'URFDAMP1: n,iray,krf, prf_ray_sum=',
      +                     n,iray,krf, prf_ray_sum
       endif
 CMPIINSERT_ENDIF_RANK

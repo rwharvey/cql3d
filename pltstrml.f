@@ -32,16 +32,20 @@ CMPIINSERT_INCLUDE
       character*64 tt_
       character*64 tx_,ty_
       
-      REAL RILIN !-> For PGPLOT (text output positioning)
+      REAL*4 RILIN !-> For PGPLOT (text output positioning)
 
 C     PASSING ARRAYS TO PGFUNC1, FOR PGPLOT PGCONX:
       pointer wx,wy
-      REAL wx(:),wy(:), xpt,ypt
-      REAL RCONT,RXMAXQ,RTEMP1,RXPTS,RYPTS
+      REAL*4 wx(:),wy(:), xpt,ypt
+      REAL*4 RCONT,RXMAXQ,RTEMP1,RXPTS,RYPTS
       DIMENSION RCONT(NCONTA),RTEMP1(iy,jx),RXPTS(2),RYPTS(2)
       COMMON /PGLOCAL1/wx,wy,IIY,JXQ
 C     wx IS V-NORM ARRAY, wy IS THETA ARRAY.  TYPE REAL.
       real*4 RTAB1(iy),RTAB2(iy) ! local
+      REAL*4 :: R40=0.,R41=1.
+      REAL*4 :: R46=6.,R47=7.,R48=8.,R49=9.
+      REAL*4 :: R4P2=.2,R4P8=.8,R4P65=.65,R4P9=.9,R4MP2=-.2
+
       EXTERNAL PGFUNC1
 
 CMPIINSERT_IF_RANK_NE_0_RETURN
@@ -50,8 +54,10 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
       if (noplots.eq."enabled1") return
 
       !mcont=ncont ! ncont is set in cqlinput (default is 25)
-      mcont=60 !YuP: looks like, from setup below, 
+      mcont=32 !60 !YuP: looks like, from setup below, 
                !     it should be at least 32
+               ! If too many, there will be a mess on the plot
+               ! from printing values of contour levels.
       
       if(ASSOCIATED(wx)) then
         ! wx and wy are already allocated => do nothing 
@@ -365,13 +371,13 @@ c990131        sminr=alog(constr)
         RXMAXQ=XMAXQ
 
 
-        call GXGLFR(0) ! new page for each k
-        CALL PGSVP(.2,.8,.65,.9)
+        CALL PGPAGE ! new page for each k
+        CALL PGSVP(R4P2,R4P8,R4P65,R4P9)
         IF ( RXMAXQ.eq.0. ) THEN
            RXMAXQ=1.
         ENDIF
         CALL PGSWIN(-RXMAXQ,RXMAXQ,0.,RXMAXQ)
-        CALL PGBOX('BCNST',0.,0,'BCNST',0.,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGLAB(tx_,ty_,tt_)
 
         t0t=sin(thb(l_))/cos(thb(l_))  ! PLOT t-p boundary (ZOW cone)
@@ -436,20 +442,20 @@ c..................................................................
         !subr.PGFUNC1(VISBLE,yplt,xplt,zplt) uses /PGLOCAL1/wx,wy,IIY,JXQ
         !--------------------------------------------------------
         !Add some text on the plot:
-        CALL PGSCH(1.0) ! set character size; default is 1.
+        CALL PGSCH(R41) !(1.) ! set character size; default is 1. !YuP[2019-10-28]
         write(t_,5001) k
  5001   format("Species number k=",i3)
-        CALL PGMTXT('B',6.,0.,0.,t_)
+        CALL PGMTXT('B',R46,R40,R40,t_)
         write(t_,150) n,timet
  150    format("time step n=",i5,5x," time=",1pe10.2," secs")
-        CALL PGMTXT('B',7.,0.,0.,t_)
+        CALL PGMTXT('B',R47,R40,R40,t_)
         rr=rpcon(lr_) !rovera(lr_)*radmin  ! YuP[03-2016] changed to rpcon
         write(t_,151) rovera(lr_),rr
  151    format( "r/a=",1pe10.3,5x," radial position (R)=",1pe12.4," cm")
-        CALL PGMTXT('B',8.,0.,0.,t_)
+        CALL PGMTXT('B',R48,R40,R40,t_)
         write(t_,153) rya(lr_), rpcon(lr_), lr_
  153    format( "rya=",1pe10.3,5x," R=rpcon=",1pe10.3," cm,  Surf#",i4)
-        CALL PGMTXT('B',9.,0.,0.,t_)
+        CALL PGMTXT('B',R49,R40,R40,t_)
         ! print contour values under the plot:
         do js=1,mcont
            tempcntr(js)=cont(js)
@@ -457,24 +463,28 @@ c..................................................................
         write(t_,560)
  560    format("Contour values:")
         RILIN=11.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
+        jjcs=0
         do jcs=1,mcont,4
-          write(t_,570) (tempcntr(jc),jc=jcs,min(jcs+3,mcont))
-          if ((mcont/4)*4.ne.mcont .and. mcont-jcs.le.2) then
-            icend=4 * 16 + 1
-            t_(icend:icend)="$"
+          jjcs=jjcs+1
+          if(jjcs.le.20)then ! YuP[2020-08-14] Limit on printout
+            write(t_,570) (tempcntr(jc),jc=jcs,min(jcs+3,mcont))
+            if ((mcont/4)*4.ne.mcont .and. mcont-jcs.le.2) then
+              icend=4 * 16 + 1
+              t_(icend:icend)="$"
+            endif
+            RILIN=RILIN+1.
+            CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
           endif
-          RILIN=RILIN+1.
-          CALL PGMTXT('B',RILIN,-.2,0.,t_)
         enddo
         
         CALL PGSLS(1) ! restore: solid line
         CALL PGSLW(lnwidth) ! restore linewidth
-        CALL PGSCH(1.0) ! recover default 1.0 fontsize
+        CALL PGSCH(R41) ! recover default 1.0 fontsize
 
  500  continue ! k species ------------------------------------------
  
  570  format(4(1pe16.6))
 
       return
-      end
+      end subroutine pltstrml

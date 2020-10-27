@@ -1,0 +1,527 @@
+ &setup0
+ noplots='enabled'
+ ibox='box g35',
+ iuser='harvey',
+ ioutput=0,
+ lrz=32
+ mnemonic='116MHZ_ngen2_multiURF_H0.short_adjust.4'
+ &end
+
+ &setup
+ acoefne=-1.80,-7.83,+051.57,-353.68
+ acoefte=8.01,-13.60,+08.69,-114.59
+ bnumb(1)=1.,
+ bnumb(2)=1.,
+ bnumb(3)=1.,
+ bnumb(4)=1.,
+ bnumb(5)=10.,
+ bnumb(6)=-1.,
+ bootst='disabled',
+ bth=1.e+3,
+ btor=1.e+4,
+ chang='noneg',
+ colmodl=1, !was3
+ contrmin=1.e-12,
+ dtr=1.
+ dtr1(1)=.005
+ nondtr1(1)=10000
+ eegy(1,1,1,1)=0.,
+ eegy(1,2,1,1)=2.,
+ eegy(2,1,1,1)=0.,
+ eegy(2,2,1,1)=6.,
+ efiter='disabled',
+ efswtch='method1',
+ eleccomp='enabled',
+ elecfld(0)=+0.1e-14,
+ elecfld(1)=+0.1e-14,
+ enein =  1.720E+13   1.540E+13   1.100E+13  0.920E+13  0.690E+13
+ enloss(1)=200.,
+ enmax=100.,
+ enmin=05.,
+ enorm=1500.,
+ eoved=.00,
+ ephicc=1.,
+ fds=.2,
+ fmass(2)=3.3436e-24,
+ fmass(1)=1.6726e-24,
+ fmass(4)=3.3436e-24,
+ fmass(3)=1.6726e-24,
+ fmass(5)=30.e-24,
+ fmass(6)=9.1094e-28,
+ fpld(1,1)=0.0
+ gamaset=17.,
+ gsla=270.,gslb=35.,
+ iactst='enabled',
+ idskf='disabled',
+ idskrf='disabled',
+ implct='enabled',
+ ineg='enabled',
+ iproelec='parabola',
+ iprone='spline',
+ iprote='spline',
+ iproti='spline',
+ iprozeff='spline',
+ irzplt(1)=3
+ irzplt(2)=5
+ irzplt(3)=6
+ irzplt(4)=7
+ irzplt(5)=9
+ irzplt(6)=10
+ irzplt(7)=0
+ irzplt(1)=5
+ irzplt(2)=10
+ irzplt(3)=20
+ irzplt(4)=30
+ irzplt(5)=40
+ irzplt(6)=50
+ irzplt(7)=60
+
+ irzplt(1)=2
+ irzplt(2)=4
+ irzplt(3)=12  !rya=.349
+ irzplt(4)=13  !rya=.381
+ irzplt(5)=14  !rya=.413
+ irzplt(6)=15  !rya=.444
+ irzplt(7)=31  !rya=.945
+ irzplt(8)=32  !rya=.975
+
+ isigmas(3)=1,
+ isigmas(4)=1,
+ isigsgv1=0,
+ isigsgv2=0,
+ iy=100  !160, !80, 
+ izeff='ion',
+ jx=100,
+ kfrsou=2,         !Species number of beam source
+ kpress(2)='enabled',
+ kspeci(1,2)='d',kspeci(2,1)='general',
+ kspeci(1,1)='h',kspeci(2,2)='general',
+ kspeci(1,4)='d',kspeci(2,3)='maxwell',
+ kspeci(1,3)='h',kspeci(2,4)='maxwell',
+ kspeci(1,5)='a',kspeci(2,5)='maxwell',
+ kspeci(1,6)='e',kspeci(2,6)='maxwell',
+ lbdry(1)='scale' 'scale'  ! 'conserv','conserv' !'scale','scale'   ! Need lbdry(1:2) for ngen=2
+         ! Note: it is not always a good idea to rescale the distr.func.
+         ! Example: When there is a large-power NBI source, 
+         ! comparing to the initial background 
+         ! set in cqlinput. The value of xlndn00 
+         ! (in ratio(k,lr_)=xlndn00(k,lr_)/runden, 
+         ! which is the rescaling factor) is based 
+         ! on the initial density, so it does not include particles from NBI.
+         ! And the value of runden (or sden) does include all sources.
+         ! In such a case, it is better to use lbdry(k)="conserv"
+ lbdry0='enabled',
+ locquas='disabled',
+ lossmode(1)='simplban','simplban'  ! Need simplban(1:2) for ngen=2
+ lz=32,
+ machine='toroidal',
+ manymat='disabled'
+ meshy='fixed_y',
+ mmsv=8
+ mpwr=1.0, 4.00, 4.00, 4.00 4.00
+ mpwrvphi=1.,
+ mpwrzeff=1.
+ mx=3,
+ nbctime=0,
+ nchec=1,
+ ncoef=1,
+ ncont=20,
+ nen=30,
+ netcdfnm='enabled',
+ nfpld=10000,
+ ngen=2,
+ njene=51,
+ njte=51,
+ njti=51,
+ nmax=4,
+ noffel=10000,
+ noffvphi=10000,
+ noncntrl=0,
+ nonel=10000,
+ nonvphi=10000,
+ nplot=4,
+ nplt3d=4
+ npwr=16.,2.,2.,2.,2.
+ npwrvphi=2.,
+ npwrzeff=2.,
+ nrskip=0,
+ nrstrt=1,
+ nstop=4,
+ numby=30,
+ nv=7,
+ partner='bramb',
+ plt3d='enabled',
+ pltd='df_color',
+ pltdn='disabled',
+ pltend='enabled',
+ pltfvs='enabled',
+ pltinput='enabled',
+ pltlim='disabled',
+ pltlimm=1000.,
+ pltmag=1.,
+ pltpowe='last',
+ pltprpp='enabled',
+ pltra='disabled',
+ pltrst='disabled',
+ pltsig='enabled',
+ pltstrm='disabled',
+ pltvecal='disabled',
+ pltvecc='disabled',
+ pltvece='disabled',
+ pltvecrf='disabled',
+ pltvflu='disabled',
+ plturfb='color',
+ pltvs='rho',
+ profpsi='disabled',
+ psimodel='axitorus',
+ qsineut='disabled',
+ radcoord='sqtorflx',
+ radmaj=700.,
+ radmin=250.,
+ rd=300.,
+ reden(1,0)=3.28e13
+ reden(1,1)=0.23e13
+ reden(2,0)=3.28e13
+ reden(2,1)=0.23e13
+ reden(3,0)=3.28e13
+ reden(3,1)=0.23e13
+ reden(4,0)=.01e13
+ reden(4,1)=.001e13
+ reden(5,0)=7.0e13
+ reden(5,1)=0.5e13
+ radmaj=85.,
+ relativ='enabled',
+ rfacz=1.,
+ rmirror=7.5,
+ rovera=1.e-6,
+ roveram=.00,
+ rya(1)=
+  1.e-2             3.1746031746E-02   6.3492063492E-02
+  9.5238095238E-02  1.2698412698E-01   1.5873015873E-01
+  1.9047619048E-01  2.2222222222E-01   2.5396825397E-01
+  2.8571428571E-01  3.1746031746E-01   3.4920634921E-01
+  3.8095238095E-01  4.1269841270E-01   4.4444444444E-01
+  4.7619047619E-01  5.0793650794E-01   5.3968253968E-01
+  5.7142857143E-01  6.0317460317E-01   6.3492063492E-01
+  6.6666666667E-01  6.9841269841E-01   7.3015873016E-01
+  7.6190476190E-01  7.9365079365E-01   8.2539682540E-01
+              .855              .885           .915
+              .945              .975
+ ryain =      0.00000     0.267     0.530     0.800     1.000
+ rzset='enabled',
+ sigmamod='enabled',
+ softxry='disabled',
+ syncrad='disabled',
+ tauloss(1,1)=0., !.3,
+ tauloss(2,1)=0.,
+ tauloss(3,1)=0.,
+ tbnd=.002,
+ tein =  4.30  1.9   0.55  .15  .040
+ temp(1,0)=30.7
+ temp(1,1)=1.
+ temp(2,0)=30.7
+ temp(2,1)=1.
+ temp(3,0)=30.7
+ temp(3,1)=1.1
+ temp(4,0)=30.7
+ temp(4,1)=1.
+ temp(5,0)=33.7
+ temp(5,1)=1.
+ tfac=0.75,
+ tfacz=1.,
+ thet1=0.,0.1253,0.2527,0.3844,0.,0.,0.,
+ thet2=0.,0.,0.,0.,0.9099,1.1012,-0.9099,
+ thetd=0.0
+ tiin=1.5,1.1,.7,.4,.2,.1,
+ torloss(1)='disabled','disabled'  !For ngen=2
+ veclnth=1.5,
+ xfac=+0.5,
+ xlwr=.085,
+ xmdl=.25,
+ xpctlwr=.1,
+ xpctmdl=.4,
+ ylower=1.22,
+ yreset='disabled',
+ yupper=1.275,
+ zeffin(0)= 2., zeffin(1)=2.,
+ zmax=408.
+ ryain(1)=
+      0.00000    0.0200000    0.0400000    0.0600000    0.0800000     0.100000
+     0.120000     0.140000     0.160000     0.180000     0.200000     0.220000
+     0.240000     0.260000     0.280000     0.300000     0.320000     0.340000
+     0.360000     0.380000     0.400000     0.420000     0.440000     0.460000
+     0.480000     0.500000     0.520000     0.540000     0.560000     0.580000
+     0.600000     0.620000     0.640000     0.660000     0.680000     0.700000
+     0.720000     0.740000     0.760000     0.780000     0.800000     0.820000
+     0.840000     0.860000     0.880000     0.900000     0.920000     0.940000
+     0.960000     0.980000      1.00000
+! enein(1,1)=
+!  6.74250e+13  6.74350e+13  6.74450e+13  6.74500e+13  6.74500e+13  6.74400e+13
+!  6.74150e+13  6.73650e+13  6.72850e+13  6.71750e+13  6.70250e+13  6.68300e+13
+!  6.65850e+13  6.62800e+13  6.59150e+13  6.54900e+13  6.49900e+13  6.44100e+13
+!  6.37500e+13  6.30100e+13  6.21950e+13  6.13200e+13  6.03900e+13  5.94100e+13
+!  5.83900e+13  5.73350e+13  5.62550e+13  5.51550e+13  5.40400e+13  5.29250e+13
+!  5.18150e+13  5.07100e+13  4.96250e+13  4.85700e+13  4.75450e+13  4.65600e+13
+!  4.56250e+13  4.47500e+13  4.39350e+13  4.31900e+13  4.25250e+13  4.19250e+13
+!  4.12950e+13  4.04550e+13  3.92250e+13  3.74200e+13  3.48550e+13  3.13450e+13
+!  2.68000e+13  2.14200e+13  1.57200e+13
+ enein(1,1)=51*1.
+ enein(1,2)=51*1.
+ enein(1,4)=51*1.
+ enein(1,3)=51*.02
+ enein(1,5)=51*1.
+ enein(1,6)=
+  6.74250e+13  6.74350e+13  6.74450e+13  6.74500e+13  6.74500e+13  6.74400e+13
+  6.74150e+13  6.73650e+13  6.72850e+13  6.71750e+13  6.70250e+13  6.68300e+13
+  6.65850e+13  6.62800e+13  6.59150e+13  6.54900e+13  6.49900e+13  6.44100e+13
+  6.37500e+13  6.30100e+13  6.21950e+13  6.13200e+13  6.03900e+13  5.94100e+13
+  5.83900e+13  5.73350e+13  5.62550e+13  5.51550e+13  5.40400e+13  5.29250e+13
+  5.18150e+13  5.07100e+13  4.96250e+13  4.85700e+13  4.75450e+13  4.65600e+13
+  4.56250e+13  4.47500e+13  4.39350e+13  4.31900e+13  4.25250e+13  4.19250e+13
+  4.12950e+13  4.04550e+13  3.92250e+13  3.74200e+13  3.48550e+13  3.13450e+13
+  2.68000e+13  2.14200e+13  1.57200e+13
+ tein(1)=
+      1.91700      1.91300      1.90700      1.89700      1.88300      1.86550
+      1.84450      1.82050      1.79350      1.76300      1.72950      1.69350
+      1.65500      1.61400      1.57050      1.52500      1.47800      1.42850
+      1.37750      1.32550      1.27150      1.21650      1.16050      1.10350
+      1.04600     0.987750     0.929300     0.871000     0.813150     0.756050
+     0.700000     0.645350     0.592400     0.541450     0.492800     0.446800
+     0.403750     0.363950     0.327650     0.294700     0.264600     0.236750
+     0.210500     0.185250     0.160650     0.136550     0.112800    0.0893200
+    0.0660750    0.0430000    0.0199800
+ tiin(1)=
+      2.21500      2.20900      2.19950      2.18350      2.16200      2.13550
+      2.10450      2.06900      2.02900      1.98550      1.93900      1.88950
+      1.83800      1.78450      1.72900      1.67250      1.61550      1.55750
+      1.49850      1.43950      1.38050      1.32100      1.26150      1.20300
+      1.14500      1.08750      1.03150     0.976450     0.922350     0.870050
+     0.819300     0.770150     0.722700     0.677000     0.633050     0.590950
+     0.550750     0.512450     0.476150     0.441850     0.409650     0.379600
+     0.351700     0.325900     0.301950     0.279600     0.258550     0.238550
+     0.219400     0.200750     0.182250
+ zeffin(1)=
+      1.42600      1.42600      1.42650      1.42750      1.42900      1.43100
+      1.43300      1.43550      1.43800      1.44100      1.44450      1.44800
+      1.45200      1.45650      1.46100      1.46550      1.47100      1.47650
+      1.48200      1.48800      1.49450      1.50100      1.50700      1.51350
+      1.52000      1.52550      1.53050      1.53550      1.53950      1.54200
+      1.54350      1.54400      1.54300      1.53950      1.53400      1.52600
+      1.51550      1.50350      1.49100      1.47900      1.46750      1.45550
+      1.44250      1.43000      1.41800      1.40700      1.39800      1.39150
+      1.38850      1.38900      1.39100
+ &end
+
+ &trsetup
+ difusr=2.e+17,
+ pinch='simple',
+ relaxden=1.,
+ relaxtsp='enabled',
+ transp='disabled',
+ advectr=1.
+ &end
+
+ &sousetup
+ asor(1,1,1)=0.0e+13,asor(1,2,1)=0.0e+13,
+ noffso(1,1)=10000,noffso(1,2)=10000,  !1st index: species; 2nd, source index.
+ !nonso(1,1)=0,!nonso(1,2)=0, ! default is 100000; no particle source for H
+ nonso(2,1)=0,  !Turn on 2nd species for krfsou=2
+ nso=1,  !Turn on 2nd species for krfsou=2  ! YuP: WHY NOT nso=0?
+ nsou=10000,
+ pltso='enabled',
+ scm2(1,1)=.001,scm2(1,2)=10000.,
+ sellm1(1,1)=1.,sellm1(1,2)=1.,
+ sellm2(1,1)=1.,sellm2(1,2)=1.,
+ sem1(1,1)=1600.,sem1(1,2)=0.,
+ sem2(1,1)=.5,sem2(1,2)=25.,
+ seppm1(1,1)=1.,seppm1(1,2)=1.,
+ seppm2(1,1)=1.,seppm2(1,2)=1.,
+ soucoord='polar',
+ sthm1(1,1)=5.,sthm1(1,2)=0.,
+ szm1(1,1)=0.,szm1(1,2)=0.,
+ szm2(1,1)=1.e+5,
+ szm2(1,2)=1.e+5
+ knockon='disabled'
+ komodel='th'
+ flemodel='th_pol',
+ jfl=150
+ nkorfn=0,
+ nonko=0
+ noffko=10000
+ soffvte=4.5
+ isoucof=1
+ faccof=0.5
+ xlfac=+0.1,
+ xllwr=.085,
+ xlmdl=.25,
+ xlpctlwr=.1,
+ xlpctmdl=.4
+ &end
+
+ &eqsetup
+ atol=1.e-8,
+ bsign=-1.0,
+ ellptcty=0.,
+ eqdskin='g122080.03100'
+ eqmod='enabled',
+ eqsym='avg_zmag',
+ eqpower=2,
+ eqsource='eqdsk',
+ fpsimodl='constant',
+ methflag=10,
+ nconteq='disabled',
+ nconteqn=40
+ rbox=92.,
+ rboxdst=120.,
+ rmag=166.,
+ rtol=1.e-8,
+ zbox=92.
+ &end
+
+ &rfsetup
+ rdcmod='disabled'
+ call_lh='disabled',
+ call_ech='disabled',
+ call_fw='disabled',
+ lh='disabled',
+ ech='disabled',
+ fw='disabled',
+! iurfl(1)='enabled','disabled'   !so no double application of linear damping
+ iurfl(1)='disabled','enabled'   !so no double application of linear damping
+ iurfcoll(1)='damp_out','damp_out',
+! nharms=3, 2
+! nharm1=7, 4
+ nharms=2, 3
+ nharm1=4, 7
+ nrfitr1=1000,
+ nrfitr2=0,
+ nrfitr3=1,
+ nrfpwr=0,
+ nrfstep1(1)=1000,
+ nrfstep1(2)=1000,
+ nrfstep1(3)=1000,
+ nrfstep2=000,
+ nondamp=0
+ noffrf(1)=100000,  100000
+ nonrf(1)=0, 0
+ nrf=0,
+ nrfspecies(1)=1, 2
+ pwrscale(1)=1.0 1.0 1.0 1.0
+ rfread='netcdf',
+ rffile(1)='genrayfw_18rays.nc'
+ rffile(2)='genrayfw_18rays.nc'
+ rftype(1)='fw' 'fw'
+ nurftime=0
+ pwrscale1(1)=0.0,0.0,0.15433,0.37111,.64866,1.0,1.0
+ urftime(1)=0.0,0.2,0.205,0.210,0.215,0.220,0.225
+ scaleurf='enabled',
+ urfdmp='secondd',
+ urfmod='enabled',  !------------------------
+ urfrstrt='disabled',
+ urfwrray='disabled',
+ vlfmod='disabled',
+ vlhmod='disabled',
+ vparmax=.7956,
+ vparmin=.1768,
+ vprprop='disabled'
+ wdscale(1)=.2 .2 .2 .2
+ &end
+ &frsetup
+ aheigh(1,1)=47.8,
+ aheigh(1,2)=47.8,
+ aheigh(2,1)=48.0,
+ aheigh(2,2)=48.0,
+ alen(1,1)=186.1,
+ alen(1,2)=186.1,
+ alen(2,1)=346.0,
+ alen(2,2)=346.0,
+ alen(3,1)=449.0,
+ alen(3,2)=449.0,
+ alen(4,1)=500.,
+ alen(4,2)=500.,
+ angleh(1)=19.5,
+ angleh(2)=19.5,
+ anglev(1)=0.0,
+ anglev(2)=0.0,
+ ashape(1,1)='s-rect',
+ ashape(1,2)='s-rect',
+ ashape(2,1)='s-rect',
+ ashape(2,2)='s-rect',
+ ashape(3,1)='b-d3d',
+ ashape(3,2)='b-d3d',
+ ashape(4,1)='b-circ',
+ ashape(4,2)='b-circ',
+ awidth(1,1)=13.8,
+ awidth(1,2)=13.8,
+ awidth(2,1)=17.7,
+ awidth(2,2)=17.7,
+ awidth(4,1)=50.9,
+ awidth(4,2)=50.9,
+ bcur(1)=110.,
+ bcur(2)=110.,
+ bhdiv(1)=.5,
+ bhdiv(2)=.5,
+ bheigh(1)=48.,
+ bheigh(2)=10.,
+ bhfoc(1)=1.e100,
+ bhfoc(2)=1.e100,
+ bhofset(1)=42.074,
+ bhofset(2)=42.074,
+ bleni(1)=556.808,
+ bleni(2)=556.808,
+ blenp(1)=539.,
+ blenp(2)=539.,
+ bmsprd=.1,
+ bptor(1)=901774.
+ bptor(2)=4.13188e+06
+ bshape(1)='rect-lps',
+ bshape(2)='rect-lps',
+ bvdiv(1)=1.3,
+ bvdiv(2)=1.3,
+ bvfoc(1)=1.e3,
+ bvfoc(2)=1.e3,
+ bvofset(1)=0.0,
+ bvofset(2)=0.0,
+ bwidth(1)=12.,
+ bwidth(2)=12.,
+ ebkev(1)=74.7885
+ ebkev(2)=80.9770
+ fbcur(1,1)=.75,
+ fbcur(1,2)=.75,
+ fbcur(2,1)=.15,
+ fbcur(2,2)=.15,
+ fbcur(3,1)=.1,
+ fbcur(3,2)=.1,
+ frmod='enabled', !-----------------------------
+ frplt='enabled',
+ ibcur=1     iborb=0,
+ iexcit=0,
+ inubpat=0,
+ multiply='disabled',
+ naptr=4,
+ nbeams=2,
+ nfrplt=400,
+ nimp=0,     !NOTE
+ npart=10000,
+ nprim=2,
+ npskip=1,
+ nsourc=2,
+ rpivot(1)=286.6,
+ rpivot(2)=286.6,
+ sfrac1(1)=0.0,
+ sfrac1(2)=0.0,
+ smooth=.125,
+ zpivot(1)=0.0,
+ zpivot(2)=0.0
+ &end
+
+NSTX ION CASE:  NBI+FW Shot 108251.00235
+Having some problem with nimp=1 in freya module.  Needs checking out.
+
+
+end
+end
+end
+LEAVE
+THESE
+HERE!

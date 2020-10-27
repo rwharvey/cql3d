@@ -31,6 +31,13 @@ c     analegco="enabled" => ngauss should be .le. 0
       ipxy=min(51,iy)
       jpxy=min(101,jx+1)
       if (mod(jpxy,2).eq.0) jpxy=jpxy-1
+      impcah=0 !YuP[2018-07-09] Added initialization.
+      imprf=0 !YuP[2018-07-09] Added initialization. 
+      !(imprf is initialized in urfchief, but it is only called when urfmod.ne."disabled")
+      !!YuP[2018-07-09] Those two lines are not critical for past runs:
+      ! In worst case, if they were initialized to something ne.0, 
+      ! the factorization in impavnc0 would be done at every time step,
+      ! which is a most usual mode of operation.
       irstart=0
       l_=1
       lr_=l_

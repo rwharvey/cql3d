@@ -67,6 +67,10 @@ c     current (bscurm) is assumed to be area averaged.
 c
 c     Presently, only electron bootstrap contribution included 
 c                for jhirsh=88/99. (BobH, 990823).
+!     Now (2019) electron and ion contribution is included 
+!         into bscurm(l,k,kk) in subr. tdboothi for jhirsh=88/99, 
+!         but here only electron contribution is used
+!         (in bscurm(ilr,1,1) below, last index "1" is for electrons)  
 c
 c     Input currents are in Amps/cm**2
 c..................................................................
@@ -351,6 +355,8 @@ c..................................................................
      +       status='unknown')
       elseif (eqsource.eq."tsc") then
         open(unit=17,file="tdeqdsk",delim='apostrophe',status='unknown')
+      else ! could be "miller"
+        goto 800 ! skip writing data
       endif
 cBH:000906  Maybe problem with format of the following write(17,210)
 cBH070116      write(17,210) mnemonic,ipestg,nnr,nnz,nnv_

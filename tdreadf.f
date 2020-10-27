@@ -9,9 +9,10 @@ c     Read namelist, distribution function and spatial source from
 c       a previous run.
 c     kopt = 1: Read namelists from text file distrfunc (should be first
 c               call, to place file pointer at beginning of f). 
-c               Only called if nlrstrt="enabled", otherwise distrfunc
+c               Only called if nlrestrt="enabled", otherwise distrfunc
 c               not needed.
-c          = 2: Read f
+c          = 2: Read f (and elecfld if ampfmod=enabled)
+c          = 3: Read zeff, if nlrestrt=ncdfdist and iprozeff=curr_fit
 c.......................................................................
 
       include 'param.h'
@@ -30,9 +31,14 @@ c --- (obtained from NetCDF distribution)
 CMPIINSERT_INCLUDE     
 
       integer ncid,istatus
-      integer xdim,ydim,rdim,gen_species_dim,vid
+      integer xdim,ydim,rdim,gen_species_dim,vid, dimid, dimlen
 cBH180517      integer count(3),start(3)
       integer count(4),start(4)
+      integer startf(4),countf(4)
+      integer tdim,r00dim,tdim_rstrt,r00dim_rstrt
+      integer r00_count(2)
+      integer r0dim,r0dim_rstrt
+      integer r0_count(2)
       character*128 name
 
 c     Pointers for dynamic memory allocation, local usage:
@@ -41,17 +47,21 @@ c     Pointers for dynamic memory allocation, local usage:
       real*8, dimension(:), pointer :: workk,tam2r,cint2r
       real*8, dimension(:,:,:), pointer :: f_rstrt
       integer, dimension(:), pointer :: jf_rstrt
+      real*8, allocatable :: wkpack(:) !local working array for pack21 YuP[2019]
+      real*8, allocatable :: temp_rstrt(:,:) !(0:iy_rstrt+1,0:jx_rstrt+1)
       common/tdreadf_com/x_rstrt,v_rstrt,v_rstrt2,y_rstrt,
      1     f_rstrt_ln,v,v2,aa,bb,d2fparr,workk,tam2r,cint2r,
      1     f_rstrt,jf_rstrt
-      save foverf,renorm_f,k,iy_rstrt,jx_rstrt,lrz_rstrt
+c      save foverf,renorm_f,k,iy_rstrt,jx_rstrt,lrz_rstrt
 
 c.......................................................................
 
       iunwrif=19
 
-      if (kopt .eq. 2) go to 200  !line 109
+      if (kopt.eq.2 .or. kopt.eq.3) go to 200  !line 109
 
+
+!     kopt=1 case
       open(unit=iunwrif,file='distrfunc')
       rewind(iunwrif)
 
@@ -107,9 +117,10 @@ cl    2. Read f(i,j,k,l) from text distfunc file.
 c     l_.eq.lrors clause detects first of l_=lrors,1,-1 calls
 c.......................................................................
 
- 200  continue
+ 200  continue ! kopt.eq.2 .or. kopt.eq.3  handle
+      ! Note: tdreadf(2) is called for each l_;  l_ is in comm.h
 
-      if (nlrestrt.eq."enabled" .and. l_.eq.lrors) then  !elseif, ln 145
+      if (nlrestrt.eq."enabled" .and. l_.eq.lrors) then  !elseif, ln 159
          
 CMPIINSERT_IF_RANK_EQ_0
          WRITE(*,*)'tdreadf:  Reading distfunc (text f)'
@@ -145,8 +156,8 @@ c.......................................................................
 c     Read distribution function from NetCDF file, v-mesh UNchanged
 c.......................................................................
 
-      elseif (nlrestrt.eq."ncdfdist" .and. l_.eq.lrors) then
-                                                       !elseif, line 290
+      elseif (nlrestrt.eq."ncdfdist" .and. 
+     1        (l_.eq.lrors .or. kopt.eq.3)) then   !elseif, line 449
 
 c$$$BH180517:
 c$$$         if (ngen.gt.1) then
@@ -159,12 +170,14 @@ c$$$         endif
 c     Open existing netCDF file [Typically, the distrfunc.nc is linked
 c     to the mnemonic.nc file from an earlier cql3d run.]
 CMPIINSERT_IF_RANK_EQ_0
-         WRITE(*,*)'tdreadf:  Reading distrfunc.nc (netcdf f)'
+       WRITE(*,*)
+     +'tdreadf[nlrestrt="ncdfdist"]: Reading distrfunc.nc(netcdf),kopt='
+     +,kopt
 CMPIINSERT_ENDIF_RANK
 
          istatus = NF_OPEN('distrfunc.nc', 0, ncid) 
          if (istatus .NE. NF_NOERR) then           
-            t_=mnemonic(1:length_char(mnemonic))//'.nc'
+            t_=trim(mnemonic(1:length_char(mnemonic)))//'.nc' !YuP added trim
 CMPIINSERT_IF_RANK_EQ_0
             WRITE(*,*)'tdreadf: distrfunc.nc missing/problem'
             WRITE(*,*)'tdreadf: CHECKING for mnemonic file : ',t_
@@ -184,8 +197,36 @@ CMPIINSERT_IF_RANK_EQ_0
      +              ' of distrfunc.nc'
                WRITE(*,*)
 CMPIINSERT_ENDIF_RANK
+            else ! found the file
+CMPIINSERT_IF_RANK_EQ_0
+               WRITE(*,*)'tdreadf: found mnemonic file: ',t_
+CMPIINSERT_ENDIF_RANK
             endif
-         endif                                     
+         endif ! On istatus
+
+         if (kopt.eq.3) then
+c     Restore zeff profile, close .nc file and return.
+c     (This special read is needed for iprozeff.eq.curr_fit cases,
+c     varying zeff in time to achieve target total plasma current.)
+            istatus= NF_INQ_DIMID(ncid,'tdim',tdim)
+            istatus= NF_INQ_DIMID(ncid,'r0dim',r0dim)
+            istatus= NF_INQ_DIM(ncid,tdim,name,tdim_rstrt)
+            istatus= NF_INQ_DIM(ncid,r0dim,name,r0dim_rstrt)
+            istatus= NF_INQ_VARID(ncid,'zeff',vid)
+            start(1)=1
+            start(2)=tdim_rstrt
+cBH190922            r0_count(1)=r0_rstrt
+            r0_count(1)=r0dim_rstrt !==lrzmax
+            r0_count(2)=1
+            istatus= NF_GET_VARA_DOUBLE(
+     1               ncid,vid,start,r0_count,zeff)
+
+            istatus=NF_CLOSE(ncid)
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)'tdreadf/kopt=3  zeff(:)=',zeff(1:lrz)
+CMPIINSERT_ENDIF_RANK
+            return
+         endif  !On kopt.eq.3
          
 
 c     read in dimension IDs and sizes
@@ -214,7 +255,7 @@ CMPIINSERT_ENDIF_RANK
          
 c-----pitch angle variable y
 c-YuP:         vid = ncvid(ncid,'iy_',istatus)
-         istatus= NF_INQ_VARID(ncid,'iy_',vid)  !-YuP: NetCDF-f77 get vid
+         istatus= NF_INQ_VARID(ncid,'iy_',vid)  
 c-YuP:         call ncvgt(ncid,vid,1,lrz,iy_,istatus)
          istatus= NF_GET_VARA_INT(ncid,vid,(1),(lrz),iy_) !-YuP: NetCDF-f77
          do ll=1,lrz
@@ -226,34 +267,178 @@ CMPIINSERT_ENDIF_RANK
             endif
          enddo
 
-         start(1)=1
-         start(2)=1
+c-----elecfld, restore if ampfmod=enabled
+         if (ampfmod.eq."enabled") then
+            istatus= NF_INQ_DIMID(ncid,'tdim',tdim)
+            istatus= NF_INQ_DIMID(ncid,'r00dim',r00dim)
+            istatus= NF_INQ_DIM(ncid,tdim,name,tdim_rstrt)
+            istatus= NF_INQ_DIM(ncid,r00dim,name,r00dim_rstrt)
+            istatus= NF_INQ_VARID(ncid,'elecfld',vid)
+            start(1)=1
+            start(2)=tdim_rstrt
+cBH190922            r00_count(1)=r00_rstrt
+            r00_count(1)=r00dim_rstrt
+            r00_count(2)=1
+            istatus= NF_GET_VARA_DOUBLE(
+     1               ncid,vid,start,r00_count,elecfld)
+            elecfldc=elecfld(0)
+            istatus=NF_INQ_VARID(ncid,'elecfldb',vid)
+            istatus= NF_GET_VAR1_DOUBLE(
+     1               ncid,vid,(1),elecfldb)
+         endif
 
-         count(1)=iy
-         count(2)=jx
-         count(3)=1
-         count(4)=1
+c-----distribution function f: restore after checking that
+c-----there is only one time-set.  [BH181025: Could adjust code
+c-----for netcdfshort multiple time f, but not much need.]
 
-         istatus= NF_INQ_VARID(ncid,'f',vid)  !-YuP: NetCDF-f77 get vid
+         istatus=NF_INQ_VARID(ncid,'netcdfshort',vid)
+         istatus= NF_GET_VAR_TEXT(ncid,vid,netcdfshort)
+         if (netcdfshort.eq."enabled" .or.
+     1       netcdfshort.eq."longer_f" .or.
+     1       netcdfshort.eq."lngshrtf") then
+            WRITE(*,*)
+            WRITE(*,*)'STOP: distrfunc.nc not setup for single time f'
+            WRITE(*,*)
+            stop
+         endif
+
+
+         !The structure of 'f' in mnemonic.nc file can be different
+         !depending on ngen and on netcdfshort settings.
+         !YuP[2019-02-07] See netcdfrw2: 'f' can be 3D, or 4D, or 5D.
+         !
+         !---1--- Case of saving f at each or several selected time steps,
+         !      (netcdfshort.eq.'longer_f').or.(netcdfshort.eq.'lngshrtf')
+         !if (ngen.eq.1) then    
+         ! 'f' is 4D, NCDOUBLE,4, dimsf(1:4)={ydimf,xdimf,rdim, tdim}
+         !                        startf(3)=ll (in do loop)
+         !                        startf(4)=numrec1 (or numrecsave)
+         !                        countf(1:4)={iy,jx,1,1} (in ll loop)
+         !else  !ngen.ge.2
+         ! 'f' is 5D, NCDOUBLE,5, dimsf(1:5)={ydimf,xdimf,rdim, gdim,tdim}
+         !                        startg(3)=ll (in do loop)
+         !                        startg(4)=k  (in do loop)
+         !                        startg(5)=numrec1 (or numrecsave)
+         !                        countg(1:5)={iy,jx,1,1,1} (in k,ll loops)
+         !endif  !on ngen
+         !The above case is difficult: we need to know the value of numrec1
+         !(it can be less than nstop)
+         !
+         !---2--- Case of saving f only at the end of run
+         !        (other values of netcdfshort, e.g. 'disabled', 
+         !         but not 'enabled' when f is not saved at all)
+         !if (ngen.eq.1) then    
+         ! 'f' is 3D, NCDOUBLE,3, dimsf(1:3)={ydimf,xdimf,rdim}
+         !                        startf(3)=ll (in do loop)
+         !                        countf(1:3)={iy,jx,1} (in ll loop)
+         !else  !ngen.ge.2
+         ! 'f' is 4D, NCDOUBLE,4, dimsf(1:4)={ydimf,xdimf,rdim, gdim}
+         !                        startg(3)=ll (in do loop)
+         !                        startg(4)=k  (in do loop)
+         !                        countg(1:4)={iy,jx,1,1} (in k,ll loops)
+         !endif  !on ngen
+         !Note that ngen=1 and ngen>1 cases 
+         !could be combined during reading.
+         !Just use 
+         !                        startf(3)=ll (in do ll loop)
+         !                        startf(4)=k  (in do k loop)
+         !                        countf(1:4)={iy,jx,1,1} (in k,ll loops)
+         !                        In case of ngen=1 the values of 
+         !                        startf(4) and countf(4) will not be used.
+         !Note: gdim is same as gen_species_dim (=ngen)
+         ! Search "temp1(i,j)=f(" in netcdfrw2.
+
+         !YuP[2019-02-07] added wkpack and temp_rstrt
+         if (.NOT.ALLOCATED(wkpack)) then !allocate working array for pack21
+           nwkpack=(iy+2)*(jx+2) 
+           allocate(wkpack(nwkpack),STAT=istat)
+           if(istat.ne.0)
+     .        call allocate_error("wkpack, sub tdreadf",0,istat)
+         endif
+         wkpack=zero
+         if (.NOT.ALLOCATED(temp_rstrt)) then !allocate working array for pack21
+           allocate(temp_rstrt(0:iy+1,0:jx+1),STAT=istat)
+           if(istat.ne.0)
+     .        call allocate_error("temp_rstrt, sub tdreadf",0,istat)
+         endif
+         temp_rstrt=zero
+
+         ! The reading of f below is only valid in case when f was recorded
+         ! at the last time step only (netcdfshort='disabled').
+         startf(1)=1
+         startf(2)=1
+         countf(1)=iy
+         countf(2)=jx
+         istatus= NF_INQ_VARID(ncid,'f',vid)  
+         istatus= NF_INQ_DIMID(ncid,'f', dimid)
+         istatus= NF_INQ_DIMLEN(ncid, dimid, dimlen) 
+CMPIINSERT_IF_RANK_EQ_0
+         !WRITE(*,*)'tdreadf[nlrestrt="ncdfdist"]: dimid=',dimid
+         !WRITE(*,*)'tdreadf[nlrestrt="ncdfdist"]: dimlen=',dimlen
+!         WRITE(*,*)'tdreadf[nlrestrt="ncdfdist"]: 
+!     &              (iy+2)*(jx+2)=',(iy+2)*(jx+2)
+CMPIINSERT_ENDIF_RANK
          call bcast(f,zero,(iy+2)*(jx+2)*ngen*lrors)  !This f is f_code
 
+!         do k=1,ngen
+!         do ll=1,lrz
+!            startf(3)=ll
+!            startf(4)=k
+!            countf(3)=1
+!            countf(4)=1
+!            istatus= NF_GET_VARA_DOUBLE(ncid,vid,startf,countf,tem1)
+!            ij=0
+!            do j=1,jx
+!               do i=1,iy
+!                  ij=ij+1
+!                  f(i,j,k,ll)=tem1(ij)
+!               enddo  
+!            enddo
+!         enddo  !on ll
+!         enddo  !on k=1,ngen
+
+         !YuP[2019-02-07] Replaced by this version 
+         !(the above does not work).
+         !In netcdfrw2, f() was packed
+         !as pack21(temp1(1:iy,1:jx),1,iy,1,jx,wkpack,iy,jx)
+         !for each given ll, each k, 
+         !and each time step (if more than one).
+         !So now we unpack it in exactly same way.
          do k=1,ngen
          do ll=1,lrz
-            start(3)=ll
-            start(4)=k
-            istatus= NF_GET_VARA_DOUBLE(ncid,vid,start,count,tem1)
-            ij=0
-            do j=1,jx
-               do i=1,iy
-                  ij=ij+1
-                  f(i,j,k,ll)=tem1(ij)
-               enddo  
-            enddo
+           ! These values (3-4) can be different, dep. on cases
+           startf(3)=ll 
+           startf(4)=k !in case of ngen=1, startf(4)=1, 
+           !actually startf(4) and countf(4) are not needed in case ngen=1
+           countf(3)=1
+           countf(4)=1
+           istatus= NF_GET_VARA_DOUBLE(ncid,vid,startf,countf,wkpack)
+           !YuP[2019-02-07] unpack wkpack(:) into temp_rstrt(i,j)
+           call unpack21(temp_rstrt(1:iy,1:jx),1,iy,1,jx,
+     &                   wkpack(1:iy*jx),iy,jx)
+!!3           istatus= NF_GET_VARA_DOUBLE(ncid,vid,
+!!3     &      startf(1:4),countf(1:4),temp_rstrt(1:iy,1:jx) )
+           if(istatus.ne.0)then
+             WRITE(*,*)'tdreadf: WARNING: reading f() error. k,ll=',k,ll
+           endif
+           do j=1,jx !0,jx+1 !1,jx
+           do i=1,iy !0,iy+1 !1,iy
+              f(i,j,k,ll)=temp_rstrt(i,j)
+           enddo
+           enddo
+!           WRITE(*,*)'tdreadf_360:ll,MAX,SUM(temp_)=', 
+!     &        ll,MAXVAL(temp_rstrt),SUM(temp_rstrt)
          enddo  !on ll
          enddo  !on k=1,ngen
 
          
          istatus=NF_CLOSE(ncid)
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)'tdreadf[nlrestrt="ncdfdist"]:Done reading f'
+!         WRITE(*,*)'tdreadf_360: For checkup SUM(f)=', SUM(f)
+!         WRITE(*,*)'tdreadf_360: For checkup MIN(f),MAX(f)=', 
+!     +                 MINVAL(f),MAXVAL(f)
+CMPIINSERT_ENDIF_RANK
 
 
 
@@ -272,7 +457,7 @@ c.......................................................................
 !which are also calculated one flux surface at a time.
 
       elseif (nlrestrt.eq."ncregrid") then !re-grid mod option
-                                           !endif, line 645
+                                           !endif, line 900
                                         
          if (l_.eq.lrors) then  !That is, first l_ call of tdreadf
 
@@ -293,7 +478,8 @@ c$$$         endif
          
 c     Open existing NetCDF file
 CMPIINSERT_IF_RANK_EQ_0
-         WRITE(*,*)'tdreadf:  Reading distfunc.nc (netcdf f)'
+         WRITE(*,*)
+     +   'tdreadf[nlrestrt.eq."ncregrid"]: Reading distfunc.nc (netcdf)'
 CMPIINSERT_ENDIF_RANK
          
          istatus = NF_OPEN('distrfunc.nc', 0, ncid)
@@ -415,6 +601,21 @@ c         allocate (f_rstrt(iy,jx_rstrt,lrz,ngen),STAT = istat)   !Can't do this
      .        call allocate_error("v2, sub tdreadf",0,istat)
          call bcast(v2,zero,SIZE(v2))
 
+         !YuP[2019-02-07] added wkpack and temp_rstrt
+         if (.NOT.ALLOCATED(wkpack)) then !allocate working array for pack21
+           nwkpack=(iy_rstrt+2)*(jx_rstrt+2) !and iy_rstrt=iy, see above
+           allocate(wkpack(nwkpack),STAT=istat)
+           if(istat.ne.0)
+     .        call allocate_error("wkpack, sub tdreadf",0,istat)
+           wkpack=zero
+         endif
+         if (.NOT.ALLOCATED(temp_rstrt)) then !allocate working array for pack21
+           allocate(temp_rstrt(0:iy_rstrt+1,0:jx_rstrt+1),STAT=istat)
+           if(istat.ne.0)
+     .        call allocate_error("temp_rstrt, sub tdreadf",0,istat)
+           temp_rstrt=zero
+         endif
+
          istatus= NF_INQ_VARID(ncid,'enorm',vid)
          istatus= NF_GET_VAR1_DOUBLE(ncid,vid,(1),enorm_rstrt)
 
@@ -464,25 +665,70 @@ cBH180602:  Check that it is OK!
 c.......................................................................
          do k=1,ngen   !down to line 692
 
-cBH180606         if (l_.eq.lrors) then  !That is, on first call tdreadf
-         start(1)=1
-         start(2)=1
-cBH180606         start(3)=1
-         start(3)=l_
-         start(4)=k
-         count(1)=iy_rstrt   !=iy
-         count(2)=jx_rstrt   !possibly diff from jx
-cBH180606         count(3)=lrz_rstrt  !=lrz
-         count(3)=1
-         count(4)=1
+         ! First two indexes in 'f' array:
+         startf(1)=1
+         startf(2)=1
+         countf(1)=iy_rstrt   !=iy
+         countf(2)=jx_rstrt   !possibly diff from jx
+         
+         !YuP[2019-02-07] See netcdfrw2: 'f' can be 3D, or 4D, or 5D :
+         !---1--- Case of saving f at each or several selected time steps
+         !if (ngen.eq.1) then    
+         ! 'f' is 4D, NCDOUBLE,4, dimsf(1:4)={ydimf,xdimf,rdim, tdim}
+         !                        startf(3)=ll (in do loop)
+         !                        startf(4)=numrec1 (or numrecsave)
+         !                        countf(1:4)={iy,jx,1,1} (in ll loop)
+         !else  !ngen.ge.2
+         ! 'f' is 5D, NCDOUBLE,5, dimsf(1:5)={ydimf,xdimf,rdim, gdim,tdim}
+         !                        startg(3)=ll (in do loop)
+         !                        startg(4)=k  (in do loop)
+         !                        startg(5)=numrec1 (or numrecsave)
+         !                        countg(1:5)={iy,jx,1,1,1} (in k,ll loops)
+         !endif  !on ngen
+         !
+         !---2--- Case of saving f only at the end of run
+         ! (and it is favg that was saved into mnemonic.nc file)
+         !if (ngen.eq.1) then    
+         ! 'f' is 3D, NCDOUBLE,3, dimsf(1:3)={ydimf,xdimf,rdim}
+         !                        startf(3)=ll (in do loop)
+         !                        countf(1:3)={iy,jx,1} (in ll loop)
+         !else  !ngen.ge.2
+         ! 'f' is 4D, NCDOUBLE,4, dimsf(1:4)={ydimf,xdimf,rdim, gdim}
+         !                        startg(3)=ll (in do loop)
+         !                        startg(4)=k  (in do loop)
+         !                        countg(1:4)={iy,jx,1,1} (in k,ll loops)
+         !endif  !on ngen
+         !Note: gdim is same as gen_species_dim (=ngen)
+         ! Search "temp1(i,j)=f(" in netcdfrw2.
+
+         ! These values can be different, dep. on cases above
+         startf(3)=l_ ! l_ is from each call of tdreadf(2)
+         startf(4)=k
+         countf(3)=1
+         countf(4)=1
          istatus= NF_INQ_VARID(ncid,'f',vid)
-         istatus= NF_GET_VARA_DOUBLE
-     1                            (ncid,vid,start,count,f_rstrt(1,1,l_))
+         !YuP: had errors with using f_rstrt; changed to wkpack
+         istatus= NF_GET_VARA_DOUBLE(ncid,vid,startf,countf,wkpack)
                                      !This netCDF 'f' is a 4D object,
                                      !gen_species_dim, rdim, xdim, ydim.
                                      !Read it in to 3D f_rstrt
-                                     !and process to code f(:,:,:,:), 
+                                     !and process to code f(i,j,k,ll), 
                                      !one gen species at at time.
+         
+         !YuP[2019-02-07] unpack wkpack(:) into temp_rstrt(i,j)
+         call unpack21(temp_rstrt(1:iy_rstrt,1:jx_rstrt),
+     &                 1,iy_rstrt,1,jx_rstrt,
+     &                 wkpack(1:iy_rstrt*jx_rstrt),iy_rstrt,jx_rstrt)
+!!3         istatus= NF_GET_VARA_DOUBLE(ncid,vid,
+!!3     &    startf(1:4),countf(1:4),temp_rstrt(1:iy_rstrt,1:jx_rstrt))
+         if(istatus.ne.0)then
+           WRITE(*,*)'tdreadf: WARNING: reading f() error. k,l_=',k,l_
+         endif
+         do j=1,jx_rstrt
+            do i=1,iy_rstrt
+               f_rstrt(i,j,l_)=temp_rstrt(i,j)
+            enddo
+         enddo
 
 c        Code distribution function is f_cgs_units*vnorm**3.
 c        The restart distribution is similarly normalized:

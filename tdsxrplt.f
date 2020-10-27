@@ -14,6 +14,11 @@ CMPIINSERT_INCLUDE
 cBH092022:
       REAL*4 RBOUND
 
+      REAL*4 :: R40=0.,R41=1.
+      REAL*4 :: R4P1=.1,R4P2=.2,R4P8=.8,R4P45=.45,R4P9=.9
+      REAL*4 :: R41P44=1.44,R47=7.,R47P5=7.5,R4P5=.5
+      REAL*4 :: R4P15=.15,R4P85=.85
+
 c..................................................................
 cmnt  this routine plots SXR/NPA energy/particle flux spectra 
 cmnt  versus photon/particle energy.
@@ -39,13 +44,22 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
       em100=1.d-100
 
       fmin=ep100
-      fmax=-ep100
+      fmax=-ep100 ! initialize to negative, will be found below
       do 100  nn=1,nv
-        if (inegsxr(nn).le.1) go to 100
+        if (inegsxr(nn).le.1) go to 100 ! and then fmax remains negative
         call aminmx(eflux(1,nn),1,inegsxr(nn),1,fmin1,fmax1,kmin,kmax)
         fmin=min(fmin,fmin1)
         fmax=max(fmax,fmax1)
  100  continue
+      ! Note: if inegsxr(nn).le.1 for ALL nn, then fmax remains equal 
+      ! to -ep100. This can happen when all sightlines missed plasma.
+      !YuP[2018-02-08] Added:
+      if(fmax.lt.0.d0)then
+        WRITE(*,*)'tdsxrplt: All sightlines missed plasma. Skip plots.'
+        return
+      endif
+      
+      
       if (fmin .eq. fmax) fmin=.9*fmax-1.e-20
       decades=6.1
       if(decades.ge.0.)  fmin=fmax/10**decades
@@ -54,16 +68,23 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
          RTAM1(J)=RBOUND(en(j))
       ENDDO
 
+      !write(*,*)'tdsxrplt: fmin,fmax=',fmin,fmax
+      ! YuP[2018-02-08] Sometimes fmin<0. Need to check this.
+      ! For now, reset to a small value
+      !fmin= max(fmin, .9*fmax-1.e-20) !YuP[2018-02-08]
+      
       REMIN=RBOUND(LOG10(fmin))
       REMAX=RBOUND(LOG10(fmax))
+      !write(*,*)'tdsxrplt: LOG10(fmin),LOG10(fmax)=',REMIN,REMAX
+      
       
       CALL PGPAGE
 C     CALL PGENV(Rtam1(1),Rtam1(nen),Remin,Remax,0,20)
-      CALL PGSVP(.2,.8,.45,.9)
+      CALL PGSVP(R4P2,R4P8,R4P45,R4P9)
       CALL PGSWIN(Rtam1(1),Rtam1(nen),Remin,Remax)
-      CALL PGBOX('BCNST',0.,0,'BCNSTL',0.,0)
+      CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
       CALL PGSAVE
-      CALL PGSCH(1.44)
+      CALL PGSCH(R41P44)
       if (softxry.eq.'enabled') then
       CALL PGLAB('Photon Energy k (keV)', 
      +     'd\u2\d\(0555)/dtdk (ergs/cm\u2\d-sec-ster-eV)',
@@ -76,10 +97,10 @@ C     CALL PGENV(Rtam1(1),Rtam1(nen),Remin,Remax,0,20)
 
       CALL PGUNSA
 
-      do 200 nn=1,nv
+      do 200 nn=1,nv ! view lines
         if (inegsxr(nn) .le. 1) go to 200
         CALL PGSLW(lnwidth) ! line thickness/width
-       DO J=1,inegsxr(nn)
+        DO J=1,inegsxr(nn)
            rtam2(J)=rbound(eflux(j,nn))
 c           write(*,*)'tdsxrplt.f: nn,j,eflux(j,nn),rtam2(j):',
 c     +                            nn,j,eflux(j,nn),rtam2(j)
@@ -89,9 +110,10 @@ c     +                            nn,j,eflux(j,nn),rtam2(j)
            else
               RTAM2(j)=1.0
            endif
-        ENDDO
-           CALL PGLINE(inegsxr(nn),RTAM1,RTAM2)
- 200   continue
+        ENDDO ! J=1,inegsxr(nn)
+        CALL PGLINE(inegsxr(nn),RTAM1,RTAM2)
+ 200  continue ! nn
+ 
        CALL PGSLW(lnwidth) ! restore line thickness/width
 
       if (softxry.eq.'enabled') then 
@@ -102,7 +124,7 @@ c     +                            nn,j,eflux(j,nn),rtam2(j)
  610  format("total flux, enmin to enmax (ergs/cm**2-sec-ster):")
  613  format("total flux, enmin_npa to enmax_npa (#/cm**2-sec-ster):")
          
-      CALL PGMTXT('B',7.,-0.1,0.,t_)
+      CALL PGMTXT('B',R47,-R4P1,R40,t_)
 
       do 300  nn=1,nv,2
          if (nn.eq.nv .and. ((nv/2)*2 .ne. nv)) then
@@ -110,7 +132,7 @@ c     +                            nn,j,eflux(j,nn),rtam2(j)
          else
             write(t_,611)  (efluxt(in),in=nn,nn+1)
          endif
-         CALL PGMTXT('B',7.5+0.5*nn,0.,0.,t_)
+         CALL PGMTXT('B',R47P5+R4P5*nn,R40,R40,t_)
  300  continue
 c$$$      do 300  nn=1,nv,4
 c$$$         if (nn.eq.nv .and. ((nv/4)*4 .ne. nv)) then
@@ -118,15 +140,16 @@ c$$$            write(t_,612) efluxt(nv)
 c$$$         else
 c$$$            write(t_,611)  (efluxt(in),in=nn,nn+3)
 c$$$         endif
-c$$$         CALL PGMTXT('B',7.+nn,0.,0.,t_)
+c$$$         CALL PGMTXT('B',7.+nn,R40,R40,t_)
 c$$$ 300  continue
  611  format(1p4e12.2)
  612  format(1pe12.2,12x)
 
       return
-      end
+      end subroutine tdsxrplt
 
-
+!=======================================================================
+!=======================================================================
 c
 c
       subroutine tdsxrvw(tempp4,tempp5,tempp6)
@@ -140,6 +163,7 @@ CMPIINSERT_INCLUDE
       REAL*4 ZTOP
       REAL*4 RTAB1(LFIELDA),RTAB2(LFIELDA)
       REAL*4 PGER1,PGERNNR,PGEZNNZ
+      REAL*4 :: R4P15=.15,R4P85=.85,R4P9=.9,R40=0.
 
       REAL*4 RRTAB1,RRTAB2
       dimension rrtab1(:), rrtab2(:)
@@ -164,12 +188,14 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
       CALL PGPAGE
 
       if (eqsym.ne."none") then
-         ztop=2.*.5*ez(nnz)/(er(nnr)-er(1))+.05
+         !YuP[2020-10-26] was  ztop=2.*.5*ez(nnz)/(er(nnr)-er(1))+.05
+         !Title would not show.
+        ztop=.95*ez(nnz)/(er(nnr)-er(1))+.05 !YuP[2020-10-26] 
       else
          ztop=.95
       endif
 
-      CALL PGSVP(.15,.85,.15,ztop)
+      CALL PGSVP(R4P15,R4P85,R4P15,ztop)
 
       PGER1=er(1)
       PGERNNR=er(nnr)
@@ -177,7 +203,7 @@ c      write(*,*)'tdsxrvw: PGER1,PGERNNR=',PGER1,PGERNNR
       PGEZNNZ=ez(nnz)
       CALL PGSWIN(PGER1,PGERNNR,-PGEZNNZ,PGEZNNZ)
       CALL PGWNAD(PGER1,PGERNNR,-PGEZNNZ,PGEZNNZ)
-      CALL PGBOX('BCNST',0.,0,'BCNST',0.,0)
+      CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
       CALL PGSLW(lnwidth) ! line thickness/width
 
       if (softxry.eq."enabled") then
@@ -206,12 +232,14 @@ c     Up-Down symmetric flux surfaces are plotted:
            
         else
 c     Full flux surface contours are plotted:
+           if (ioutput(1).ge.2) then !YuP[2020] diagnostic printout
            write(*,*)
            write(*,*)'tdsxrplt: l,lorbit(l)=',l,lorbit(l)
            do j=1,lorbit(l)
-cBH091031             write(*,*)'j,solr(j,l),solz(j,l)=',
-cBH091031    +             j,solr(j,l),solz(j,l)
+             write(*,*)'j,solr(j,l),solz(j,l)=',
+     +                  j,solr(j,l),solz(j,l)
            enddo
+           endif
            do j=1,lorbit(l)
               RTAB1(j)=solr(lorbit(l)+1-j,l)
               RTAB2(j)=solz(lorbit(l)+1-j,l)
@@ -238,8 +266,7 @@ cBH091031    +             j,solr(j,l),solz(j,l)
              RRTAB1(j)=sqrt(tempp4(iistep+j)**2+tempp5(iistep+j)**2)
              RRTAB2(j)=tempp6(iistep+j)
            else
-             write(*,*)'tdsxrvw: Increase dimension of rrtab1,2'
-             STOP
+             STOP 'tdsxrvw: Increase dimension of rrtab1,2'
            endif
  40     continue
 
@@ -256,6 +283,6 @@ c        write(*,*) 'tdsxrvw: RRTAB2',(RRTAB2(jj),jj=1,lensxr(nn))
       deallocate(rrtab2,STAT=istat) 
  
       return
-      end
+      end subroutine tdsxrvw
 
 

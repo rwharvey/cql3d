@@ -12,7 +12,8 @@ c     using PGPLOT + GRAFLIBtoPGPLOT.f routines (put in pltmain.f).
 c
       include 'param.h'
       include 'comm.h'
-      REAL RILIN
+      REAL*4 RILIN
+      REAL*4 :: R40=0.,R41=1.
       
 CMPIINSERT_INCLUDE
 
@@ -23,34 +24,36 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
       if (n.eq.0 .and. lrzmax.gt.1) return
       if (mplot(l_).eq."disabled") return
       
+      !write(*,*)'entering pltmain. n,l_=',n,l_
+
       rr=rpcon(lr_) !rovera(lr_)*radmin  ! YuP[03-2016] changed to rpcon
       if (pltend.eq."notplts") goto 10
       if (pltend.eq."last" .and. n.lt.nstop) goto 10
 
       CALL PGPAGE
-      CALL PGSCH(1.0) ! restore to default font size
+      CALL PGSCH(R41) ! restore to default font size
       !(sometimes font is too big from previous plot)
 
       RILIN=0.
       if (cqlpmod .ne. "enabled") then
-         CALL PGMTXT('T',-RILIN,0.,0.,"LOCAL RADIAL QUANTITIES")
+         CALL PGMTXT('T',-RILIN,R40,R40,"LOCAL RADIAL QUANTITIES")
       else 
-         CALL PGMTXT('T',-RILIN,0.,0.,"LOCAL PARALLEL QUANTITIES")
+         CALL PGMTXT('T',-RILIN,R40,R40,"LOCAL PARALLEL QUANTITIES")
       endif
       RILIN=RILIN+1.
 
       write(t_,150) n,timet
       RILIN=RILIN+1.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       write(t_,1501) lr_,lrz
       RILIN=RILIN+1.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       write(t_,151) rovera(lr_),rr
       RILIN=RILIN+1.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       write(t_,153) rya(lr_),rpcon(lr_)
       RILIN=RILIN+1.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
  150  format("time step n=",i5,","5x,"time=",1pe12.4," secs")
  1501 format("flux surf=",i3,5x,"total flux surfs=",i3)
  151  format("r/a=",1pe10.3,5x,"radial position (R)=",1pe12.4," cms")
@@ -59,7 +62,7 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
       if (cqlpmod .eq. "enabled") then
         write(t_,152) l_,sz(l_)
         RILIN=RILIN+1.
-        CALL PGMTXT('T',-RILIN,0.,0.,t_)
+        CALL PGMTXT('T',-RILIN,R40,R40,t_)
  152    format("orbit at s(",i5,") = ",1pe10.2)
       endif
 
@@ -76,16 +79,16 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
         write(t_,'(a,f11.3)') ' enorm (kev) =' ,enorm
       endif
         RILIN=RILIN+1.
-        CALL PGMTXT('T',-RILIN,0.,0.,t_)
+        CALL PGMTXT('T',-RILIN,R40,R40,t_)
       write(t_,161)  vnormdc
         RILIN=RILIN+1.
-        CALL PGMTXT('T',-RILIN,0.,0.,t_)
+        CALL PGMTXT('T',-RILIN,R40,R40,t_)
       write(t_,162)  vtedc
         RILIN=RILIN+1.
-        CALL PGMTXT('T',-RILIN,0.,0.,t_)
+        CALL PGMTXT('T',-RILIN,R40,R40,t_)
       write(t_,163)  vtdvnorm
         RILIN=RILIN+1.
-        CALL PGMTXT('T',-RILIN,0.,0.,t_)
+        CALL PGMTXT('T',-RILIN,R40,R40,t_)
       do k=1,ntotal
          vtdvnorm= vth(k,lr_)/vnorm
          !YuP/note: For time-dependent profiles, 
@@ -93,7 +96,7 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
          ! See profiles.f.
          write(t_,'(a,i2,a,f15.7)') "k=",k, "  vth(k)/vnorm =", vtdvnorm
          RILIN=RILIN+1.
-         CALL PGMTXT('T',-RILIN,0.,0.,t_)
+         CALL PGMTXT('T',-RILIN,R40,R40,t_)
       enddo
 
  160  format("enorm (kev) = ",f11.3)
@@ -107,7 +110,7 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
         write(t_,164) zvthes
         write(t_,165) zvtheon
         RILIN=RILIN+1.
-        CALL PGMTXT('T',-RILIN,0.,0.,t_)
+        CALL PGMTXT('T',-RILIN,R40,R40,t_)
  164    format(";","vthe(s) (sqrt(te/me))/c = ",f15.7)
  165    format("vthe(s)/vnorm = ",f15.7)
       endif
@@ -118,10 +121,12 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
 c     Plot energy, density, toroidal current, conservation diagnostic vs
 c     time
 c
+      !write(*,*)'------1 pltmain. n,l_=',n,l_
       if (pltend.ne."disabled" .and. nch(l_).ge.2) then
         if (cqlpmod .ne. "enabled") call pltendn
         if (cqlpmod .eq. "enabled") call pltends
       endif
+      !write(*,*)'------2 pltmain. n,l_=',n,l_
 c
 c     Plot ion source if marker is engaged.
 c
@@ -134,6 +139,7 @@ c
         call souplt
         isouplt=1
       endif
+      !write(*,*)'------3 pltmain. n,l_=',n,l_
 c
 c     Plot electron resistivity and related quantities.
 c
@@ -143,6 +149,7 @@ c
           call pltrstv
         endif
       endif
+      !write(*,*)'------4 pltmain. n,l_=',n,l_
 c
 c     Plot normalized v-flux..
 c
@@ -152,6 +159,7 @@ cBH        if (pltvflu.eq."enabled" .and. n.gt.1 .and. kelecg.gt.0) then
           call pltvflux
         endif
       endif
+      !write(*,*)'------5 pltmain. n,l_=',n,l_
 c
 c     Plot power deposited in plasma by various mechanisms vs.
 c     time.
@@ -161,6 +169,7 @@ c
       elseif (pltpowe.eq."last" .and. n.eq.nstop) then
         call pltpower
       endif
+      !write(*,*)'------6 pltmain. n,l_=',n,l_
 c...  
 cmnt  Distribution f slices at constant pitch and/or pitch angle 
 cmnt    averaged f,  vs velocity or energy coordinate.
@@ -179,10 +188,12 @@ c...
       if (pltlos.ne."disabled") call pltlosc
 c...
 
+      !write(*,*)'------7 pltmain. n,l_=',n,l_
   
 cmnt  Plot the reduced parallel distribution (f integrated on vpp)
 c...  
       if (pltprpp.eq."enabled") call pltprppr
+      !write(*,*)'------7a pltmain. n,l_=',n,l_
 c
 c     Plot the density as a function of poloidal angle for a
 c     set of energy ranges..
@@ -206,9 +217,10 @@ c
 c     Plot the stream lines of the steady state flux
 c
       if (pltstrm.ne."disabled" .and. n.ge.1) call pltstrml
-
+      !write(*,*)'LEAVING pltmain. n,l_=',n,l_
+      
       return
-      end
+      end subroutine pltmain
 
 
 
@@ -217,34 +229,36 @@ c
 C==== CONVERT SOME GRAFLIB ROUTINES to PGPLOT ========================
 C  Yuri Petrov, 090727
 c---------------------------------------------------------------------
-      subroutine gxglfr(n) 
-      integer n       
-        CALL PGPAGE
-      return 
-      end
+!      subroutine gxglfr(n) !YuP[2019-10-28] Not used anymore. Converted to PGPAGE
+!      integer n       
+!        CALL PGPAGE
+!      return 
+!      end
 c---------------------------------------------------------------------
-      subroutine gsvp2d(xmin,xmax,ymin,ymax) ! called explicitly with real*4 args
-      ! xmin,...defines where on the frame the data is plotted. 
-      real*4 xmin,xmax,ymin,ymax
-      REAL*4 PGxmin,PGxmax,PGymin,PGymax ! PGPLOT uses REAL*4
-        PGxmin = xmin
-        PGxmax = xmax
-        PGymin = ymin
-        PGymax = ymax
-        CALL PGSVP(PGxmin,PGxmax,PGymin,PGymax)
-c PGSVP (XLEFT, XRIGHT, YBOT, YTOP)
-c XLEFT  (input)  : x-coordinate of left hand edge of viewport, in NDC.
-c XRIGHT (input)  : x-coordinate of right hand edge of viewport,in NDC.
-c YBOT   (input)  : y-coordinate of bottom edge of viewport, in NDC.
-c YTOP   (input)  : y-coordinate of top  edge of viewport, in NDC.        
-      return 
-      end
+!      subroutine gsvp2d(xmin,xmax,ymin,ymax) ! called explicitly with real*4 args
+!      !YuP[2019-10-28] Not used anymore. All calls are converted to PGSVP
+!      ! xmin,...defines where on the frame the data is plotted. 
+!      real*4 xmin,xmax,ymin,ymax
+!      REAL*4 PGxmin,PGxmax,PGymin,PGymax ! PGPLOT uses REAL*4
+!        PGxmin = xmin
+!        PGxmax = xmax
+!        PGymin = ymin
+!        PGymax = ymax
+!        CALL PGSVP(PGxmin,PGxmax,PGymin,PGymax)
+! PGSVP (XLEFT, XRIGHT, YBOT, YTOP)
+! XLEFT  (input)  : x-coordinate of left hand edge of viewport, in NDC.
+! XRIGHT (input)  : x-coordinate of right hand edge of viewport,in NDC.
+! YBOT   (input)  : y-coordinate of bottom edge of viewport, in NDC.
+! YTOP   (input)  : y-coordinate of top  edge of viewport, in NDC.        
+!      return 
+!      end
 c---------------------------------------------------------------------
       subroutine gswd2d(scales,xmin,xmax,ymin,ymax) ! NOT USED ANYMORE?
       ! xmin,... defines the user coordinate system.            
       implicit integer (i-n), real*8 (a-h,o-z)
       REAL*4 PGxmin,PGxmax,PGymin,PGymax, RPG1,RPG2 ! PGPLOT uses REAL*4
       REAL*4 RBOUND
+      REAL*4 :: R40=0.,R41=1.
       character*7 scale,scales ! = "linlin$" or "linlog$","loglin$","loglog$"
       common/GRAFLIB_PGPLOT_scale/ scale
         scale  = scales ! To gpcv2d -> PGLINE
@@ -255,14 +269,14 @@ c---------------------------------------------------------------------
         IF ( PGymax-PGymin .le. 1.e-16 ) THEN ! YuP [02-23-2016]
            PGymax= PGymin+1.e-16
         ENDIF
-        CALL PGSCH(1.) ! set character size; default is 1.              
+        CALL PGSCH(R41) ! set character size; default is 1.              
         if(scale.eq."linlin$") then
           CALL PGSWIN(PGxmin,PGxmax,PGymin,PGymax)
-          CALL PGBOX('BCNST',0.,0,'BCNST',0.,0)
+          CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         endif
         if(scale.eq."loglin$") then 
           CALL PGSWIN(log10(PGxmin),log10(PGxmax),PGymin,PGymax)
-          CALL PGBOX('BCNSTL',0.,0,'BCNST',0.,0)
+          CALL PGBOX('BCNSTL',R40,0,'BCNST',R40,0)
         endif
         !----------------------------
         PGymin= max(PGymin,1.e-32) ! cannot be negative
@@ -274,11 +288,11 @@ c---------------------------------------------------------------------
         ENDIF
         if(scale.eq."linlog$") then 
           CALL PGSWIN(PGxmin,PGxmax,RPG1,RPG2)
-          CALL PGBOX('BCNST',0.,0,'BCNSTL',0.,0)
+          CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
         endif
         if(scale.eq."loglog$") then
           CALL PGSWIN(log10(PGxmin),log10(PGxmax),RPG1,RPG2)
-          CALL PGBOX('BCNSTL',0.,0,'BCNSTL',0.,0)
+          CALL PGBOX('BCNSTL',R40,0,'BCNSTL',R40,0)
         endif
       return 
       end
@@ -333,24 +347,24 @@ c (if N > 1).
       return 
       end
 c---------------------------------------------------------------------
-      subroutine gpln2d(x1, x2, y1, y2) 
-      ! draw line between two points.
-      ! x1,x2,y1,y2 defines the two points to draw a line between. 
-      implicit integer (i-n), real*8 (a-h,o-z)
-      REAL*4 PGx1, PGy1, PGx2, PGy2
-        PGx1 = x1 ! Convert to REAL*4
-        PGx2 = x2 ! Convert to REAL*4
-        PGy1 = y1 ! Convert to REAL*4
-        PGy2 = y2 ! Convert to REAL*4
-        CALL PGMOVE (PGx1, PGy1)
-c Move the "pen" to the point with world
-c coordinates (X,Y). No line is drawn.
-        CALL PGDRAW (PGx2, PGy2)
-c Draw a line from the current pen position to the point
-c with world-coordinates (X,Y). The line is clipped at the edge of the
-c current window. The new pen position is (X,Y) in world coordinates.
-      return 
-      end
+!      subroutine gpln2d(x1, x2, y1, y2) !YuP[2019-10-28] Not used anymore.
+!      ! draw line between two points.
+!      ! x1,x2,y1,y2 defines the two points to draw a line between. 
+!      implicit integer (i-n), real*8 (a-h,o-z)
+!      REAL*4 PGx1, PGy1, PGx2, PGy2
+!        PGx1 = x1 ! Convert to REAL*4
+!        PGx2 = x2 ! Convert to REAL*4
+!        PGy1 = y1 ! Convert to REAL*4
+!        PGy2 = y2 ! Convert to REAL*4
+!        CALL PGMOVE (PGx1, PGy1)
+!c Move the "pen" to the point with world
+!c coordinates (X,Y). No line is drawn.
+!        CALL PGDRAW (PGx2, PGy2)
+!c Draw a line from the current pen position to the point
+!c with world-coordinates (X,Y). The line is clipped at the edge of the
+!c current window. The new pen position is (X,Y) in world coordinates.
+!      return 
+!      end
 c---------------------------------------------------------------------
       subroutine gslnsz(size) ! called explicitly with real*4 args
       ! set line size (width), where 0. is the default.
@@ -367,93 +381,94 @@ c---------------------------------------------------------------------
       return 
       end
 c---------------------------------------------------------------------
-      subroutine gslnst(LS) 
-      ! sets line style: 1-solid, 2-dashed, 3-dotted, 4-dash-dotted, etc.
-      implicit integer (i-n), real*8 (a-h,o-z)
-      INTEGER  LS
-        CALL PGSLS(LS)
-c Set the line style attribute for subsequent plotting. This
-c attribute affects line primitives only; it does not affect graph
-c markers, text, or area fill.
-c Five different line styles are available, with the following codes:
-c 1 (full line), 2 (dashed), 3 (dot-dash-dot-dash), 4 (dotted),
-c 5 (dash-dot-dot-dot). The default is 1 (normal full line).
-      return 
-      end
+!      subroutine gslnst(LS)  !YuP[2019-10-28] Not used anymore. 
+!      ! sets line style: 1-solid, 2-dashed, 3-dotted, 4-dash-dotted, etc.
+!      implicit integer (i-n), real*8 (a-h,o-z)
+!      INTEGER  LS
+!        CALL PGSLS(LS)
+!c Set the line style attribute for subsequent plotting. This
+!c attribute affects line primitives only; it does not affect graph
+!c markers, text, or area fill.
+!c Five different line styles are available, with the following codes:
+!c 1 (full line), 2 (dashed), 3 (dot-dash-dot-dash), 4 (dotted),
+!c 5 (dash-dot-dot-dot). The default is 1 (normal full line).
+!      return 
+!      end
 c---------------------------------------------------------------------
-      subroutine  gscpvs(gl_x,gl_y) ! called explicitly with real*4 args
-      ! set current position for text
-      real*4 gl_x,gl_y
-      REAL*4 X,Y,ANGLE,FJUST
-      common/GRAFLIB_PGPLOT_text/ X,Y,ANGLE,FJUST
-        X = gl_x  ! To PGPTXT(X,Y,ANGLE,FJUST,TEXT)
-        Y = gl_y
-      return 
-      end
+!      subroutine  gscpvs(gl_x,gl_y)  !YuP[2019-10-28] Not used anymore.
+!      ! set current position for text
+!      real*4 gl_x,gl_y
+!      REAL*4 X,Y,ANGLE,FJUST
+!      common/GRAFLIB_PGPLOT_text/ X,Y,ANGLE,FJUST
+!        X = gl_x  ! To PGPTXT(X,Y,ANGLE,FJUST,TEXT)
+!        Y = gl_y
+!      return 
+!      end
 c---------------------------------------------------------------------
-      subroutine  gstxan(gl_angle) ! called explicitly with real*4 args
-      ! set angle to plot text
-      real*4 gl_angle
-      REAL*4 X,Y,ANGLE,FJUST
-      common/GRAFLIB_PGPLOT_text/ X,Y,ANGLE,FJUST
-        ANGLE = gl_angle ! To PGPTXT(X,Y,ANGLE,FJUST,TEXT) 
-      return 
-      end
+!      subroutine  gstxan(gl_angle)  !YuP[2019-10-28] Not used anymore.
+!      ! set angle to plot text
+!      real*4 gl_angle
+!      REAL*4 X,Y,ANGLE,FJUST
+!      common/GRAFLIB_PGPLOT_text/ X,Y,ANGLE,FJUST
+!        ANGLE = gl_angle ! To PGPTXT(X,Y,ANGLE,FJUST,TEXT) 
+!      return 
+!      end
 c---------------------------------------------------------------------
-      subroutine  gstxjf(just1,just2)
-      ! set justification of string
-      character*(*) just1 !can be 'left', 'right', or 'center'
-      character*(*) just2 !can be 'top', 'bottom', or 'center'
-      REAL*4 X,Y,ANGLE,FJUST
-      common/GRAFLIB_PGPLOT_text/ X,Y,ANGLE,FJUST
-         FJUST = 0.0
-         if(just1.eq."left")   FJUST = 0.0
-         if(just1.eq."center") FJUST = 0.5
-         if(just1.eq."right")  FJUST = 1.0
-         ! To PGPTXT(X,Y,ANGLE,FJUST,TEXT)
-      return 
-      end
+!      subroutine  gstxjf(just1,just2) !YuP[2019-10-28] Not used anymore.
+!      ! set justification of string
+!      character*(*) just1 !can be 'left', 'right', or 'center'
+!      character*(*) just2 !can be 'top', 'bottom', or 'center'
+!      REAL*4 X,Y,ANGLE,FJUST
+!      common/GRAFLIB_PGPLOT_text/ X,Y,ANGLE,FJUST
+!         FJUST = 0.0
+!         if(just1.eq."left")   FJUST = 0.0
+!         if(just1.eq."center") FJUST = 0.5
+!         if(just1.eq."right")  FJUST = 1.0
+!         ! To PGPTXT(X,Y,ANGLE,FJUST,TEXT)
+!      return 
+!      end
 c---------------------------------------------------------------------
-      subroutine  gstxno(size) ! called explicitly with real*4 args
-      ! set number of characters per line, i.e., character width.
-      ! Default: size=90.  (not sure)
-      real*4 size
-      REAL*4 PGsize 
-         PGsize = size ! Convert to REAL*4
-         CALL PGSCH(90./PGsize) ! set character size; default is 1.
-      return 
-      end
+!      subroutine  gstxno(size) !YuP[2019-10-28] Not used anymore.
+!      ! set number of characters per line, i.e., character width.
+!      ! Default: size=90.  (not sure)
+!      real*4 size
+!      REAL*4 PGsize
+!      REAL*4 :: R490=90.
+!         PGsize = size ! Convert to REAL*4
+!         CALL PGSCH(R490/PGsize) ! set character size; default is 1.
+!      return 
+!      end
 c---------------------------------------------------------------------
-      subroutine  gptx2d(text) 
-      ! Plot Text
-      character*(*) text
-      REAL*4 X,Y,ANGLE,FJUST
-      common/GRAFLIB_PGPLOT_text/ X,Y,ANGLE,FJUST
-        call PGPTXT(X, Y, ANGLE, FJUST, text)
-c Primitive routine for drawing text. The text may be drawn at any
-c angle with the horizontal, and may be centered or left- or right-
-c justified at a specified position.  Routine PGTEXT provides a
-c simple interface to PGPTXT for horizontal strings. Text is drawn
-c using the current values of attributes color-index, line-width,
-c character-height, and character-font.  Text is NOT subject to
-c clipping at the edge of the window.
-c X      (input)  : world x-coordinate.
-c Y      (input)  : world y-coordinate. The string is drawn with the
-c                   baseline of all the characters passing through
-c                   point (X,Y); the positioning of the string along
-c                   this line is controlled by argument FJUST.
-c ANGLE  (input)  : angle, in degrees, that the baseline is to make
-c                   with the horizontal, increasing counter-clockwise
-c                   (0.0 is horizontal).
-c FJUST  (input)  : controls horizontal justification of the string.
-c                   If FJUST = 0.0, the string will be left-justified
-c                   at the point (X,Y); if FJUST = 0.5, it will be
-c                   centered, and if FJUST = 1.0, it will be right
-c                   justified. [Other values of FJUST give other
-c                   justifications.]
-c TEXT   (input)  : the character string to be plotted.
-      return 
-      end
+!      subroutine  gptx2d(text)  !YuP[2019-10-28] Not used anymore.
+!      ! Plot Text
+!      character*(*) text
+!      REAL*4 X,Y,ANGLE,FJUST
+!      common/GRAFLIB_PGPLOT_text/ X,Y,ANGLE,FJUST
+!        call PGPTXT(X, Y, ANGLE, FJUST, text)
+!c Primitive routine for drawing text. The text may be drawn at any
+!c angle with the horizontal, and may be centered or left- or right-
+!c justified at a specified position.  Routine PGTEXT provides a
+!c simple interface to PGPTXT for horizontal strings. Text is drawn
+!c using the current values of attributes color-index, line-width,
+!c character-height, and character-font.  Text is NOT subject to
+!c clipping at the edge of the window.
+!c X      (input)  : world x-coordinate.
+!c Y      (input)  : world y-coordinate. The string is drawn with the
+!c                   baseline of all the characters passing through
+!c                   point (X,Y); the positioning of the string along
+!c                   this line is controlled by argument FJUST.
+!c ANGLE  (input)  : angle, in degrees, that the baseline is to make
+!c                   with the horizontal, increasing counter-clockwise
+!c                   (0.0 is horizontal).
+!c FJUST  (input)  : controls horizontal justification of the string.
+!c                   If FJUST = 0.0, the string will be left-justified
+!c                   at the point (X,Y); if FJUST = 0.5, it will be
+!c                   centered, and if FJUST = 1.0, it will be right
+!c                   justified. [Other values of FJUST give other
+!c                   justifications.]
+!c TEXT   (input)  : the character string to be plotted.
+!      return 
+!      end
 c---------------------------------------------------------------------
       
 

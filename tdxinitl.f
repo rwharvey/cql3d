@@ -12,6 +12,7 @@ c..................................................................
 CMPIINSERT_INCLUDE     
 
       dimension titmp(250),detmp(250)
+      real*8:: tmpt(njene)  !Temporary array, as in profiles.f
 
 c.......................................................................
 
@@ -219,7 +220,7 @@ c     If iprozeff.ne."disabled", only set electron profile here.
 
             if (enein(1,k).ne.zero) then
 
-               call tdinterp("zero","free",ryain,enein(1,k),njene,
+               call tdinterp("zero","linear",ryain,enein(1,k),njene,
      +              rya(1),tr(1),lrzmax)
                tr(0)=enein(1,k)
                do 13 ll=0,lrzmax
@@ -228,7 +229,9 @@ c     If iprozeff.ne."disabled", only set electron profile here.
             else
 cBH131029: Following do only correct for tr already set when
 cBH131029: k.eq.kelecg??
-               write(*,*) 'tdxinitl: Check coding here'
+CMPIINSERT_IF_RANK_EQ_0
+               WRITE(*,*) 'tdxinitl: Check coding here'
+CMPIINSERT_ENDIF_RANK  
                do 9  ll=0,lrzmax
                   reden(k,ll)=tr(ll)/abs(bnumb(k))
  9             continue
@@ -241,9 +244,9 @@ cBH131029: k.eq.kelecg??
      +              /abs(bnumb(k))
  141        continue
             
-         endif
+         endif ! iprone
          
- 11   continue
+ 11   continue ! k
 
 c......................................................................
 c     Finish up with zeff and ions if iprozeff.ne."disabled"
@@ -253,30 +256,39 @@ c     neutrality, we use
 c     n1=ne*(Zeff-Z2)/(Z1*(Z1-Z2)), and similarly for n2.
 c     Apportion the ion density, if have .ge.2 ions with same Z.
 c......................................................................
-      if (iprozeff.ne."disabled") then  !endif on line 432
+      if (iprozeff.ne."disabled") then  !endif on line 484
 
          if (iprozeff.eq."parabola") then
-            dratio=zeffin(1)/zeffin(0)
-            do 12 ll=1,lrzmax
-               call profaxis(rn,npwrzeff,mpwrzeff,dratio,rya(ll))
+            !YuP dratio=zeffin(1)/zeffin(0)
+            e0=zeffin(0) !YuP[2019-12-29]
+            e1=zeffin(1) !YuP[2019-12-29]
+            do ll=1,lrzmax
+              !YuP call profaxis(rn,npwrzeff,mpwrzeff,dratio,rya(ll))
 cBH131029:  Should be zeffscal multiplier, consistent with spline case??
-               zeff(ll)=zeffin(0)*rn
- 12         continue
+              !YuP zeff(ll)=zeffin(0)*rn
+              call profaxis1(e_out,npwrzeff,mpwrzeff,e0,e1,rya(ll)) !YuP[2019-12-29]
+              zeff(ll)=e_out !YuP[2019-12-29]      
+            enddo
          elseif (iprozeff.eq."spline") then
             do ij=1,njene
                zeffin(ij)=zeffscal*zeffin(ij)
             enddo
-            call  tdinterp("zero","free",ryain,zeffin(1),njene,rya(1),
+            call tdinterp("zero","linear",ryain,zeffin(1),njene,rya(1),
      +           zeff(1),lrzmax)
          elseif (iprozeff.eq."prbola-t") then
             do it=1,nbctime
                zeffc(it)=zeffscal*zeffc(it)
                zeffb(it)=zeffscal*zeffb(it)
             enddo
-         elseif (iprozeff.eq."prbola-t".or.iprozeff.eq."spline-t") then
+         elseif (iprozeff.eq."curr_fit") then !YuP[2019-10-31] 
+            do it=1,nbctime
+               zeffc(it)=zeffscal*zeffc(it)
+               zeffb(it)=zeffscal*zeffb(it)
+            enddo
+         elseif (iprozeff.eq."spline-t") then
             !scaled in profiles
 	    continue
-         endif
+         endif ! iprozeff.eq.
          
 CMPIINSERT_IF_RANK_EQ_0      
          WRITE(*,*)'tdxinitl, zeff(1:lrzmax)= ',(zeff(ll),ll=1,lrzmax)
@@ -285,21 +297,21 @@ CMPIINSERT_ENDIF_RANK
          
 c     Check that range of bnumb for Maxl species brackets zeff
 c     Skip if iprozeff=prbola-t or spline-t, since profiles called later
-         if (iprozeff.ne."prbola-t" .and. iprozeff.ne."spline-t") then
-         fmaxx=0.
-         fminn=1000.
-         do k=1,nionm
+         if (iprozeff.eq."parabola" .or. iprozeff.eq."spline") then
+           fmaxx=0.
+           fminn=1000.
+           do k=1,nionm
 CMPIINSERT_IF_RANK_EQ_0      
-            WRITE(*,*)'k,kionm(k),bnumb(kionm(k))=',
-     +                 k,kionm(k),bnumb(kionm(k))
+             WRITE(*,*)'k,kionm(k),bnumb(kionm(k))=',
+     +                  k,kionm(k),bnumb(kionm(k))
 CMPIINSERT_ENDIF_RANK
-            fmaxx=max(fmaxx,bnumb(kionm(k)))
-            fminn=min(fminn,bnumb(kionm(k)))
-         enddo
-         !YuP[03-2017] For iprozeff.eq."spline", zeff() is found from spline
-         !             using zeffin
-         do 121 ll=1,lrzmax
-            if(zeff(ll).gt.fmaxx .or. zeff(ll).lt.fminn) then
+             fmaxx=max(fmaxx,bnumb(kionm(k)))
+             fminn=min(fminn,bnumb(kionm(k)))
+           enddo
+           !YuP[03-2017] For iprozeff.eq."spline", zeff() is found from spline
+           !             using zeffin
+           do 121 ll=1,lrzmax
+             if(zeff(ll).gt.fmaxx .or. zeff(ll).lt.fminn) then
 CMPIINSERT_IF_RANK_EQ_0      
                WRITE(*,*)
      +          'tdxinitl, max/min of bnumb(kionm(k)), fmaxx,fminn=',
@@ -308,9 +320,9 @@ CMPIINSERT_IF_RANK_EQ_0
      +              'Adjust bnumb(kion) for compatibility with zeff'
 CMPIINSERT_ENDIF_RANK
                stop
-            endif
- 121      continue         
-          endif  !On iprozeff
+             endif
+ 121       continue         
+         endif  !On iprozeff
 c         write(*,*)'tdxinitl, fmaxx,fminn= ',fmaxx,fminn
          
 c     Check number of ion Maxwl species with different bnumb
@@ -348,7 +360,7 @@ cBH080918            do kk=1,ndif_bnumb
 c$$$                  do ij=1,njene
 c$$$                     enein(ij,k)=enescal*enein(ij,k)
 c$$$                  enddo
-                  call tdinterp("zero","free",ryain,enein(1,k),njene,
+                  call tdinterp("zero","linear",ryain,enein(1,k),njene,
      +                 rya(1),tr(1),lrzmax)
                   tr(0)=enein(1,k)
                   do ll=0,lrzmax
@@ -360,7 +372,7 @@ c$$$                  enddo
                   enddo
                endif
             enddo
-         endif
+         endif ! iprone
 
 
 
@@ -437,15 +449,24 @@ c        For k beyond equal-bnumb species
          if (iprone.eq."parabola") then
             reden(k,0)=reden(kelec,0)*reden(k,0)*(zeff(1)
      +           -bnumb(k2))/(bnumb(k1)-bnumb(k2))/bnumb(k1)
+            !YuP: From the above, reden can be a small negative value,
+            !because of a rounding error. Add lower limit =0.d0
+            reden(k,0)=max(reden(k,0),zero) !YuP[2018-09-18] added
             do 142 ll=1,lrzmax
                reden(k,ll)=reden(kelec,ll)*reden(k,ll)*(zeff(ll)
      +              -bnumb(k2))/(bnumb(k1)-bnumb(k2))/bnumb(k1)
+            !YuP: From the above, reden can be a small negative value,
+            !because of a rounding error. Add lower limit =0.d0
+            reden(k,ll)=max(reden(k,ll),zero) !YuP[2018-09-18] added
  142        continue
             
          elseif(iprone.eq."spline") then
             do ll=1,lrzmax
                reden(k,ll)=reden(kelec,ll)*reden(k,ll)*(zeff(ll)
      +              -bnumb(k2))/(bnumb(k1)-bnumb(k2))/bnumb(k1)
+            !YuP: From the above, reden can be a small negative value,
+            !because of a rounding error. Add lower limit =0.d0
+            reden(k,ll)=max(reden(k,ll),zero) !YuP[2018-09-18] added
             enddo
          endif
  14   continue
@@ -496,10 +517,18 @@ c      enddo
 
 c     electron temperature
 
-      if (iprote.eq."parabola")  then
+      if (iprote.eq."parabola" .or. iprote.eq.'prb-expt')then
+        !Setup parabolic profiles, 
+        ! based on values of temp(k,lr=0) and temp(k,1) in cqlinput
         do 15  k=1,ntotal
-          if (bnumb(k).eq.-1.)
-     +      call tdxin13d(temp,rya,lrzmax,ntotala,k,npwr(k),mpwr(k))
+          if (bnumb(k).eq.-1.) then
+          call tdxin13d(temp,rya,lrzmax,ntotala,k,npwr(k),mpwr(k))
+          temp_expt_T0(k,1:lrza)=temp(k,1:lrza) ! save initial values
+          !(in case of iprote.eq.'prb-expt', temp() will be dropping,
+          ! see subr.profiles)
+          temp_expt_T1(k,1:lrza)=temp(k,1:lrza) ! This will be set, 
+          !as soon as pellet reaches surface ll
+          endif
  15     continue
       elseif (iprote.eq."spline")  then
 c100126         do ij=1,njene
@@ -507,7 +536,7 @@ c100126            tein(ij)=tescal*tein(ij)
 c100126         enddo
          do 16  k=1,ntotal
             if(bnumb(k).eq.-1.)  then
-               call tdinterp("zero","free",ryain,tein,njene,rya(1),
+               call tdinterp("zero","linear",ryain,tein,njene,rya(1),
      +              tr(1),lrzmax)
                tr(0)=tein(1)
                do 19  ll=0,lrzmax
@@ -515,6 +544,61 @@ c100126         enddo
  19            continue
             endif
  16      continue
+ 
+      elseif(iprote.eq.'spl-expt')then !start (iprote.eq.'spl-expt') !YuP[2019-10-17]
+      
+        if (nbctime.gt.0) then
+          !YuP[2019-10-17] In case of restart, we need to find a proper
+          !itme in the list of bctime(itme), get temp() profile from
+          !the list (actually do time interpolation between itme and itme+1
+          !points) and then save this profile into temp_expt_T0(k,1:lrza)
+          if (tmdmeth.eq."method1") then
+            itme=0
+            do jtm=1,nbctime
+              if (timet.ge.bctime(jtm)) itme=jtm
+            enddo
+            itme1=itme+1
+          endif
+          if (itme.eq.0) then
+            do l=1,njene
+               tmpt(l)=tein_t(l,1) !Electron temperature
+            enddo
+          elseif (itme.lt.nbctime) then
+            do l=1,njene !time interpolation between itme and itme+1 points
+               tmpt(l)=tein_t(l,itme)+(tein_t(l,itme1)-tein_t(l,itme))
+     +               /(bctime(itme1)-bctime(itme))*(timet-bctime(itme))
+            enddo
+          else ! itme.ge.nbctime
+            do l=1,njene
+               tmpt(l)=tein_t(l,nbctime)
+            enddo
+          endif
+          ! Now setup the profile over rya grid.
+          do k=1,ntotal ! scan all, but apply only to electron species 
+            if(bnumb(k).eq.-1.)  then ! can be kelecg or kelecm
+               call tdinterp("zero","linear",ryain,tmpt,njene,rya(1),
+     +              tr(1),lrzmax)
+               tr(0)=tmpt(1)
+               do ll=0,lrzmax
+                  temp(k,ll)=tr(ll)
+                  if(temp(k,ll).le.0.001)then
+CMPIINSERT_IF_RANK_EQ_0
+                   WRITE(*,*)'tdxinitl:temp<0.001.  tmpt(1:njene)=',tmpt
+                   WRITE(*,*)'temp<0.001.  temp(k,ll)=',k,ll,temp(k,ll)
+CMPIINSERT_ENDIF_RANK  
+                  endif
+               enddo ! ll
+            endif ! bnumb(k).eq.-1.
+            temp_expt_T0(k,1:lrza)=temp(k,1:lrza) !save initial values
+            !(in case of iprote.eq.'spl-expt', temp() will be dropping,
+            ! see subr.profiles)
+            temp_expt_T1(k,1:lrza)=temp(k,1:lrza) ! This will be reset,
+            !as soon as pellet reaches surface ll
+          enddo ! k
+        endif ! nbctime.gt.0
+        ! done (iprote.eq.'spl-expt') !YuP[2019-10-17]
+      
+      
       elseif (iprote.eq."asdex")  then
          do 17  k=1,ntotal
             if(bnumb(k).eq.-1.)  then
@@ -528,18 +612,25 @@ c100126         enddo
 
 c     ions temperature
 
-      if (iproti.eq."parabola")  then
+      if (iproti.eq."parabola"  .or. iproti.eq.'prb-expt')  then
          do 25  k=1,ntotal
-            if (bnumb(k).ne.-1.) call tdxin13d(
-     +           temp,rya,lrzmax,ntotala,k,npwr(k),mpwr(k))
+            if (bnumb(k).ne.-1.) then
+            call tdxin13d(temp,rya,lrzmax,ntotala,k,npwr(k),mpwr(k))
+            temp_expt_T0(k,1:lrza)=temp(k,1:lrza) ! save initial values
+            !(in case of iproti.eq.'prb-expt', temp() will be dropping,
+            ! see subr.profiles)
+            temp_expt_T1(k,1:lrza)=temp(k,1:lrza) ! This will be set, 
+            !as soon as pellet reaches surface ll
+            endif
  25      continue
+ 
       elseif (iproti.eq."spline")  then
 c100126         do ij=1,njene
 c100126            tiin(ij)=tiscal*tiin(ij)
 c100126         enddo
          do 26  k=1,ntotal
             if(bnumb(k).ne.-1.)  then
-               call tdinterp("zero","free",ryain,tiin,njene,rya(1),
+               call tdinterp("zero","linear",ryain,tiin,njene,rya(1),
      +              tr(1),lrzmax)
                tr(0)=tiin(1)
                do 29  ll=0,lrzmax
@@ -547,6 +638,63 @@ c100126         enddo
  29            continue
             endif
  26      continue
+ 
+      elseif(iproti.eq.'spl-expt')then !start (iproti.eq.'spl-expt') !YuP[2019-10-17]
+      
+        if (nbctime.gt.0) then
+          !YuP[2019-10-17] In case of restart, we need to find a proper
+          !itme in the list of bctime(itme), get temp() profile from
+          !the list (actually do time interpolation between itme and itme+1
+          !points) and then save this profile into temp_expt_T0(k,1:lrza)
+          if (tmdmeth.eq."method1") then
+            itme=0
+            do jtm=1,nbctime
+              if (timet.ge.bctime(jtm)) itme=jtm
+            enddo
+            itme1=itme+1
+          endif
+          if (itme.eq.0) then
+            do l=1,njene
+               tmpt(l)=tiin_t(l,1) !ion temperature
+            enddo
+          elseif (itme.lt.nbctime) then
+            do l=1,njene !time interpolation between itme and itme+1 points
+               tmpt(l)=tiin_t(l,itme)+(tiin_t(l,itme1)-tiin_t(l,itme))
+     +               /(bctime(itme1)-bctime(itme))*(timet-bctime(itme))
+            enddo
+          else ! itme.ge.nbctime
+            do l=1,njene
+               tmpt(l)=tiin_t(l,nbctime)
+            enddo
+          endif
+          ! Now setup the profile over rya grid.
+          do k=1,ntotal ! scan all, but apply only to ion species 
+            if(bnumb(k).ne.-1.)  then ! ion species
+               call tdinterp("zero","linear",ryain,tmpt,njene,rya(1),
+     +              tr(1),lrzmax)
+               tr(0)=tmpt(1)
+               do ll=0,lrzmax
+                  temp(k,ll)=tr(ll)
+                  if(temp(k,ll).le.0.001)then
+CMPIINSERT_IF_RANK_EQ_0
+                   WRITE(*,*)'tdxinitl:temp<0.001.  tmpt(1:njene)=',tmpt
+                   WRITE(*,*)'temp<0.001.  temp(k,ll)=',k,ll,temp(k,ll)
+CMPIINSERT_ENDIF_RANK  
+                  endif
+               enddo ! ll
+            endif ! bnumb(k).ne.-1.
+            temp_expt_T0(k,1:lrza)=temp(k,1:lrza) !save initial values
+            !(in case of iproti.eq.'spl-expt', temp() will be dropping,
+            ! see subr.profiles)
+            temp_expt_T1(k,1:lrza)=temp(k,1:lrza) ! This will be reset,
+            !as soon as pellet reaches surface ll
+          enddo ! k
+        endif ! nbctime.gt.0
+        ! done (iproti.eq.'spl-expt') !YuP[2019-10-17]
+
+      
+      
+ 
       elseif (iproti.eq."asdex")  then
          do 27  k=1,ntotal
             if(bnumb(k).ne.-1.)  then
@@ -564,10 +712,14 @@ c     Renormalize temperatures using tescal/tiscal
             do l=0,lrzmax
                temp(k,l)=tescal*temp(k,l)
             enddo
+            temp_expt_T0(k,1:lrza)=tescal*temp_expt_T0(k,1:lrza)
+            temp_expt_T1(k,1:lrza)=tescal*temp_expt_T1(k,1:lrza)
          else
             do l=0,lrzmax
                temp(k,l)=tiscal*temp(k,l)
             enddo
+            temp_expt_T0(k,1:lrza)=tiscal*temp_expt_T0(k,1:lrza)
+            temp_expt_T1(k,1:lrza)=tiscal*temp_expt_T1(k,1:lrza)
          endif
       enddo
       
@@ -575,17 +727,21 @@ c     vphipl, toroidal plasma velocity for use in freya
       call bcast(vphipl,zero,lrzmax)
       if (iprovphi.ne."disabled") then
          if (iprovphi.eq."parabola") then
-            dratio=vphiplin(1)/vphiplin(0)
-            do 60 ll=1,lrzmax
-               call profaxis(rn,npwrvphi,mpwrvphi,dratio,rya(ll))
+            !YuP dratio=vphiplin(1)/vphiplin(0)
+            e0=vphiplin(0) !YuP[2019-12-29]
+            e1=vphiplin(1) !YuP[2019-12-29]
+            do ll=1,lrzmax
+               !YuP call profaxis(rn,npwrvphi,mpwrvphi,dratio,rya(ll))
 cBH120701:  Added in vphiscal factor.
-               vphipl(ll)=vphiscal*vphiplin(0)*rn
- 60         continue
+               !YuP vphipl(ll)=vphiscal*vphiplin(0)*rn
+              call profaxis1(e_out,npwrvphi,mpwrvphi,e0,e1,rya(ll)) !YuP[2019-12-29]
+              vphipl(ll)=vphiscal*e_out !YuP[2019-12-29]
+            enddo
          elseif (iprovphi.eq."spline") then
             do ij=1,njene
                vphiplin(ij)=vphiscal*vphiplin(ij)
             enddo
-            call  tdinterp("zero","free",ryain,vphiplin(1),njene,
+            call tdinterp("zero","linear",ryain,vphiplin(1),njene,
      +           rya(1),vphipl(1),lrzmax)
          endif
       endif
@@ -601,7 +757,7 @@ c     neutral density
                enn(ll,kkk)=ennb(kkk)*exp((rya(ll)-1.)*radmin/ennl(kkk))
             enddo
          elseif (ipronn.eq."spline") then
-            call  tdinterp("zero","free",ryain,ennin(1,kkk),njene,
+            call tdinterp("zero","linear",ryain,ennin(1,kkk),njene,
      +           rya(1),enn(1,kkk),lrzmax)
          endif  ! On ipronn
          endif  ! On npa_process
@@ -668,7 +824,11 @@ c     Allow for possiblity to intialize asorz(k,kk,1:lrzmax) directly
  3    continue
 
 c     electric field profile
-      if (eqsource.ne."tsc") then
+      if (eqsource.ne."tsc" .and.
+     1    .not.(ampfmod.eq."enabled" .and. nlrestrt.ne."disabled")) then
+          !For ampfmod and nlrestrt, then restore elecfld (and f) 
+          !from distrfunc.nc in subroutine tdreadf.
+            
          if (iproelec.eq."parabola") then
             elecfldc=elecfld(0)
             elecfldb=elecfld(1)
@@ -678,7 +838,7 @@ c           central electric field elecfld(0) is an input.
 c100126            do ij=1,njene
 c100126               elecin(ij)=elecscal*elecin(ij)
 c100126            enddo
-            call tdinterp("zero","free",ryain,elecin,njene,rya(1),
+            call tdinterp("zero","linear",ryain,elecin,njene,rya(1),
      +           elecfld(1),lrzmax)
 cBH171124: for iproelec=spline-t or prbola-t, elecfld set in profiles
          elseif (iproelec.eq."spline-t".or.iproelec.eq."prbola-t") then

@@ -28,6 +28,7 @@ c.......................................................................
 
       write(iunwrif,9100) lrors+5,n,dtr,lrors,lrz,cqlpmod
       if (cqlpmod .ne. "enabled") then
+      
         write(iunwrif,9101)
         do k=1,ngen
         do 101 l=1,lrors
@@ -36,7 +37,15 @@ cBH070408 write(iunwrif,9102) l,rovera(l),iy_(l),reden(kelecg,lrindx(l))
      +      ,energy(k,lrindx(l)),totcurz(lrindx(l)),rovs(lrindx(l))
  101    continue
         enddo
+CMPIINSERT_IF_RANK_EQ_0
+        WRITE(*,*)'tdwritef_43: For checkup SUM(reden),SUM(energy)=', 
+     +   SUM(reden),SUM(energy)
+        WRITE(*,*)'tdwritef_44: For checkup SUM(totcurz),SUM(rovs)=', 
+     +   SUM(totcurz),SUM(rovs)
+CMPIINSERT_ENDIF_RANK
+        
       else
+      
         write(iunwrif,9103)
         do k=1,ngen
         do 102 l=1,lrors
@@ -45,6 +54,7 @@ cBH070408 write(iunwrif,9102) l,sz(l),iy_(l),denpar(kelecg,lsindx(l)),
      +      enrgypa(k,lsindx(l)),currmtpz(l),rovsloc(l)
  102    continue
         enddo
+        
       endif
 
 c.......................................................................
@@ -76,12 +86,15 @@ c     will use the netcdf mnemonic.nc file as source for f for
 c     restart (nlrestrt="ncdfdist").
 
       if (nlwritf.ne."ncdfdist") then
+      
 CMPIINSERT_IF_RANK_EQ_0
-         WRITE(*,*)'tdwritef:  Writing f into distrfunc.nc (netcdf f)'
+         WRITE(*,*)
+     +     'tdwritef[nlwritf.ne."ncdfdist"]:Writing f into distrfunc'
+         WRITE(*,*)'tdwritef_83: For checkup SUM(f)=', SUM(f)
 CMPIINSERT_ENDIF_RANK
 cBH050328:  Problem with reading the given format with index
 cBH050328:  numbers .lt.1.e-99
-      do 220 k=1,ngen
+        do 220 k=1,ngen
         do 221 il=1,lrors
           do 222 j=1,jx
              do i=1,iy_(il)
@@ -90,15 +103,17 @@ cBH050328:  numbers .lt.1.e-99
              write(iunwrif,9220) (f(i,j,k,il),i=1,iy_(il))
  222      continue
  221    continue
- 220  continue
+ 220    continue
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)'tdwritef_98: For checkup SUM(f)=', SUM(f)
+CMPIINSERT_ENDIF_RANK
 
-      endif
+      endif ! nlwritf.ne."ncdfdist"
 
+      if (cqlpmod.eq."enabled") then
 c.......................................................................
 cl    2.3 Spatial source term: spasou(i,j,k,l)
 c.......................................................................
-
-      if (cqlpmod.eq."enabled") then
          do 230 k=1,ngen
             do 231 il=1,lrors
                do 232 j=1,jx
@@ -106,12 +121,9 @@ c.......................................................................
  232           continue
  231        continue
  230     continue
-         
-      
 c.......................................................................
 cl    2.4 Velocity source term: velsou(i,j,k,l)
 c.......................................................................
-
          do 240 k=1,ngen
             do 241 il=1,lrors
                do 242 j=1,jx
@@ -119,7 +131,8 @@ c.......................................................................
  242           continue
  241        continue
  240     continue
-      endif
+      endif ! cqlpmod=enabled
+      
 c.......................................................................
  9100 format(i3," more lines to skip before reading namelist and f",//,
      !  "time-step n=",i4," dtr=",1pe12.5," lrors=",i3," lrz=",i3,
@@ -133,5 +146,6 @@ cBH080201 9220 format(1p10e13.6)
  9220 format(1p10e14.6)
 c.......................................................................
       close(unit=iunwrif)
+      !pause
       return
       end

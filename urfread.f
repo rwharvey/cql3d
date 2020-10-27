@@ -60,7 +60,7 @@ c     irftype (0 for old input method, 1 for new) is dtrmnd in urfinitl.
                call urfread_(krf,24)
                close(unit=24)
             else
-               write(*,*)'urfread: check that "rayfw" file is present'
+               WRITE(*,*)'urfread: check that "rayfw" file is present'
                stop
             endif
          endif
@@ -79,7 +79,7 @@ c     irftype (0 for old input method, 1 for new) is dtrmnd in urfinitl.
                call urfread_(krf,20)
                close(unit=20)
             else
-               write(*,*)'urfread: check that "raylh" file is present'
+               WRITE(*,*)'urfread: check that "raylh" file is present'
                stop
             endif
          endif
@@ -265,7 +265,8 @@ c     in order not to overwrite data initially stored as krf=1,mrf.
 
          nray(k)=nray(krfn(k))
          freqcy(k)=freqcy(krfn(k))
-         omega(k)=omega(krfn(k))
+         omega(k)=2.*pi*freqcy(k) !YuP[2020-09-23] 
+                  !It used to be set in sub.netcdfrf; better here.
          
          do 30 iray=1,nray(krfn(k))
             nrayelt(iray,k)=nrayelt(iray,krfn(k))

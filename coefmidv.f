@@ -59,7 +59,7 @@ c..................................................................
 
       else
         do 3 i=1,iy
-          temp1(i,jx)=0.
+          temp1(i,jx)=zero !YuP[] was 0.
  3      continue
       endif
 
@@ -83,8 +83,8 @@ c..................................................................
 
       else if (nn .eq. 3) then
         do 20 j=1,jx
-          temp1(1,j)=0.
-          temp1(iy,j)=0.
+          temp1(1,j)=zero !YuP[] was 0.
+          temp1(iy,j)=zero !YuP[] was 0.
  20     continue
       endif
 
@@ -97,20 +97,24 @@ c..................................................................
         if (nn.le.2 .or. lbdry0.ne."enabled" .or. advectr.gt.10.) then
           c(i,1)=temp1(i,1)
         else
-          c(i,1)=0.
+          c(i,1)=zero !YuP[] was 0.
         endif
         do 7 j=2,jx
           c(i,j)=temp1(i,j)
  7      continue
  6    continue
       if (nn .ne. 2) goto 9
-      do 80 j=1,jx
-        do 81 i=1,iy
-          if(abs(c(i,j)).le. em40) then
-            c(i,j)=em40
-          endif
- 81     continue
- 80   continue
+!YuP[2019-07-08] Why do we need to impose a lower limit on abs(b(i,j))?
+! In case of no-RF run, all db,dc coeffs are zero initially, 
+! but this resetting below, c(i,j)=em40, makes db(i,j) a non-zero value,
+! and it results in non-zero values of RF power in diagentr(*,lefct=3)
+!      do 80 j=1,jx
+!        do 81 i=1,iy
+!          if(abs(c(i,j)).le. em40) then
+!            c(i,j)=em40 ! for nn=2. i.e. for b(i,j) coeff.
+!          endif
+! 81     continue
+! 80   continue
  9    continue
 
 c..................................................................

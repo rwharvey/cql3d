@@ -23,6 +23,7 @@ c     to contribute to the collision integral.
 c
 c     mx is the order of Legendre terms used in Rosenbluth
 c     expansions of the collision integral.
+cBH180901/YuP: Following restriction on mx has been removed.
 c     NOTE:   If relativ="enabled" mx => 2,
 c             BUT, 2*jx*(mx+3)*(mx+3) <= (iyp1+1)*(jxp1+1) to
 c                  avoid overwrite by tamt1 and tamt2.
@@ -54,9 +55,9 @@ c..................................................................
 c     PARAMETERS CHOSEN BY USER FOLLOW
 
       character version*64
-      parameter(version="cql3d_cswim_180101.2")
+      parameter(version="cql3d_git_200101.3")
       character precursr*64
-      parameter(precursr="cql3d_cswim_180101.1")
+      parameter(precursr="cql3d_git_190923.3") !=cql3d_git_190309.1 with updates
       parameter(machinea=2)
 cBH081218:  Present usage, machinea=2 works with 32- and 64-bit machines
       parameter(ngena=4)
@@ -70,6 +71,8 @@ ccc      parameter(noncha=2000) YuP-101221: Not used anymore
       parameter(nbctimea=101)
       parameter(ndtr1a=10)
       parameter(nplota=10)
+      parameter(nsavea=10)   !Max number of distn time steps saves
+                             !as specified through n.eq.nsave()
       parameter(nefitera=10)
       parameter(ntavga=16)
 
@@ -102,7 +105,8 @@ c     equatorial pitch angle.
 c
 c..................................................................
 
-      parameter (i0param=1001)
+cBH180720      parameter (i0param=1001)
+      parameter (i0param=2001)
 
 
 c*******************************************************************

@@ -142,9 +142,10 @@ c
 c
 c     YuP added: check that parray(i) is increasing with i
       do i= 2,kn !max(2,iguess), kn
-        if(parray(i)-parray(i-1) .lt. 0.d0) then
+        if(parray(i)+1.d-8*abs(parray(i)) .lt. parray(i-1)) then
           !write(*,*) 'Function LUG: parray(i)=',  parray(1:kn)       
-          write(*,*) 'Function LUG: array/table should be increasing.',i
+          write(*,*) 'Func. LUG: array/table should be increasing.',
+     &     '  i,kn,p(1),p(i)=', i,kn, parray(1),parray(i)
           goto 5
           !pause
           !STOP
@@ -162,7 +163,7 @@ c     lug = 1 if px.lt.parray(1) and lug=kn+1 if px>ge.parray(kn)
       lug = i
 c
       return
-      end function
+      end function lug
 
 
 
@@ -587,7 +588,7 @@ cBH090905      real*4 rbound
 *     ..
 *     .. Array Arguments ..
       INTEGER            IPIV( * )
-      DOUBLE PRECISION   AB( LDAB, * )
+      real*8   AB( LDAB, * )
 *     ..
 *
 *  Purpose
@@ -613,7 +614,7 @@ cBH090905      real*4 rbound
 *  KU      (input) INTEGER
 *          The number of superdiagonals within the band of A.  KU >= 0.
 *
-*  AB      (input/output) DOUBLE PRECISION array, dimension (LDAB,N)
+*  AB      (input/output) real*8 array, dimension (LDAB,N)
 *          On entry, the matrix A in band storage, in rows KL+1 to
 *          2*KL+KU+1; rows 1 to KL of the array need not be set.
 *          The j-th column of A is stored in the j-th column of the
@@ -664,7 +665,7 @@ cBH090905      real*4 rbound
 *  =====================================================================
 *
 *     .. Parameters ..
-      DOUBLE PRECISION   ONE, ZERO
+      real*8   ONE, ZERO
       PARAMETER          ( ONE = 1.0D+0, ZERO = 0.0D+0 )
 *     ..
 *     .. Local Scalars ..
@@ -789,7 +790,7 @@ cBH090905      real*4 rbound
 *     ..
 *     .. Array Arguments ..
       INTEGER            IPIV( * )
-      DOUBLE PRECISION   AB( LDAB, * )
+      real*8   AB( LDAB, * )
 *     ..
 *
 *  Purpose
@@ -815,7 +816,7 @@ cBH090905      real*4 rbound
 *  KU      (input) INTEGER
 *          The number of superdiagonals within the band of A.  KU >= 0.
 *
-*  AB      (input/output) DOUBLE PRECISION array, dimension (LDAB,N)
+*  AB      (input/output) real*8 array, dimension (LDAB,N)
 *          On entry, the matrix A in band storage, in rows KL+1 to
 *          2*KL+KU+1; rows 1 to KL of the array need not be set.
 *          The j-th column of A is stored in the j-th column of the
@@ -865,7 +866,7 @@ cBH090905      real*4 rbound
 *  =====================================================================
 *
 *     .. Parameters ..
-      DOUBLE PRECISION   ONE, ZERO
+      real*8   ONE, ZERO
       PARAMETER          ( ONE = 1.0D+0, ZERO = 0.0D+0 )
       INTEGER            NBMAX, LDWORK
       PARAMETER          ( NBMAX = 64, LDWORK = NBMAX+1 )
@@ -873,10 +874,10 @@ cBH090905      real*4 rbound
 *     .. Local Scalars ..
       INTEGER            I, I2, I3, II, IP, J, J2, J3, JB, JJ, JM, JP,
      $                   JU, K2, KM, KV, NB, NW
-      DOUBLE PRECISION   TEMP
+      real*8   TEMP
 *     ..
 *     .. Local Arrays ..
-      DOUBLE PRECISION   WORK13( LDWORK, NBMAX ),
+      real*8   WORK13( LDWORK, NBMAX ),
      $                   WORK31( LDWORK, NBMAX )
 *     ..
 *     .. External Functions ..
@@ -1232,7 +1233,7 @@ cBH090905      real*4 rbound
 *     ..
 *     .. Array Arguments ..
       INTEGER            IPIV( * )
-      DOUBLE PRECISION   AB( LDAB, * ), B( LDB, * )
+      real*8   AB( LDAB, * ), B( LDB, * )
 *     ..
 *
 *  Purpose
@@ -1265,7 +1266,7 @@ cBH090905      real*4 rbound
 *          The number of right hand sides, i.e., the number of columns
 *          of the matrix B.  NRHS >= 0.
 *
-*  AB      (input) DOUBLE PRECISION array, dimension (LDAB,N)
+*  AB      (input) real*8 array, dimension (LDAB,N)
 *          Details of the LU factorization of the band matrix A, as
 *          computed by DGBTRF.  U is stored as an upper triangular band
 *          matrix with KL+KU superdiagonals in rows 1 to KL+KU+1, and
@@ -1279,7 +1280,7 @@ cBH090905      real*4 rbound
 *          The pivot indices; for 1 <= i <= N, row i of the matrix was
 *          interchanged with row IPIV(i).
 *
-*  B       (input/output) DOUBLE PRECISION array, dimension (LDB,NRHS)
+*  B       (input/output) real*8 array, dimension (LDB,NRHS)
 *          On entry, the right hand side matrix B.
 *          On exit, the solution matrix X.
 *
@@ -1293,7 +1294,7 @@ cBH090905      real*4 rbound
 *  =====================================================================
 *
 *     .. Parameters ..
-      DOUBLE PRECISION   ONE
+      real*8   ONE
       PARAMETER          ( ONE = 1.0D+0 )
 *     ..
 *     .. Local Scalars ..
@@ -1407,12 +1408,12 @@ cBH090905      real*4 rbound
       END
       SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
 *     .. Scalar Arguments ..
-      DOUBLE PRECISION ALPHA,BETA
+      real*8 ALPHA,BETA
       INTEGER K,LDA,LDB,LDC,M,N
       CHARACTER TRANSA,TRANSB
 *     ..
 *     .. Array Arguments ..
-      DOUBLE PRECISION A(LDA,*),B(LDB,*),C(LDC,*)
+      real*8 A(LDA,*),B(LDB,*),C(LDC,*)
 *     ..
 *
 *  Purpose
@@ -1473,11 +1474,11 @@ cBH090905      real*4 rbound
 *           be at least  zero.
 *           Unchanged on exit.
 *
-*  ALPHA  - DOUBLE PRECISION.
+*  ALPHA  - real*8.
 *           On entry, ALPHA specifies the scalar alpha.
 *           Unchanged on exit.
 *
-*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, ka ), where ka is
+*  A      - real*8 array of DIMENSION ( LDA, ka ), where ka is
 *           k  when  TRANSA = 'N' or 'n',  and is  m  otherwise.
 *           Before entry with  TRANSA = 'N' or 'n',  the leading  m by k
 *           part of the array  A  must contain the matrix  A,  otherwise
@@ -1492,7 +1493,7 @@ cBH090905      real*4 rbound
 *           least  max( 1, k ).
 *           Unchanged on exit.
 *
-*  B      - DOUBLE PRECISION array of DIMENSION ( LDB, kb ), where kb is
+*  B      - real*8 array of DIMENSION ( LDB, kb ), where kb is
 *           n  when  TRANSB = 'N' or 'n',  and is  k  otherwise.
 *           Before entry with  TRANSB = 'N' or 'n',  the leading  k by n
 *           part of the array  B  must contain the matrix  B,  otherwise
@@ -1507,12 +1508,12 @@ cBH090905      real*4 rbound
 *           least  max( 1, n ).
 *           Unchanged on exit.
 *
-*  BETA   - DOUBLE PRECISION.
+*  BETA   - real*8.
 *           On entry,  BETA  specifies the scalar  beta.  When  BETA  is
 *           supplied as zero then C need not be set on input.
 *           Unchanged on exit.
 *
-*  C      - DOUBLE PRECISION array of DIMENSION ( LDC, n ).
+*  C      - real*8 array of DIMENSION ( LDC, n ).
 *           Before entry, the leading  m by n  part of the array  C must
 *           contain the matrix  C,  except when  beta  is zero, in which
 *           case C need not be set on entry.
@@ -1546,12 +1547,12 @@ cBH090905      real*4 rbound
       INTRINSIC MAX
 *     ..
 *     .. Local Scalars ..
-      DOUBLE PRECISION TEMP
+      real*8 TEMP
       INTEGER I,INFO,J,L,NCOLA,NROWA,NROWB
       LOGICAL NOTA,NOTB
 *     ..
 *     .. Parameters ..
-      DOUBLE PRECISION ONE,ZERO
+      real*8 ONE,ZERO
       PARAMETER (ONE=1.0D+0,ZERO=0.0D+0)
 *     ..
 *
@@ -1720,12 +1721,12 @@ cBH090905      real*4 rbound
       END
       SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
 *     .. Scalar Arguments ..
-      DOUBLE PRECISION ALPHA,BETA
+      real*8 ALPHA,BETA
       INTEGER INCX,INCY,LDA,M,N
       CHARACTER TRANS
 *     ..
 *     .. Array Arguments ..
-      DOUBLE PRECISION A(LDA,*),X(*),Y(*)
+      real*8 A(LDA,*),X(*),Y(*)
 *     ..
 *
 *  Purpose
@@ -1763,11 +1764,11 @@ cBH090905      real*4 rbound
 *           N must be at least zero.
 *           Unchanged on exit.
 *
-*  ALPHA  - DOUBLE PRECISION.
+*  ALPHA  - real*8.
 *           On entry, ALPHA specifies the scalar alpha.
 *           Unchanged on exit.
 *
-*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, n ).
+*  A      - real*8 array of DIMENSION ( LDA, n ).
 *           Before entry, the leading m by n part of the array A must
 *           contain the matrix of coefficients.
 *           Unchanged on exit.
@@ -1778,7 +1779,7 @@ cBH090905      real*4 rbound
 *           max( 1, m ).
 *           Unchanged on exit.
 *
-*  X      - DOUBLE PRECISION array of DIMENSION at least
+*  X      - real*8 array of DIMENSION at least
 *           ( 1 + ( n - 1 )*abs( INCX ) ) when TRANS = 'N' or 'n'
 *           and at least
 *           ( 1 + ( m - 1 )*abs( INCX ) ) otherwise.
@@ -1791,12 +1792,12 @@ cBH090905      real*4 rbound
 *           X. INCX must not be zero.
 *           Unchanged on exit.
 *
-*  BETA   - DOUBLE PRECISION.
+*  BETA   - real*8.
 *           On entry, BETA specifies the scalar beta. When BETA is
 *           supplied as zero then Y need not be set on input.
 *           Unchanged on exit.
 *
-*  Y      - DOUBLE PRECISION array of DIMENSION at least
+*  Y      - real*8 array of DIMENSION at least
 *           ( 1 + ( m - 1 )*abs( INCY ) ) when TRANS = 'N' or 'n'
 *           and at least
 *           ( 1 + ( n - 1 )*abs( INCY ) ) otherwise.
@@ -1820,11 +1821,11 @@ cBH090905      real*4 rbound
 *
 *
 *     .. Parameters ..
-      DOUBLE PRECISION ONE,ZERO
+      real*8 ONE,ZERO
       PARAMETER (ONE=1.0D+0,ZERO=0.0D+0)
 *     ..
 *     .. Local Scalars ..
-      DOUBLE PRECISION TEMP
+      real*8 TEMP
       INTEGER I,INFO,IX,IY,J,JX,JY,KX,KY,LENX,LENY
 *     ..
 *     .. External Functions ..
@@ -1981,11 +1982,11 @@ cBH090905      real*4 rbound
       END
       SUBROUTINE DGER(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
 *     .. Scalar Arguments ..
-      DOUBLE PRECISION ALPHA
+      real*8 ALPHA
       INTEGER INCX,INCY,LDA,M,N
 *     ..
 *     .. Array Arguments ..
-      DOUBLE PRECISION A(LDA,*),X(*),Y(*)
+      real*8 A(LDA,*),X(*),Y(*)
 *     ..
 *
 *  Purpose
@@ -2011,11 +2012,11 @@ cBH090905      real*4 rbound
 *           N must be at least zero.
 *           Unchanged on exit.
 *
-*  ALPHA  - DOUBLE PRECISION.
+*  ALPHA  - real*8.
 *           On entry, ALPHA specifies the scalar alpha.
 *           Unchanged on exit.
 *
-*  X      - DOUBLE PRECISION array of dimension at least
+*  X      - real*8 array of dimension at least
 *           ( 1 + ( m - 1 )*abs( INCX ) ).
 *           Before entry, the incremented array X must contain the m
 *           element vector x.
@@ -2026,7 +2027,7 @@ cBH090905      real*4 rbound
 *           X. INCX must not be zero.
 *           Unchanged on exit.
 *
-*  Y      - DOUBLE PRECISION array of dimension at least
+*  Y      - real*8 array of dimension at least
 *           ( 1 + ( n - 1 )*abs( INCY ) ).
 *           Before entry, the incremented array Y must contain the n
 *           element vector y.
@@ -2037,7 +2038,7 @@ cBH090905      real*4 rbound
 *           Y. INCY must not be zero.
 *           Unchanged on exit.
 *
-*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, n ).
+*  A      - real*8 array of DIMENSION ( LDA, n ).
 *           Before entry, the leading m by n part of the array A must
 *           contain the matrix of coefficients. On exit, A is
 *           overwritten by the updated matrix.
@@ -2059,11 +2060,11 @@ cBH090905      real*4 rbound
 *
 *
 *     .. Parameters ..
-      DOUBLE PRECISION ZERO
+      real*8 ZERO
       PARAMETER (ZERO=0.0D+0)
 *     ..
 *     .. Local Scalars ..
-      DOUBLE PRECISION TEMP
+      real*8 TEMP
       INTEGER I,INFO,IX,J,JY,KX
 *     ..
 *     .. External Subroutines ..
@@ -2149,7 +2150,7 @@ cBH090905      real*4 rbound
 *     ..
 *     .. Array Arguments ..
       INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * )
+      real*8   A( LDA, * )
 *     ..
 *
 *  Purpose
@@ -2164,7 +2165,7 @@ cBH090905      real*4 rbound
 *  N       (input) INTEGER
 *          The number of columns of the matrix A.
 *
-*  A       (input/output) DOUBLE PRECISION array, dimension (LDA,N)
+*  A       (input/output) real*8 array, dimension (LDA,N)
 *          On entry, the matrix of column dimension N to which the row
 *          interchanges will be applied.
 *          On exit, the permuted matrix.
@@ -2199,7 +2200,7 @@ cBH090905      real*4 rbound
 *
 *     .. Local Scalars ..
       INTEGER            I, I1, I2, INC, IP, IX, IX0, J, K, N32
-      DOUBLE PRECISION   TEMP
+      real*8   TEMP
 *     ..
 *     .. Executable Statements ..
 *
@@ -2262,7 +2263,7 @@ cBH090905      real*4 rbound
       INTEGER INCX,INCY,N
 *     ..
 *     .. Array Arguments ..
-      DOUBLE PRECISION DX(*),DY(*)
+      real*8 DX(*),DY(*)
 *     ..
 *
 *  Purpose
@@ -2275,7 +2276,7 @@ cBH090905      real*4 rbound
 *
 *
 *     .. Local Scalars ..
-      DOUBLE PRECISION DTEMP
+      real*8 DTEMP
       INTEGER I,IX,IY,M,MP1
 *     ..
 *     .. Intrinsic Functions ..
@@ -2333,7 +2334,7 @@ cBH090905      real*4 rbound
       CHARACTER DIAG,TRANS,UPLO
 *     ..
 *     .. Array Arguments ..
-      DOUBLE PRECISION A(LDA,*),X(*)
+      real*8 A(LDA,*),X(*)
 *     ..
 *
 *  Purpose
@@ -2399,7 +2400,7 @@ cBH090905      real*4 rbound
 *           K must satisfy  0 .le. K.
 *           Unchanged on exit.
 *
-*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, n ).
+*  A      - real*8 array of DIMENSION ( LDA, n ).
 *           Before entry with UPLO = 'U' or 'u', the leading ( k + 1 )
 *           by n part of the array A must contain the upper triangular
 *           band part of the matrix of coefficients, supplied column by
@@ -2447,7 +2448,7 @@ cBH090905      real*4 rbound
 *           ( k + 1 ).
 *           Unchanged on exit.
 *
-*  X      - DOUBLE PRECISION array of dimension at least
+*  X      - real*8 array of dimension at least
 *           ( 1 + ( n - 1 )*abs( INCX ) ).
 *           Before entry, the incremented array X must contain the n
 *           element right-hand side vector b. On exit, X is overwritten
@@ -2469,11 +2470,11 @@ cBH090905      real*4 rbound
 *
 *
 *     .. Parameters ..
-      DOUBLE PRECISION ZERO
+      real*8 ZERO
       PARAMETER (ZERO=0.0D+0)
 *     ..
 *     .. Local Scalars ..
-      DOUBLE PRECISION TEMP
+      real*8 TEMP
       INTEGER I,INFO,IX,J,JX,KPLUS1,KX,L
       LOGICAL NOUNIT
 *     ..
@@ -2665,12 +2666,12 @@ cBH090905      real*4 rbound
       END
       SUBROUTINE DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
 *     .. Scalar Arguments ..
-      DOUBLE PRECISION ALPHA
+      real*8 ALPHA
       INTEGER LDA,LDB,M,N
       CHARACTER DIAG,SIDE,TRANSA,UPLO
 *     ..
 *     .. Array Arguments ..
-      DOUBLE PRECISION A(LDA,*),B(LDB,*)
+      real*8 A(LDA,*),B(LDB,*)
 *     ..
 *
 *  Purpose
@@ -2743,13 +2744,13 @@ cBH090905      real*4 rbound
 *           at least zero.
 *           Unchanged on exit.
 *
-*  ALPHA  - DOUBLE PRECISION.
+*  ALPHA  - real*8.
 *           On entry,  ALPHA specifies the scalar  alpha. When  alpha is
 *           zero then  A is not referenced and  B need not be set before
 *           entry.
 *           Unchanged on exit.
 *
-*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, k ), where k is m
+*  A      - real*8 array of DIMENSION ( LDA, k ), where k is m
 *           when  SIDE = 'L' or 'l'  and is  n  when  SIDE = 'R' or 'r'.
 *           Before entry  with  UPLO = 'U' or 'u',  the  leading  k by k
 *           upper triangular part of the array  A must contain the upper
@@ -2770,7 +2771,7 @@ cBH090905      real*4 rbound
 *           then LDA must be at least max( 1, n ).
 *           Unchanged on exit.
 *
-*  B      - DOUBLE PRECISION array of DIMENSION ( LDB, n ).
+*  B      - real*8 array of DIMENSION ( LDB, n ).
 *           Before entry,  the leading  m by n part of the array  B must
 *           contain  the  right-hand  side  matrix  B,  and  on exit  is
 *           overwritten by the solution matrix  X.
@@ -2803,12 +2804,12 @@ cBH090905      real*4 rbound
       INTRINSIC MAX
 *     ..
 *     .. Local Scalars ..
-      DOUBLE PRECISION TEMP
+      real*8 TEMP
       INTEGER I,INFO,J,K,NROWA
       LOGICAL LSIDE,NOUNIT,UPPER
 *     ..
 *     .. Parameters ..
-      DOUBLE PRECISION ONE,ZERO
+      real*8 ONE,ZERO
       PARAMETER (ONE=1.0D+0,ZERO=0.0D+0)
 *     ..
 *
@@ -3044,7 +3045,7 @@ cBH090905      real*4 rbound
 *
 *     .. Scalar Arguments ..
       INTEGER            ISPEC
-      REAL               ONE, ZERO
+      REAL*4               ONE, ZERO
 *     ..
 *
 *  Purpose
@@ -3077,7 +3078,7 @@ cBH090905      real*4 rbound
 *          = 1:  Arithmetic produced the correct answers
 *
 *     .. Local Scalars ..
-      REAL               NAN1, NAN2, NAN3, NAN4, NAN5, NAN6, NEGINF,
+      REAL*4               NAN1, NAN2, NAN3, NAN4, NAN5, NAN6, NEGINF,
      $                   NEGZRO, NEWZRO, POSINF
 *     ..
 *     .. Executable Statements ..
@@ -3565,7 +3566,7 @@ c$$$
 *     ..
 *     .. Array Arguments ..
       INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * ), B( LDB, * )
+      real*8   A( LDA, * ), B( LDB, * )
 *     ..
 *
 *  Purpose
@@ -3593,7 +3594,7 @@ c$$$
 *          The number of right hand sides, i.e., the number of columns
 *          of the matrix B.  NRHS >= 0.
 *
-*  A       (input/output) DOUBLE PRECISION array, dimension (LDA,N)
+*  A       (input/output) real*8 array, dimension (LDA,N)
 *          On entry, the N-by-N coefficient matrix A.
 *          On exit, the factors L and U from the factorization
 *          A = P*L*U; the unit diagonal elements of L are not stored.
@@ -3605,7 +3606,7 @@ c$$$
 *          The pivot indices that define the permutation matrix P;
 *          row i of the matrix was interchanged with row IPIV(i).
 *
-*  B       (input/output) DOUBLE PRECISION array, dimension (LDB,NRHS)
+*  B       (input/output) real*8 array, dimension (LDB,NRHS)
 *          On entry, the N-by-NRHS matrix of right hand side matrix B.
 *          On exit, if INFO = 0, the N-by-NRHS solution matrix X.
 *
@@ -3673,7 +3674,7 @@ c$$$
 *     ..
 *     .. Array Arguments ..
       INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * )
+      real*8   A( LDA, * )
 *     ..
 *
 *  Purpose
@@ -3699,7 +3700,7 @@ c$$$
 *  N       (input) INTEGER
 *          The number of columns of the matrix A.  N >= 0.
 *
-*  A       (input/output) DOUBLE PRECISION array, dimension (LDA,N)
+*  A       (input/output) real*8 array, dimension (LDA,N)
 *          On entry, the m by n matrix to be factored.
 *          On exit, the factors L and U from the factorization
 *          A = P*L*U; the unit diagonal elements of L are not stored.
@@ -3722,15 +3723,15 @@ c$$$
 *  =====================================================================
 *
 *     .. Parameters ..
-      DOUBLE PRECISION   ONE, ZERO
+      real*8   ONE, ZERO
       PARAMETER          ( ONE = 1.0D+0, ZERO = 0.0D+0 )
 *     ..
 *     .. Local Scalars ..
-      DOUBLE PRECISION   SFMIN 
+      real*8   SFMIN 
       INTEGER            I, J, JP
 *     ..
 *     .. External Functions ..
-      DOUBLE PRECISION   DLAMCH      
+      real*8   DLAMCH      
       INTEGER            IDAMAX
       EXTERNAL           DLAMCH, IDAMAX
 *     ..
@@ -3821,7 +3822,7 @@ c$$$
 *     ..
 *     .. Array Arguments ..
       INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * )
+      real*8   A( LDA, * )
 *     ..
 *
 *  Purpose
@@ -3847,7 +3848,7 @@ c$$$
 *  N       (input) INTEGER
 *          The number of columns of the matrix A.  N >= 0.
 *
-*  A       (input/output) DOUBLE PRECISION array, dimension (LDA,N)
+*  A       (input/output) real*8 array, dimension (LDA,N)
 *          On entry, the M-by-N matrix to be factored.
 *          On exit, the factors L and U from the factorization
 *          A = P*L*U; the unit diagonal elements of L are not stored.
@@ -3870,7 +3871,7 @@ c$$$
 *  =====================================================================
 *
 *     .. Parameters ..
-      DOUBLE PRECISION   ONE
+      real*8   ONE
       PARAMETER          ( ONE = 1.0D+0 )
 *     ..
 *     .. Local Scalars ..
@@ -3982,7 +3983,7 @@ c$$$
 *     ..
 *     .. Array Arguments ..
       INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * ), B( LDB, * )
+      real*8   A( LDA, * ), B( LDB, * )
 *     ..
 *
 *  Purpose
@@ -4009,7 +4010,7 @@ c$$$
 *          The number of right hand sides, i.e., the number of columns
 *          of the matrix B.  NRHS >= 0.
 *
-*  A       (input) DOUBLE PRECISION array, dimension (LDA,N)
+*  A       (input) real*8 array, dimension (LDA,N)
 *          The factors L and U from the factorization A = P*L*U
 *          as computed by DGETRF.
 *
@@ -4020,7 +4021,7 @@ c$$$
 *          The pivot indices from DGETRF; for 1<=i<=N, row i of the
 *          matrix was interchanged with row IPIV(i).
 *
-*  B       (input/output) DOUBLE PRECISION array, dimension (LDB,NRHS)
+*  B       (input/output) real*8 array, dimension (LDB,NRHS)
 *          On entry, the right hand side matrix B.
 *          On exit, the solution matrix X.
 *
@@ -4034,7 +4035,7 @@ c$$$
 *  =====================================================================
 *
 *     .. Parameters ..
-      DOUBLE PRECISION   ONE
+      real*8   ONE
       PARAMETER          ( ONE = 1.0D+0 )
 *     ..
 *     .. Local Scalars ..
@@ -4129,7 +4130,7 @@ c$$$
 *  Definition:
 *  ===========
 *
-*      DOUBLE PRECISION FUNCTION DLAMCH( CMACH )
+*      real*8 FUNCTION DLAMCH( CMACH )
 *  
 *
 *> \par Purpose:
@@ -4137,7 +4138,7 @@ c$$$
 *>
 *> \verbatim
 *>
-*> DLAMCH determines double precision machine parameters.
+*> DLAMCH determines real*8 machine parameters.
 *> \endverbatim
 *
 *  Arguments:
@@ -4182,7 +4183,7 @@ c$$$
 *> \ingroup auxOTHERauxiliary
 *
 *  =====================================================================
-      DOUBLE PRECISION FUNCTION DLAMCH( CMACH )
+      real*8 FUNCTION DLAMCH( CMACH )
 *
 *  -- LAPACK auxiliary routine (version 3.4.0) --
 *  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -4194,17 +4195,17 @@ c$$$
 *     ..
 *
 *     .. Scalar Arguments ..
-      DOUBLE PRECISION   A, B
+      real*8   A, B
 *     ..
 *
 * =====================================================================
 *
 *     .. Parameters ..
-      DOUBLE PRECISION   ONE, ZERO
+      real*8   ONE, ZERO
       PARAMETER          ( ONE = 1.0D+0, ZERO = 0.0D+0 )
 *     ..
 *     .. Local Scalars ..
-      DOUBLE PRECISION   RND, EPS, SFMIN, SMALL, RMACH
+      real*8   RND, EPS, SFMIN, SMALL, RMACH
 *     ..
 *     .. External Functions ..
       LOGICAL            LSAME
@@ -4281,23 +4282,23 @@ c$$$
 *>
 *> \param[in] A
 *> \verbatim
-*>          A is a DOUBLE PRECISION
+*>          A is a real*8
 *> \endverbatim
 *>
 *> \param[in] B
 *> \verbatim
-*>          B is a DOUBLE PRECISION
+*>          B is a real*8
 *>          The values A and B.
 *> \endverbatim
 *>
-      DOUBLE PRECISION FUNCTION DLAMC3( A, B )
+      real*8 FUNCTION DLAMC3( A, B )
 *
 *  -- LAPACK auxiliary routine (version 3.4.0) --
 *     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 *     November 2010
 *
 *     .. Scalar Arguments ..
-      DOUBLE PRECISION   A, B
+      real*8   A, B
 *     ..
 * =====================================================================
 *
@@ -4324,7 +4325,7 @@ c$$$      INTEGER            INCX, K1, K2, LDA, N
 c$$$*     ..
 c$$$*     .. Array Arguments ..
 c$$$      INTEGER            IPIV( * )
-c$$$      DOUBLE PRECISION   A( LDA, * )
+c$$$      real*8   A( LDA, * )
 c$$$*     ..
 c$$$*
 c$$$*  Purpose
@@ -4339,7 +4340,7 @@ c$$$*
 c$$$*  N       (input) INTEGER
 c$$$*          The number of columns of the matrix A.
 c$$$*
-c$$$*  A       (input/output) DOUBLE PRECISION array, dimension (LDA,N)
+c$$$*  A       (input/output) real*8 array, dimension (LDA,N)
 c$$$*          On entry, the matrix of column dimension N to which the row
 c$$$*          interchanges will be applied.
 c$$$*          On exit, the permuted matrix.
@@ -4374,7 +4375,7 @@ c$$$* =====================================================================
 c$$$*
 c$$$*     .. Local Scalars ..
 c$$$      INTEGER            I, I1, I2, INC, IP, IX, IX0, J, K, N32
-c$$$      DOUBLE PRECISION   TEMP
+c$$$      real*8   TEMP
 c$$$*     ..
 c$$$*     .. Executable Statements ..
 c$$$*
@@ -4902,7 +4903,7 @@ c$$$*     ISPEC = 1:  block size
 c$$$*
 c$$$*     In these examples, separate code is provided for setting NB for
 c$$$*     real and complex.  We assume that NB will take the same value in
-c$$$*     single or double precision.
+c$$$*     single or real*8.
 c$$$*
 c$$$      NB = 1
 c$$$*
@@ -5492,7 +5493,7 @@ c$$$      END
       INTEGER            NMIN, K22MIN, KACMIN, NIBBLE, KNWSWP
       PARAMETER          ( NMIN = 75, K22MIN = 14, KACMIN = 14,
      $                   NIBBLE = 14, KNWSWP = 500 )
-      REAL               TWO
+      REAL*4               TWO
       PARAMETER          ( TWO = 2.0 )
 *     ..
 *     .. Local Scalars ..

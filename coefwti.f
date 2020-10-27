@@ -26,24 +26,48 @@ c-YuP      call bcast(di(0,1,k,l_),half,(iy+1)*jx) ! could it be error?
 
       if (chang .ne. "disabled") then
       
-        if (chang.eq."noneg") then        
-          if (n.eq.1) jchang(k,l_)=jx
+        if (chang.eq."noneg") then   
+          if (n.eq.1) jchang(k,l_)=jx !This is the first call of coefwti;
+                 !so that jchang from previous time step are not defined.
           do 100 j=1,jx
             do 1001 i=1,iy
               if (f(i,j,k,l_).le.0.d0) then
-                jval=j
-                go to 101
+                !Note: This subr.coefwti is called from impavnc0
+                ! before the solution is obtained. So, the f() values here
+                ! are from the previous time step. 
+                jval=j !scanning from j=1 up, found the first occurence of f<0 (or f=0)
+                go to 101 !Skip further scanning.
               endif
  1001       continue
  100      continue
-          jval=jx
- 101      continue
-          if (jval.ne.jx) then
-            if (jchang(k,l_).gt.jval-5) then
-              jchang(k,l_)=jval-5
-              if (jchang(k,l_).le.0) jchang(k,l_)=1
+          jval=jx !When the scan did not find any point with f<0 (or =0)
+          !In this case the value of jchang remains same as at previous time step.
+ 101      continue ! jval can be in range from 1 to jx
+          if (jval.ne.jx) then !Check if the value of jchang must be updated.
+            if (jchang(k,l_).gt.jval-5) then !Here jchang is from previous time step
+              !except n=1, then jchang=jx
+              jchang(k,l_)=jval-5  !Re-define/reset to new value.
+              !The purpose is to keep jchang close to the negative-f region.
+              !If at prev. time step this region was starting at high j index,
+              !but now it moved to lower j (so that now jval-5<jchang_old) 
+              !then - move jchang_new to lower value.
+              if (jchang(k,l_).le.0) jchang(k,l_)=1 !Make sure it is at least 1
             endif
-          endif
+            !If jval is large enough, so that jval-5>jchang_old, then 
+            ! keep the old value unchanged, i.e. jchang remains unchanged
+            ! from the previous time step. 
+            !YuP: Why do we keep jchang from previous step in such a case?
+            !Why not updating/setting jchang_new based on given f(), 
+            !i.e., dropping any reference to the previous time step?
+            !Note: This subr.coefwti is called from impavnc0  
+            ! before the new solution for f() is obtained. 
+            ! So, the f() values here are from the "old" step,
+            ! while the saved values of jchang_old are from f_old_old values.
+            ! At n=1(in impavnc0) f_old is just a Maxwellian distribution,
+            ! while f_old_old in this sense does not exist (jchang was not set yet).
+            ! That's why there is a special "if (n.eq.1) jchang(k,l_)=jx"
+            ! clause above.
+          endif ! jval.ne.jx
         elseif (chang.eq."enabled") then
           jchang(k,l_)=jx
         endif
@@ -55,8 +79,13 @@ c-YuP      call bcast(di(0,1,k,l_),half,(iy+1)*jx) ! could it be error?
         call coefmidt(dff,3)
         do 10 j=1,jchang(k,l_)
           do 2 i=1,iy
-            temc1(i)=dy(i,l_)*dd(i,j)*op*df(i,j)/(op*df(i,j)
-     1        -dff(i,j))**2
+            df_dff= op*df(i,j)-dff(i,j) !YuP[2019-07-09] added check of denom=0
+            if(df_dff.ne.zero)then
+            temc1(i)=dy(i,l_)*dd(i,j)*op*df(i,j)/df_dff**2
+            else
+            !write(*,*)'coefwti: df_dff=0.', op*df(i,j),dff(i,j)
+            temc1(i)=zero
+            endif
  2        continue
 
 c...............................................................
@@ -115,7 +144,7 @@ c..............................................................
               di(i,j,k,l_)=1.d0+1.d0/temc1(i)
             endif
  22       continue
- 10     continue
+ 10     continue ! j=1,jchang(k,l_)
 
 c...............................................................
 c     Now force one-sided differencing if desired.
@@ -124,7 +153,7 @@ c...............................................................
        !-YuP 101126: added to prevent jchang=0
 
         if (jchang(k,l_).lt.jx) then
-          do 60 j=jchang(k,l_),jx
+          do 60 j=jchang(k,l_),jx !for all j points above first occurence of f<0 (actually -5 below)
             do 50 i=1,iy
               if(dd(i,j).ge.0.d0) then
                 di(i,j,k,l_)=zero
@@ -132,18 +161,18 @@ c...............................................................
                 di(i,j,k,l_)=one
               endif
  50         continue
- 60       continue
-        endif
+ 60       continue ! j=1,jchang(k,l_)
+        endif ! jchang(k,l_)<jx  which means there is region with f<0 (or f=0)
         
-      endif
+      endif ! chang.ne."disabled"
 
 c.......................................................................
 c     Ensures correct differentiation at end of intervals
 c.......................................................................
 
       do 3 j=1,jx
-        di(0,j,k,l_)=0.d0
-        di(iy,j,k,l_)=1.d0
+        di(0,j,k,l_)=0.d0  ! i=0 only
+        di(iy,j,k,l_)=1.d0 ! i=iy only
  3    continue
  
 

@@ -59,6 +59,19 @@ cBH050917      if (eqmod.eq."disabled") rmn=radmin
           dvol(ll)=tr(ll)-tr(ll-1)
           darea(ll)=dvol(ll)/(2.*radmaj*pi) !here: for eqmod.eq."disabled"
  700    continue
+        !YuP[2020-01-29] Added rpmconz, for eqmod='disabled' :
+        rpmconz(0)=rmag
+        !Bin boundaries are DEFINED by the average outer equatorial
+        !plane major radius between those of neighboring Fokker-Planck
+        !points.
+        do l=1,lrzmax
+          if (l.lt.lrzmax) then
+            rpmconz(l)=(rpconz(l)+rpconz(l+1))*.5
+          else
+            rpmconz(lrzmax)=rmaxcon
+          endif
+          !write(*,*)'tdrmshst: l,rpmconz(l)=',l,rpmconz(l)
+        enddo
 
       elseif (eqmod.eq."enabled") then
 
@@ -85,7 +98,15 @@ c     LCFS at ez=0.
           psivalm(l)=terp2(rpmconz(l),zmag,nnr,er,nnz,ez,epsi,epsirr,
      1      epsizz,epsirz,nnra,0,0)
           epsicon_=psivalm(l)
-          call eqorbit(epsicon_)
+          rstart=0.d0 ! OUTPUT, when kopt=1
+          zstart=zmag ! OUTPUT, when kopt=1
+          call eqorbit(1,epsicon_,rstart,zstart) ! kopt=1
+        !YuP[2020-06-30] Added kopt=2, which allows tracing surface
+        ! directly from point (rstart,zstart) when it is given in INPUT
+        ! (in this case value of epsicon_ is not needed).
+        ! For the original design, use kopt=1,
+        ! which means: find the starting point from knowledge of epsicon_ 
+        ! and zmag coordinate (stored in comm.h).
           call eqvolpsi(epsicon_,volmid(l),areamid(l))
           !!write(*,'(i4,3f15.3)') l,rpmconz(l),rpconz(l),areamid(l)
           ! YuP [Apr/2014]: jump in areamid(l) at last l=lrzmax, 
@@ -214,7 +235,7 @@ c.......................................................................
       if (efswtch.eq."method5") then
       curr_edge_roa=0.8   
       do 30 l=1,lrzmax
-         currxj(l)=curreq(l)
+         currxj(l)=curreq(l) ! for efswtch.eq."method5" only
          if (rovera(l).gt.0.8) then
             currxj(l)=currxj(l)+
      +           (rovera(l)-curr_edge_roa)/(1.-curr_edge_roa)*curr_edge
@@ -222,7 +243,33 @@ c.......................................................................
          currxj0(l)=curreq(l) !-YuP: added 
          ! the target parallel current (moved here from efield.f)
  30   continue
-      endif
+      endif ! efswtch.eq."method5"
+
+      !YuP[2019-10-29] Added Renormalize currxj(ll) at n=0.
+      if(efswtch.eq."method2" .or. efswtch.eq."method4")then
+      if(n.eq.0 .and. totcrt(1).ne.zero)then 
+         currxjtot=0.d0
+         do ll=1,lrzmax
+           currxjtot=currxjtot+darea(ll)*currxj(ll)
+           !YuP[2019-10-29] Why cannot do it in sub.profiles:
+           !At n=0 sub.profiles is called from sub.tdinitl
+           !before tdrmshst, and then currxjtot remains 0.0,
+           !and currxj becomes INF
+         enddo
+         do ll=1,lrzmax
+           currxj(ll)=totcurtt/currxjtot*currxj(ll)
+           !Note: totcurtt is set in sub.profiles (at n=0 or n>0)
+            write(*,'(a,i4,3e12.3)')
+     &          'tdrmshst [n=0]: lr,elecfld,totcurtt,currxj',
+     &           ll,elecfld(ll),totcurtt,currxj(ll)
+         enddo
+         !Also note: tdrmshst is called twice from tdinitl,
+         !so this renormalization will be done twice.
+         !But at second call we will have currxjtot=totcurtt,
+         !so no harm in that.
+      endif ! n=0 !YuP[2019-10-29] done Renormalize currxj at n=0
+      endif ! efswtch.eq."method2" .or. efswtch.eq."method4"
+         
 
 c.......................................................................
 
@@ -241,10 +288,16 @@ c         assuming mass of first ions species, 80 keV NB energy.
 c     
 c.......................................................................
 
-      if (gamaset.ne.zero) then
+      if (gamaset.gt.zero) then !YuP[2019-07] changed .ne.zero to .gt.zero
          gamaset1=gamaset
-      else
-         gamaset1=17.
+      elseif(gamaset.eq.zero)then !YuP[2019-07] changed to .eq.zero
+         gamaset1=17. !But Coulomb logs in this case are computed internally
+                      !based on Killen book, Eq.2.1.5
+         !The problem here is that tdrmshst is called before cfpgamma,
+         !where gama(kk,k) is set.
+      else ! (gamaset.lt.zero)
+         !suggested to use NRL definitions here !YuP[2019-07]
+         gamaset1=17. !for now
       endif
 
       do l=1,lrzmax

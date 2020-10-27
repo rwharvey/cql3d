@@ -212,6 +212,51 @@ c..................................................................
       istat_tot=istat_tot+istat
       call bcast(ebl,zero,SIZE(ebl))
       
+      if(cfp_integrals.eq.'enabled')then
+      !YuP[08-2017][2020-07-02] Added, for usage in tdchief, cfpcoefn,
+      ! temp_min(:), temp_max(:) ! (nmaxw_sp) 
+      ! min/max of temp() for each Maxw.species, 
+      ! to set a uniform T-grid within [temp_min; temp_max] range;
+      ! Different for each Maxwellian species!
+      ! cfpm(:,:,:,:) !(3,nmaxw_sp,ntemp,jx) 
+      ! cfpm() == storage of three integrals, 
+      !           for each Maxw.species (1:nmaxw_sp),
+      !           set as a table over 1:ntemp uniform T-grid,
+      !           saved as a function of j index (func. of momentum). 
+      ntemp=MAX(200,lrz) !MAX(100,lrz) !100 points is sufficient to represent
+      ! all possible values of temp(kbm,lr) profile;
+      ! so typically 3*6(nmaxw_sp)*100*200(jx)=360000 data points.
+      ! But ntemp=200 gives a better accuracy 
+      !(comparing to original method, cfp_integrals='disabled')
+      if(nstates.gt.0)then ! impurity ions are present
+         nmaxw_sp= nmax+nstates+2 
+      else ! nstates=0
+         nmaxw_sp= nmax
+      endif
+      !In (nmax+nstates+2), the contribution is from:
+      ! nmax= Regular Maxw. species (fully-ionized ions or/and electrons). 
+      ! nstates+1= Partially-ionized impurity ions
+      !   (kstate=1:nstates for ionized states, and kstate=0 for neutral state)
+      !    For now, it is assumed that all ionization states have
+      !    same temperature, equal to T for main ions, 
+      !    temp(kion1,lr), where kion1=kionm(1).
+      ! Additionally, +1 for bound electrons in impurity ions; 
+      !    It is assumed that all bound electrons have temp_e_bound=10eV.
+      !Note: if no impurity ions are present, nstates is 0.
+      allocate(temp_min(nmaxw_sp))
+      allocate(temp_max(nmaxw_sp))
+      allocate(cfpm(3,nmaxw_sp,ntemp,jx),STAT=istat1)
+      if (istat1.ne.0) then
+         WRITE(*,*)
+     +     'ainalloc/cfpm, for cfp_integrals_maxw: allocation problem'
+         STOP
+      endif
+      temp_min=zero
+      temp_max=zero
+      cfpm=zero ! initialize
+      endif ! cfp_integrals.eq.'enabled'
+
+      
       allocate(scal(iyjx*ngen,lrors),STAT=istat)
       istat_tot=istat_tot+istat
       call bcast(scal,zero,SIZE(scal))
@@ -750,7 +795,7 @@ cBH      endif
       allocate(tcsgm1(jx),STAT=istat)
       istat_tot=istat_tot+istat
       call bcast(tcsgm1,zero,SIZE(tcsgm1))
-      allocate(gamefac(jx),STAT=istat)
+      allocate(gamefac(jx,ntotal),STAT=istat) !YuP[2019-07-26] k index added
       istat_tot=istat_tot+istat
       call bcast(gamefac,zero,SIZE(gamefac))
       allocate(ident(iy),STAT=istat)
@@ -1099,9 +1144,11 @@ cBH080910      exp5=>exm5(2:) !due different start extent
          call bcast(asnha,zero,SIZE(asnha))
       endif
 
-      if (ndeltarho.ne."disabled".or.lossmode(1).eq.'simplban'
-     +     .or. lossmode(1).eq.'simplbn1'
-     +     .or. lossmode(1).eq.'simplbn2') then
+      if(ndeltarho.ne."disabled")then !YuP[2020-10-20] Removed lossmode
+         ! from if() below. deltarho-related arrays are not used in sub.losscone.
+!YuP      if (ndeltarho.ne."disabled".or.lossmode(1).eq.'simplban'
+!YuP     +     .or. lossmode(1).eq.'simplbn1'
+!YuP     +     .or. lossmode(1).eq.'simplbn2') then
          !YuP[2017-11-21] Need lossmode(k), checking all k?
          allocate(deltarho(iy,lz,lrzmax),STAT=istat)
          call bcast(deltarho,zero,SIZE(deltarho))
@@ -1169,11 +1216,18 @@ c      allocate(rho_fus(nv_fus,4*lrz),STAT=istat)
 c      allocate(s_fus(nv_fus,4*lrz),STAT=istat)
 c      allocate(ds_fus(nv_fus,4*lrz),STAT=istat)
 
+      !YuP[2019-09-18] For pellet='enabled' :
+      !allocate(dMpellet_dvol_sum(1:lrz),STAT=istat)
+      dMpellet_dvol_sum=0.d0 ! initialize ! Mass density from pellet
+
+
 c     Check that allocations were OK
       if (istat_tot.ne.0) then
+CMPIINSERT_IF_RANK_EQ_0      
          WRITE(*,*)'ainalloc.f:  Problem with allocation'
          WRITE(*,*)'ainalloc.f:  Reduce param.h paramaters?'
          WRITE(*,*)'ainalloc.f:  Stopping'
+CMPIINSERT_ENDIF_RANK
          STOP
       endif
       

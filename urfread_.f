@@ -241,8 +241,9 @@ c     from cql3d.
            sbsign=sign(one,bsign)
            if (iray.eq.1) then
               bsign1(krf)=sign(one,sbtot(1,iray,krf))
-              WRITE(*,*)'urfread_:eqsource,bsign,bsign1 = ',
-     1             eqsource,bsign,bsign1
+              if (krf.eq.1)
+     1         WRITE(*,*)'urfread_:eqsource,bsign,bsign1 = ',
+     1             eqsource,bsign,bsign1(krf)
            endif
            do is=1,nrayelt(iray,krf)
 c              if(is.eq.1) write(*,*)
@@ -364,8 +365,9 @@ c     Change sign of sbtot(if neg)  and wnpar:  See above comments.
            sbsign=sign(one,bsign)
            if (iray.eq.1) then
               bsign1(krf)=sign(one,sbtot(1,iray,krf))
-              WRITE(*,*)'urfread_:eqsource,bsign,bsign1 = ',
-     1             eqsource,bsign,bsign1
+              if (krf.eq.1)
+     1             WRITE(*,*)'urfread_:eqsource,bsign,bsign1 = ',
+     1             eqsource,bsign,bsign1(krf)
            endif
            do is=1,nrayelt(iray,krf)
 c              if(is.eq.1) write(*,*)

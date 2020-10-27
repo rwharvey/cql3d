@@ -1,0 +1,19 @@
+#!/bin/bash -l 
+
+#SBATCH -J petrov-CQL
+#SBATCH -p regular
+#SBATCH --qos=premium
+#SBATCH --account=m77
+#SBATCH -t 0:13:00
+#SBATCH -C haswell
+#SBATCH -N 1  
+
+## Examples of using 480 cores:
+##Cori has 32 cores per node, 15*32=480, so use (-N 15,  -n 160 -c 3) 
+
+cd $SLURM_SUBMIT_DIR
+
+export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/global/cfs/cdirs/m77/CompX/pgplot.intel
+
+srun -n 32 -c 1 ./xcql3d_mpi_intel.cori

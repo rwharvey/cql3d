@@ -1,4 +1,5 @@
-c
+! YuP[2019-10-02] Made some modifications to avoid log10(0.0) 
+!  and to avoid plots with near-zero values.
 c
       subroutine pltrun
       implicit integer (i-n), real*8 (a-h,o-z)
@@ -10,6 +11,9 @@ c     PGPLOT REAL Variables:
       REAL*4 RPG1,RPG2
       REAL*4 RNONCHA1(nonch),RNONCHA2(nonch)
       REAL*4 RBOUND
+      REAL*4 :: R4P2=.2,R4P8=.8,R4P5=.5,R4MP1=-.1,R40=0.
+      REAL*4 :: R4P6=.6,R4P9=.9,R46=6.,R47=7.,R4P65=.65
+
 c-----------------
 c   This subroutine writes and plots runaway population and current
 c------------------
@@ -100,6 +104,7 @@ c-----------------------------------------------------------------------
       dgts=1.e-8
 
       do ll=1,lrz
+      
         call tdnflxs(ll)
         rr=rpcon(lr_) !rovera(lr_)*radmin  ! YuP[03-2016] changed to rpcon
 cBH070405        do nt=1,nch(l_)
@@ -108,41 +113,36 @@ cBH070405        do nt=1,nch(l_)
           yg(nt)=abs(pdenra(nt,ll))
           RNONCHA1(nt)=RBOUND(XG(nt))
           RNONCHA2(nt)=RBOUND(YG(nt))
+          if(RNONCHA2(nt).gt.0.)then
           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
-
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
         enddo
         call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
-c        if (abs(ymin-ymax).le.abs(ymax)*dgts) ymax=ymin+0.001*abs(ymin)
-c        call pltcycl(iymin,iymax,ymin,ymax)
-
-        ymax=1.03*ymax
+        iskip=0 ! to be changed to iskip=1 if denra=0
+        if(YMAX.lt.1d-100) iskip=1 ! case of denra~0
+        ymax=10.*ymax !1.03*ymax
         ymin=ymax/1.e4
 
         RPG1=RBOUND(Ymin)
         RPG2=RBOUND(Ymax)
-        IF ( YMIN.EQ.YMAX ) THEN
-           RPG1=.1
-           RPG2=1.
-        ENDIF
         RPG1=LOG10(RPG1)
         RPG2=LOG10(RPG2)
-
-
-
-c      Following plot is with pdena,... with 1st dimension up to nch(l_).
-
-        CALL PGPAGE
-        CALL PGSVP(.2,.8,.6,.9)
-        IF ( RPG2-RPG1 .le. 1.e-16 ) THEN
-           RPG2= RPG1+1.e-16
-        ENDIF
-        CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        IF (RPG1.ne.RPG2) THEN
-           CALL PGBOX('BCNST',0.0,0,'BCNSTL',0.0,0)
+        
+c      Following plot is with pdenra,... with 1st dimension up to nch(l_).
+        CALL PGPAGE ! -1-  denra and curra
+        
+        if(iskip.eq.0)then
+        CALL PGSVP(R4P2,R4P8,R4P6,R4P9)
+        IF (RPG1.lt.RPG2) THEN
+           CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
+           CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
            CALL PGLINE(NCH(L_),RNONCHA1,RNONCHA2)
-        ENDIF
-        CALL PGLAB('time (secs)','RA density (cm\u-3\d)',
+           CALL PGLAB('time (secs)','RA density (cm\u-3\d)',
      +       'Runaway Density and Current vs. Time')
+        ENDIF
+        endif ! iskip
 
 cBH070405       do nt=1,nch(l_)
         do nt=1,nch(ll)
@@ -150,134 +150,115 @@ cBH070405       do nt=1,nch(l_)
           yg(nt)=abs(pcurra(nt,ll))
           RNONCHA1(nt)=RBOUND(XG(nt))
           RNONCHA2(nt)=RBOUND(YG(nt))
+          if(RNONCHA2(nt).gt.0.)then
           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
-
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
         enddo
         call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
-
-c        if (abs(ymin-ymax).le.abs(ymax)*dgts) ymax=ymin+0.001*abs(ymin)
-
-        ymax=1.03*ymax
+        iskip=0 ! to be changed to iskip=1 if curra=0
+        if(YMAX.lt.1d-100) iskip=1 ! case of curra~0
+        ymax=10.*ymax !1.03*ymax
         ymin=ymax/1.e4
 
         RPG1=RBOUND(Ymin)
         RPG2=RBOUND(Ymax)
-        IF ( YMIN.EQ.YMAX ) THEN
-           RPG1=.1
-           RPG2=1.
-        ENDIF
         RPG1=LOG10(RPG1)
         RPG2=LOG10(RPG2)
 
-
-        CALL PGSVP(.2,.8,.2,.5)
-        IF ( RPG2-RPG1 .le. 1.e-16 ) THEN
-           RPG2= RPG1+1.e-16
-        ENDIF
-        CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        IF (RPG1.ne.RPG2) THEN
-           CALL PGBOX('BCNST',0.0,0,'BCNSTL',0.0,0)
+        if(iskip.eq.0)then
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P5)
+        IF (RPG1.lt.RPG2) THEN
+           CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
+           CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
            CALL PGLINE(NCH(L_),RNONCHA1,RNONCHA2)
+           CALL PGLAB('time (secs)','RA curr den (A/cm\u2\d)',' ')
         ENDIF
-        CALL PGLAB('time (secs)','RA curr den (A/cm\u2\d)',' ')
-
-
+        endif ! iskip
+        
         write(t_,10010) n,timet
-        CALL PGMTXT('B',6.,-.1,0.,t_)
+        CALL PGMTXT('B',R46,R4MP1,R40,t_)
         write(t_,10011) rovera(lr_),ll,rr
-        CALL PGMTXT('B',7.,-.1,0.,t_)
+        CALL PGMTXT('B',R47,R4MP1,R40,t_)
 
 c-----------------------------------------------------------------------
-
-
 cBH070405       do nt=1,nch(l_)
         do nt=1,nch(ll)
           xg(nt)=ptime(nt,1)
           yg(nt)=abs(pfdenra(nt,ll))
           RNONCHA1(nt)=RBOUND(XG(nt))
           RNONCHA2(nt)=RBOUND(YG(nt))
+          if(RNONCHA2(nt).gt.0.)then
           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
-
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
         enddo
 c        write(*,*) 'ptime(ijk,1),pfdenra(ijk,ll),ijk=1,5',
 c     +              (ptime(ijk,1),pfdenra(ijk,ll),ijk=1,5)
         call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
-c        if (abs(ymin-ymax).le.abs(ymax)*dgts) ymax=ymin+0.001*abs(ymin)
-c        call pltcycl(iymin,iymax,ymin,ymax)
-
-        ymax=1.03*ymax
+        iskip=0 ! to be changed to iskip=1 if fdenra=0
+        if(YMAX.lt.1d-100) iskip=1 ! case of fdenra~0
+        ymax=10.*ymax !1.03*ymax
         ymin=ymax/1.e4
 
         RPG1=RBOUND(Ymin)
         RPG2=RBOUND(Ymax)
-        IF ( YMIN.EQ.YMAX ) THEN
-           RPG1=.1
-           RPG2=1.
-        ENDIF
         RPG1=LOG10(RPG1)
         RPG2=LOG10(RPG2)
 
-
-        CALL PGPAGE
-        CALL PGSVP(.2,.8,.6,.9)
-        IF ( RPG2-RPG1 .le. 1.e-16 ) THEN ! YuP [02-23-2016]
-           RPG2= RPG1+1.e-16
-        ENDIF
-        CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        IF (RPG1.ne.RPG2) THEN
-           CALL PGBOX('BCNST',0.0,0,'BCNSTL',0.0,0)
+        CALL PGPAGE ! -2-  fdenra and fcurra
+        
+        if(iskip.eq.0)then
+        CALL PGSVP(R4P2,R4P8,R4P6,R4P9)
+        IF (RPG1.lt.RPG2) THEN
+           CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
+           CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
            CALL PGLINE(NCH(L_),RNONCHA1,RNONCHA2)
-        ENDIF
-        CALL PGLAB('time (secs)','Fraction RA density',
+           CALL PGLAB('time (secs)','Fraction RA density',
      +       'Runaway Fraction of Density and Current vs. Time')
+        ENDIF
+        endif ! iskip
 
         do nt=1,nch(l_)
           xg(nt)=ptime(nt,1)
           yg(nt)=abs(pfcurra(nt,ll))
           RNONCHA1(nt)=RBOUND(XG(nt))
           RNONCHA2(nt)=RBOUND(YG(nt))
+          if(RNONCHA2(nt).gt.0.)then
           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
-
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
          enddo
         call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
-c        if (abs(ymin-ymax).le.abs(ymax)*dgts) ymax=ymin+0.001*abs(ymin)
-c        call pltcycl(iymin,iymax,ymin,ymax)
-
-        ymax=1.03*ymax
+        iskip=0 ! to be changed to iskip=1 if fcurra=0
+        if(YMAX.lt.1d-100) iskip=1 ! case of fcurra~0
+        ymax=10.*ymax !1.03*ymax
         ymin=ymax/1.e4
 
         RPG1=RBOUND(Ymin)
         RPG2=RBOUND(Ymax)
-        IF ( YMIN.EQ.YMAX ) THEN
-           RPG1=.1
-           RPG2=1.
-        ENDIF
         RPG1=LOG10(RPG1)
         RPG2=LOG10(RPG2)
 
-
-
-        CALL PGSVP(.2,.8,.2,.5)
-        IF ( RPG2-RPG1 .le. 1.e-16 ) THEN ! YuP [02-23-2016]
-           RPG2= RPG1+1.e-16
-        ENDIF
-        CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        IF (RPG1.ne.RPG2) THEN
-           CALL PGBOX('BCNST',0.0,0,'BCNSTL',0.0,0)
+        if(iskip.eq.0)then
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P5)
+        IF (RPG1.lt.RPG2) THEN
+           CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
+           CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
            CALL PGLINE(NCH(L_),RNONCHA1,RNONCHA2)
+           CALL PGLAB('time (secs)','Fraction RA curr den',' ')
         ENDIF
-        CALL PGLAB('time (secs)','Fraction RA curr den',' ')
-
+        endif ! iskip
+        
         write(t_,10010) n,timet
-        CALL PGMTXT('B',6.,-.1,0.,t_)
+        CALL PGMTXT('B',R46,R4MP1,R40,t_)
         write(t_,10011) rovera(lr_),ll,rr
-        CALL PGMTXT('B',7.,-.1,0.,t_)
+        CALL PGMTXT('B',R47,R4MP1,R40,t_)
 
 c-----------------------------------------------------------------------
-
-
-
-
 c     Plots of ucrit and e/e_dreicer, versus time:
 
 cBH070405       do nt=1,nch(l_)
@@ -286,18 +267,25 @@ cBH070405       do nt=1,nch(l_)
            yg(nt)=abs(pucrit(nt,ll))
            RNONCHA1(nt)=RBOUND(XG(nt))
            RNONCHA2(nt)=RBOUND(YG(nt))
-           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
+          if(RNONCHA2(nt).gt.0.)then
+          RNONCHA2(nt)=LOG10(RNONCHA2(nt))
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
         enddo
       
-      
-      if (pltlim.eq.'u/c') then
+        if (pltlim.eq.'u/c') then
          do nt=1,nch(l_)
 cYuP            yg(nt)=yg(nt)*cnormi !cnormi=0 when relativ.eq."disabled"
           yg(nt)=yg(nt)/cnorm ! YuP[07-2016]
           RNONCHA2(nt)=RBOUND(YG(nt))
+          if(RNONCHA2(nt).gt.0.)then
           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
          enddo
-      elseif (pltlim.eq.'energy') then
+        elseif (pltlim.eq.'energy') then
 cBH070405         do nt=1,nch(l_)
          do nt=1,nch(ll)
             yg2=yg(nt)*yg(nt)
@@ -308,97 +296,93 @@ cBH070405         do nt=1,nch(l_)
             endif
             yg(nt)=g1*restmkev
           RNONCHA2(nt)=RBOUND(YG(nt))
+          if(RNONCHA2(nt).gt.0.)then
           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
          enddo
-      endif
-             
-      call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
-c     if (abs(ymin-ymax).le.abs(ymax)*dgts) ymax=ymin+0.001*abs(ymin)
-c     call pltcycl(iymin,iymax,ymin,ymax)
-      
-      
-      ymin=0.97*ymin
-      ymax=1.e3*ymin
+        endif
+        call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
+        iskip=0 ! to be changed to iskip=1 if ucrit=0
+        if(YMAX.lt.1d-100) iskip=1 ! case of ucrit~0
+        ymax=10.*ymax !1.03*ymax
+        ymin=ymax/1.e4
+        !ymin=0.97*ymin
+        !ymax=1.e3*ymin
 
         RPG1=RBOUND(Ymin)
         RPG2=RBOUND(Ymax)
-        IF ( YMIN.EQ.YMAX ) THEN
-           RPG1=.1
-           RPG2=1.
-        ENDIF
         RPG1=LOG10(RPG1)
         RPG2=LOG10(RPG2)
 
 
-      if (pltlim.eq.'u/c') then
+        if (pltlim.eq.'u/c') then
          write(t_,1020)
  1020    format("Critical runaway vel/c")
-      elseif (pltlim.eq.'energy') then
+        elseif (pltlim.eq.'energy') then
          write(t_,1021)
  1021    format("Critical runaway energy (keV)")
-      else
+        else
          write(t_,1022)
  1022    format("Critical runaway vel/vnorm")
-      endif
+        endif
 
-        CALL PGPAGE
-        CALL PGSVP(.2,.8,.6,.9)
-        IF ( RPG2-RPG1 .le. 1.e-16 ) THEN ! YuP [02-23-2016]
-           RPG2= RPG1+1.e-16
-        ENDIF
-        CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        IF (RPG1.ne.RPG2) THEN
-           CALL PGBOX('BCNST',0.0,0,'BCNSTL',0.0,0)
+        CALL PGPAGE ! -3-  ucrit and eoed
+        
+        if(iskip.eq.0)then
+        CALL PGSVP(R4P2,R4P8,R4P6,R4P9)
+        IF (RPG1.lt.RPG2) THEN
+           CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
+           CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
            CALL PGLINE(NCH(L_),RNONCHA1,RNONCHA2)
-        ENDIF
-        CALL PGLAB('time (secs)',t_,
+           CALL PGLAB('time (secs)',t_,
      +       'Critical vel(energy) and E/E\dDreicer\u vs. Time')
+        ENDIF
+        endif ! iskip
 
 cBH070405      do nt=1,nch(l_)
-      do nt=1,nch(ll)
-         xg(nt)=ptime(nt,1)
-         yg(nt)=abs(peoed(nt,ll))
+        do nt=1,nch(ll)
+          xg(nt)=ptime(nt,1)
+          yg(nt)=abs(peoed(nt,ll))
           RNONCHA1(nt)=RBOUND(XG(nt))
           RNONCHA2(nt)=RBOUND(YG(nt))
+          if(RNONCHA2(nt).gt.0.)then
           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
-      enddo
-      call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
-c     if (abs(ymin-ymax).le.abs(ymax)*dgts) ymax=ymin+0.001*abs(ymin)
-c     call pltcycl(iymin,iymax,ymin,ymax)
-      
-      ymax=1.03*ymax
-      ymin=ymax/1.e3
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
+        enddo
+        call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
+        iskip=0 ! to be changed to iskip=1 if eoed=0
+        if(YMAX.lt.1d-100) iskip=1 ! case of eoed~0
+        ymax=10.*ymax !1.03*ymax
+        ymin=ymax/1.e3
 
         RPG1=RBOUND(Ymin)
         RPG2=RBOUND(Ymax)
-        IF ( YMIN.EQ.YMAX ) THEN
-           RPG1=.1
-           RPG2=1.
-        ENDIF
         RPG1=LOG10(RPG1)
         RPG2=LOG10(RPG2)
 
-      write(t_,1023)
- 1023 format("E-field/E_Dreicer")
-      write(t_,1024)
- 1024 format("time(sec)")
+        write(t_,1023)
+ 1023   format("E-field/E_Dreicer")
+        write(t_,1024)
+ 1024   format("time(sec)")
 
-
-        CALL PGSVP(.2,.8,.2,.5)
-        IF ( RPG2-RPG1 .le. 1.e-16 ) THEN ! YuP [02-23-2016]
-           RPG2= RPG1+1.e-16
-        ENDIF
-        CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        IF (RPG1.ne.RPG2) THEN
-           CALL PGBOX('BCNST',0.0,0,'BCNSTL',0.0,0)
+        if(iskip.eq.0)then
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P5)
+        IF (RPG1.lt.RPG2) THEN
+           CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
+           CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
            CALL PGLINE(NCH(L_),RNONCHA1,RNONCHA2)
+           CALL PGLAB('time (secs)','E-field/E\dDreicer\u',' ')
         ENDIF
-        CALL PGLAB('time (secs)','E-field/E\dDreicer\u',' ')
+        endif ! iskip
 
         write(t_,10010) n,timet
-        CALL PGMTXT('B',6.,-.1,0.,t_)
+        CALL PGMTXT('B',R46,R4MP1,R40,t_)
         write(t_,10011) rovera(lr_),ll,rr
-        CALL PGMTXT('B',7.,-.1,0.,t_)
+        CALL PGMTXT('B',R47,R4MP1,R40,t_)
 
 c-----------------------------------------------------------------------
 
@@ -406,92 +390,82 @@ c-----------------------------------------------------------------------
 c     Plots of e/e0 and KO source, versus time:
 
 cBH070405      do nt=1,nch(l_)
-      do nt=1,nch(ll)
-         xg(nt)=ptime(nt,1)
-         yg(nt)=abs(peoe0(nt,ll))
+        do nt=1,nch(ll)
+          xg(nt)=ptime(nt,1)
+          yg(nt)=abs(peoe0(nt,ll))
           RNONCHA1(nt)=RBOUND(XG(nt))
           RNONCHA2(nt)=RBOUND(YG(nt))
+          if(RNONCHA2(nt).gt.0.)then
           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
-      enddo
-      
-      call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
-c     if (abs(ymin-ymax).le.abs(ymax)*dgts) ymax=ymin+0.001*abs(ymin)
-c     call pltcycl(iymin,iymax,ymin,ymax)
-      
-c$$$      call gxglfr(0)
-      
-      ymax=1.03*ymax
-      ymin=ymax/1.e3
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
+        enddo
+        call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
+        iskip=0 ! to be changed to iskip=1 if eoe0=0
+        if(YMAX.lt.1d-100) iskip=1 ! case of eoe0~0
+        ymax=10.*ymax !1.03*ymax
+        ymin=ymax/1.e3
 
         RPG1=RBOUND(Ymin)
         RPG2=RBOUND(Ymax)
-        IF ( YMIN.EQ.YMAX ) THEN
-           RPG1=.1
-           RPG2=1.
-        ENDIF
         RPG1=LOG10(RPG1)
         RPG2=LOG10(RPG2)
 
-
-        CALL PGPAGE
-        CALL PGSVP(.2,.8,.6,.9)
-        IF ( RPG2-RPG1 .le. 1.e-16 ) THEN ! YuP [02-23-2016]
-           RPG2= RPG1+1.e-16
-        ENDIF
-        CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        IF (RPG1.ne.RPG2) THEN
-           CALL PGBOX('BCNST',0.0,0,'BCNSTL',0.0,0)
+        CALL PGPAGE ! -4-  eoe0 and src (KO)
+        
+        if(iskip.eq.0)then
+        CALL PGSVP(R4P2,R4P8,R4P6,R4P9)
+        IF (RPG1.lt.RPG2) THEN
+           CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
+           CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
            CALL PGLINE(NCH(L_),RNONCHA1,RNONCHA2)
-        ENDIF
-        CALL PGLAB('time (secs)','E-field/E0',
+           CALL PGLAB('time (secs)','E-field/E0',
      +       'E/(Critical E0) and KO Source vs. Time')
-
+        ENDIF
+        endif ! iskip
 
 cBH070405      do nt=1,nch(l_)
-      do nt=1,nch(ll)
-         xg(nt)=ptime(nt,1)
-         yg(nt)=abs(psrc(nt,ll))
+        do nt=1,nch(ll)
+          xg(nt)=ptime(nt,1)
+          yg(nt)=abs(psrc(nt,ll))
           RNONCHA1(nt)=RBOUND(XG(nt))
           RNONCHA2(nt)=RBOUND(YG(nt))
+          if(RNONCHA2(nt).gt.0.)then
           RNONCHA2(nt)=LOG10(RNONCHA2(nt))
-      enddo
-      call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
-c     if (abs(ymin-ymax).le.abs(ymax)*dgts) ymax=ymin+0.001*abs(ymin)
-c     call pltcycl(iymin,iymax,ymin,ymax)
-      
-      ymax=1.03*ymax
-      ymin=ymax/1.e3
+          else
+          RNONCHA2(nt)=-100. !which means log10(1d-100), a very small value
+          endif
+        enddo
+        call aminmx(yg,1,nch(l_),1,ymin,ymax,kmin,kmax)
+        iskip=0 ! to be changed to iskip=1 if src=0
+        if(YMAX.lt.1d-100) iskip=1 ! case of src~0
+        ymax=10.*ymax !1.03*ymax
+cBH180714      ymin=ymax/1.e3
+        ymin=ymax/1.e8
 
         RPG1=RBOUND(Ymin)
         RPG2=RBOUND(Ymax)
-        IF ( YMIN.EQ.YMAX ) THEN
-           RPG1=.1
-           RPG2=1.
-        ENDIF
         RPG1=LOG10(RPG1)
         RPG2=LOG10(RPG2)
 
-
-        CALL PGSVP(.2,.8,.2,.5)
-        IF ( RPG2-RPG1 .le. 1.e-16 ) THEN ! YuP [02-23-2016]
-           RPG2= RPG1+1.e-16
-        ENDIF
-        CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        IF (RPG1.ne.RPG2) THEN
-           CALL PGBOX('BCNST',0.0,0,'BCNSTL',0.0,0)
+        if(iskip.eq.0)then
+        CALL PGSVP(R4P2,R4P8,R4P2,R4P5)
+        IF (RPG1.lt.RPG2) THEN
+           CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
+           CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
            CALL PGLINE(NCH(L_),RNONCHA1,RNONCHA2)
+           CALL PGLAB('time (secs)','KO Src(electrons/cm\u3\d/sec)',' ')
         ENDIF
-        CALL PGLAB('time (secs)','KO Src(electrons/cm\u3\d/sec)',' ')
+        endif ! iskip
 
         write(t_,10010) n,timet
-        CALL PGMTXT('B',6.,-.1,0.,t_)
+        CALL PGMTXT('B',R46,R4MP1,R40,t_)
         write(t_,10011) rovera(lr_),ll,rr
-        CALL PGMTXT('B',7.,-.1,0.,t_)
+        CALL PGMTXT('B',R47,R4MP1,R40,t_)
 
 c-----------------------------------------------------------------------
-
-      
-      enddo   ! on ll:1,lrz
+      enddo   ! on ll=1,lrz
 
 10010 format("After time step(n)=",i4,5x,"time=",1pe14.6," secs")
 10011 format("r/a=",f7.4,",  radial bin=",i3,

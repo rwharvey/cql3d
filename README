@@ -1,3 +1,7 @@
+/home/bobh/cql3d/git/cql3d
+
+/home/bobh/cql3d/git/
+
 /home/bobh/cql3d/cql3d_cvs/code/cql3d_f90ptr_081215
 
 This is a purely f90 pointered version of cql3d, going forward.
@@ -60,3 +64,99 @@ Test cases:
 /home/bobh/cql3d/cql3d_cvs/code/00_CQL3D_TESTS/test_multiRDC_multiSpecies/
 ==
 /home/bobh/cql3d/jaegeref/JET/6_ITERATIONS_HARVEY/180515_cql3d_rerun
+
+
+
+190724
+======
+cql3d to 190724, updated as version='cql3d_git_190309.1'  
+This is without the .f90 work that Garrett Wright and Yuri have done.
+
+All 'double precision' designation have been removed, in favor of 'real*8'.
+makefile_gfortran64.CentOS7.1
+makefile_gfortran64_debug_BOUNDS-CHECK.CentOS7.1
+employ CSPECIAL  =  -fdefault-real-8, which should henceforth be used.
+Defn:  -fdefault-real-8
+Set the default real type to an 8 byte wide type. Do nothing if this is
+already the default. This option also affects the kind of non-double real
+constants like 1.0, and does promote the default width of "DOUBLE PRECISION"
+to 16 bytes if possible, unless "-fdefault-double-8" is given, too.
+
+A related option in the Intel compiler should be used.
+
+190727
+======
+c[292] version="cql3d_git_190309.2" (Last pre-f90 version)
+c[292] Explicitly typed REAL*4 variables which are in the arguments
+c[292] of the PGPLOT plotting subroutines.  This enables compiling with
+c[292] gfortran with compiler setting "-fdefault-real-8", which it is
+c[292] henceforth recommended to be used. Without explicitly typing
+c[292] REAL*4 literal constants used by PGPLOT, default-real-8 would
+c[292] make them REAL*8 constants, and thus not work with PGPLOT subs.
+c[292] There is a similar setting for the Intel compiler.
+c[292] With this setting, the compiler:
+c[292] Sets the default REAL type to an 8 byte wide type. Does nothing 
+c[292] if this is already the default. This option also affects the 
+c[292] kind of non-double real constants like 1.0, and also does promote 
+c[292] the default width of "DOUBLE PRECISION" to 16 bytes if possible,
+c[292] unless "-fdefault-double-8" is given, too.
+c[292] However, all DOUBLE PRECISION type settings were changed to REAL*8.
+c[292] [BH, 190729].
+
+
+
+190821
+======
+git_cql3d_190309.3.zip git_cql3d_190309.3/ is Latest YuP with
+some changes for distn of impurities over charge states.
+
+
+191003
+======
+update3_for_cql3d_190923.0.zip  :I (YuP) included all files from update2 
+(sent to you on 9/30) plus six newer files.
+
+191014
+=======
+git_cql3d_190923.2 contains ad hoc pellet model and coronal equilibrium, incl. W.
+
+
+201026
+======
+Updating cql3d to cql3d_git_200101.3.
+
+Make copy of ./cql3d using either
+mkdir cql3d_to_201026; cp -ar cql3d/.  cql3d_to_201026  # The "." includes the
+      		       	      	       			  hidden files.
+or
+mkdir cql3d_to_201026; rsync -a cql3d/ cql3d_to_201026 
+
+cd cql3d; git status > git_cql3d_status_201026.txt  #Gives list of present.
+ ==> ~200 modified files
+     ~ 50 untracked files to be added, plus 00_Cql3d_Regression_Tests/ dir.
+
+
+Used git-gui  to simplify staging for commit of the many files involved:
+   Can add bunch of files form the list of new and uncommitted files,
+   selecting with the mouse and CTRL-Shift.  Then CTRL-T stages the selected
+   files.
+
+If stage file which are not wanted for the commit, can remove with
+git reset file_or_path.
+Also, git-gui:Commit:Unstage From Commit (or CTRL-U).
+
+Commit message for git:
+Version='cql3d_git_200101.3'.
+Updated files with many small changes, refinements and corrections, mostly 
+from YuP. Added to the Miller equilibrium specifications.  Updated gamaset 
+calculation of ln(Lambda) to include an NRL table option.   
+Synchrotron radiation expression checked out, and bug fixed (YuP, 200611, 
+200618)  See a_change.h [Items 283-332].
+Added five regression tests. See cql3d/00_Cql3d_Regression_Tests. 
+This is expected to be the first of many, illustrating
+the diverse capabilites of this noncircular, multi-species,
+2D-in_v,1D-in-rho, implicit-time-differencing, bounce-averaged continuum
+collisional-RF-quasilinear Fokker-Planck code.
+
+ 
+

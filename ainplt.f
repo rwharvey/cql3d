@@ -4,7 +4,17 @@ c
       implicit integer (i-n), real*8 (a-h,o-z)
       save
 
-      REAL RILIN
+      REAL*4 RILIN
+
+cBH190727
+c....................................................
+c     Adding explicit REAL*4 constants for PGPLOT
+c....................................................
+      REAL*4 :: R40=0.   !Will write several PGPLOT
+                   !constants in this manner (R4xxxx).
+                   !Facilitates use of compiler option to
+                   !advance r4 constants and variables to r8,
+                   !but not change PGPLOT r4 input.
 
 c....................................................
 c     This routine plots out  data read in by code.
@@ -18,7 +28,7 @@ CMPIINSERT_INCLUDE
       character*24 text24
       character*300 text256,text256_
       integer stime
-c     text(1:4) is charcter*8, from comm.h
+c     text(1:4) is character*8, from comm.h
 
 
 CMPIINSERT_IF_RANK_NE_0_RETURN
@@ -27,7 +37,6 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
       if (noplots.eq."enabled1") return
 
       if (pltinput .eq. "disabled") go to 3
-C%OS  call gxglfr(0)
       iunit=2
       ilen=0
       n_count=0
@@ -49,22 +58,22 @@ cBH111102      endif
       CALL PGPAGE
       write(t_,2001)
       RILIN=0.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,r40,r40,t_)
       write(t_,2002)
       RILIN=RILIN+2.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,r40,r40,t_)
       write(t_,2003)
       RILIN=RILIN+1.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,r40,r40,t_)
       write(t_,2004)
       RILIN=RILIN+1.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,r40,r40,t_)
       write(t_,2005)
       RILIN=RILIN+1.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,r40,r40,t_)
       write(t_,2006) text24
       RILIN=RILIN+2.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,r40,r40,t_)
 
 c     Get, write, and plot machine characteristics
 c     by writing a file, reading it, and removing.
@@ -114,14 +123,14 @@ c     write MACHINE:
       lenmac=len_trim(line)
 !      WRITE(*,100) line
       do i=1,(lenmac/60+1)
-         write(*,102)line(1+(i-1)*60:i*60)
+         WRITE(*,102)line(1+(i-1)*60:i*60)
       enddo
 c     write PWD:
       WRITE(*,2008)
       lenpwd=len_trim(text256)
 c      write(*,*)'lenpwd=',lenpwd
       do i=1,(lenpwd/60+1)
-         write(*,102)text256(1+(i-1)*60:i*60)
+         WRITE(*,102)text256(1+(i-1)*60:i*60)
       enddo
 !      WRITE(*,101) text256
 
@@ -135,33 +144,33 @@ c      write(*,*)'lenpwd=',lenpwd
       
       write(t_,2007)
       RILIN=RILIN+2.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,r40,r40,t_)
 !      write(line_,1002) line
 !      RILIN=RILIN+1.
 !      CALL PGMTXT('T',-RILIN,0.,0.,line_)
       do i=1,(lenmac/60+1)
          write(line_,1004) line(1+(i-1)*60:i*60)
          RILIN=RILIN+1.
-         CALL PGMTXT('T',-RILIN,0.,0.,line_)
+         CALL PGMTXT('T',-RILIN,r40,r40,line_)
       enddo
       write(t_,2008)
       RILIN=RILIN+2.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,r40,r40,t_)
       do i=1,(lenpwd/60+1)
          write(text256_,1004) text256(1+(i-1)*60:i*60)
          RILIN=RILIN+1.
-         CALL PGMTXT('T',-RILIN,0.,0.,text256_)
+         CALL PGMTXT('T',-RILIN,r40,r40,text256_)
       enddo
       write(line,2009) trim(version)
       RILIN=RILIN+2.
-      CALL PGMTXT('T',-RILIN,0.,0.,line)
+      CALL PGMTXT('T',-RILIN,r40,r40,line)
 
 c     PGQINF('VERSION', enquires pgplot version being used.
       CALL PGQINF('VERSION',t_,ilength)
       if (ilength.gt.100) stop 'unlikely ilength problem in ainplt'
       write(line,2010) t_(1:ilength)
       RILIN=RILIN+2.
-      CALL PGMTXT('T',-RILIN,0.,0.,line)
+      CALL PGMTXT('T',-RILIN,r40,r40,line)
  
       WRITE(*,*) line
 c
@@ -182,7 +191,6 @@ c......................................................................
 c     transcribe namelist data to plot file if pltinput .ne. "disabled"
 c......................................................................
 
-c$$$      call gscpvs(.01,1.)
       RILIN=-1.
       n_count=0
       ilnperpag= 50 ! lines per page           ! 41 originally
@@ -221,7 +229,7 @@ c$$$      call gscpvs(.01,1.)
          !i=5: line(241: 300)  [max possible i, with present setup] 
          !Note -- it is declared: character*300 line, line_
          RILIN=RILIN+1. !shift the text position down by one character height
-         CALL PGMTXT('T',-RILIN,0.,0.,line_)
+         CALL PGMTXT('T',-RILIN,r40,r40,line_)
       enddo
       !YuP: old version, without wrapping:     
       !write(line_,1002) line

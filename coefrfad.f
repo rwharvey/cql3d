@@ -24,8 +24,7 @@ c..................................................................
       if (vlhmod.eq."enabled" .or. vlfmod.eq."enabled") then
 c     vlhmod and vlfmod are only set up for nrf=1
       if (nrf.gt.1) then
-         write(*,*)'coefrfad: STOP, Problem with nrf'
-         STOP
+         STOP 'coefrfad/vlh/vlf: STOP, Problem with nrf. Should be 1'
       endif
       do 10 kk=1,nrf
         if (k .eq. kk) then
@@ -54,8 +53,7 @@ ccc are defined for vlfmod="enabled" (but not for vlhmod="enabled")
 ccc      if (vlhmod.eq."enabled" .or. vlfmod.eq."enabled") then
 c     vlhmod and vlfmod are only set up for nrf=1
         if (nrf.gt.1) then
-           write(*,*)'coefrfad: STOP, Problem with nrf'
-           STOP
+           STOP 'coefrfad/vlh/vlf: STOP, Problem with nrf. Should be 1'
         endif
         if (k .eq. kk) then
           do krf=1,mrfn
@@ -125,8 +123,10 @@ c            do i=1,iy
 c               rdcbmax=max(rdcbmax,rdcb(i,j,indxlr_))
 c            enddo
 c         enddo
-c         write(*,*)'coefrfad: Before rdcmod add, rdcbmax ,indxlr_=',
+!         if (ioutput(1).ge.2) then
+!         !write(*,*)'coefrfad: Before rdcmod add, rdcbmax ,indxlr_=',
 c     &        rdcbmax,indxlr_
+!         endif
          
 c$$$         do j=1,jx
 c$$$            do i=1,iy

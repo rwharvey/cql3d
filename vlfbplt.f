@@ -12,6 +12,8 @@ CMPIINSERT_INCLUDE
       character*8 pltvlfb
       character*8 pltovlp
       real*4 RTAB1(iy),RTAB2(iy) ! local, for PGPLOT
+
+      REAL*4 :: R47=7.,R48=8.,R49=9.,R410=10.,R411=11.,R412=12.,R413=13.
       
       save pltvlfb,pltovlp
       data pltvlfb /'enabled'/
@@ -41,7 +43,7 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
      +                     itype)
             write(t_,552) lr_
  552        format("Flux surface number",i3,"; all modes")
-            CALL PGMTXT('B',10.,0.,0.,t_)
+            CALL PGMTXT('B',R410,R40,R40,t_)
  560     continue
          
       elseif (cqlpmod.eq."enabled") then
@@ -65,9 +67,8 @@ ccc           call bcast(temp1(1,0),zero,iy*(jx+1)) ! YuP-101215: error?
           itype=5 ! means: plots are made for urfb
           call pltcont(1,1,'Contours of CqlB vs. v_parallel,v_perp',
      +                 itype)
-c$$$          call gstxno(80.)
           write(t_,552) lr_
-          CALL PGMTXT('B',10.,0.,0.,t_)
+          CALL PGMTXT('B',R410,R40,R40,t_)
  570    continue
         
         enddo
@@ -202,11 +203,10 @@ c              endif
         CALL PGPAGE
         itype=5 ! means: plots are made for vlfb
         call pltcont(1,1,'Contours of CqlB vs. v_parallel,v_perp',itype)
-c$$$        call gstxno(80.)
         write(t_,660) lr_,k
-        CALL PGMTXT('B',10.,0.,0.,t_)
+        CALL PGMTXT('B',R410,R40,R40,t_)
         write(t_,661) vpar21dv,vpar11dv
-        CALL PGMTXT('B',11.,0.,0.,t_)
+        CALL PGMTXT('B',R411,R40,R40,t_)
 
  680  continue
 
@@ -340,12 +340,11 @@ c..................................................................
         CALL PGPAGE
         itype=5 ! means: plots are made for vlfb
         call pltcont(1,1,'Contours of CqlB vs. v_parallel,v_perp',itype)
-c$$$        call gstxno(80.)
 
         write(t_,660) lr_,k
-        CALL PGMTXT('B',10.,0.,0.,t_)
+        CALL PGMTXT('B',R410,R40,R40,t_)
         write(t_,661) vpar21dv,vpar11dv
-        CALL PGMTXT('B',11.,0.,0.,t_)
+        CALL PGMTXT('B',R411,R40,R40,t_)
 
  780  continue
 

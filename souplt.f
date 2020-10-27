@@ -12,9 +12,10 @@ c..................................................................
       parameter(nconta=100)
       common/contours/cont(nconta),tempcntr(nconta)
 
-      REAL RILIN
-      REAL RTAM1(jx),RTAM2(jx)
-      REAL REMAX,REMIN
+      REAL*4 RILIN
+      REAL*4 RTAM1(jx),RTAM2(jx)
+      REAL*4 REMAX,REMIN
+      REAL*4 :: R4MP2=-.2,R40=0.
 
       if (pltso.eq."disabled") return
       
@@ -41,16 +42,16 @@ cBH171231 540     format("NBI source rate=",1pe11.4," ptcls/cc/sec")
          write(t_,540) crnt
  540     format("Particle source rate=",1pe11.4," ptcls/cc/sec")
          RILIN=10.
-         CALL PGMTXT('B',RILIN,-.2,0.,t_)
+         CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
          write(t_,542) entr(k,5,l_)
  542     format("Total source power [entr(..5..)]=",1pe11.4," W/cc")
          RILIN=RILIN+2.
-         CALL PGMTXT('B',RILIN,-.2,0.,t_)
+         CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
          write(t_,560)
  560     format("Contour values:")
          RILIN=RILIN+2.
-         CALL PGMTXT('B',RILIN,-.2,0.,t_)
+         CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
          do  jcs=1,ncont,4
             write(t_,570) (tempcntr(jc),jc=jcs,min(jcs+3,ncont))
@@ -59,7 +60,7 @@ cBH171231 540     format("NBI source rate=",1pe11.4," ptcls/cc/sec")
                t_(icend:icend)="$"
             endif
             RILIN=RILIN+1.
-            CALL PGMTXT('B',RILIN,-.2,0.,t_)
+            CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
          enddo
          
@@ -87,9 +88,11 @@ c
       include 'param.h'
       include 'comm.h'
 
-      REAL RILIN, RXMAXQ
-      REAL RTAM1(jx),RTAM2(jx), wk_tam(jx)
-      REAL REMAX,REMIN
+      REAL*4 RILIN, RXMAXQ
+      REAL*4 RTAM1(jx),RTAM2(jx), wk_tam(jx)
+      REAL*4 REMAX,REMIN
+      REAL*4 :: R4MP2=-.2,R40=0.,R4P2=.2,R4P8=.8,R4P45=.45,R4P9=.9
+      REAL*4 :: R41P44=1.44
       real*8 wkd(jx) 
 
       character*8 target
@@ -209,14 +212,14 @@ c       Obtain integrated distribution in tam1
         REMAX=LOG10(fmax)
 
         CALL PGPAGE
-        CALL PGSVP(.2,.8,.45,.9)
+        CALL PGSVP(R4P2,R4P8,R4P45,R4P9)
         IF ( Remax-Remin .le. 1.e-16 ) THEN ! YuP [02-23-2016]
            Remax= Remin+1.e-16
         ENDIF
         CALL PGSWIN(Rtam1(1),RXMAXQ,Remin,Remax)
-        CALL PGBOX('BCNST',0.,0,'BCNSTL',0.,0)
+        CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
         CALL PGSAVE
-        CALL PGSCH(1.44)
+        CALL PGSCH(R41P44)
         CALL PGLAB(tx_, 'Source', 'Pitch Angle Avg Source vs. u')
         CALL PGUNSA
         CALL PGLINE(JXQ,RTAM1,RTAM2)
@@ -227,29 +230,29 @@ c       Obtain integrated distribution in tam1
 10040   format("Particle source integrated over theta0 for species",i3)
 
         RILIN=8.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
         write(t_,10041) 
 10041   format("(normed so int(0,1)*2pi*x**2*dx=mid-plane source)")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
         write(t_,10042) vnorm
 10042   format("vnorm=",1x,1pe12.4," cm/s")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
 
         rr=rpcon(lr_) !rovera(lr_)*radmin  ! YuP[03-2016] changed to rpcon
         write(t_,10030) n,timet
 10030   format("time step (n) is",i5,5x,"time=",1pe12.4," secs")
         RILIN=RILIN+2.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
         write(t_,10031) rovera(lr_),rr
 10031   format("r/a=",1pe12.4,5x,"radial position (R) =",1pe12.4," cm")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
 
  20   continue ! k species
@@ -273,9 +276,12 @@ c
       include 'comm.h'
 CMPIINSERT_INCLUDE
 
-      REAL RILIN
-      REAL RTAM1(iy),RTAM2(iy)
-      REAL REMAX,REMIN
+      REAL*4 RILIN
+      REAL*4 RTAM1(iy),RTAM2(iy)
+      REAL*4 REMAX,REMIN
+      REAL*4 :: R4MP2=-.2,R40=0.,R4P2=.2,R4P8=.8,R4P45=.45,R4P9=.9
+      REAL*4 :: R41P44=1.44
+
       real*8 wk_so(iy)
       character*8 vert_scale ! 'log10' or 'lin'
       
@@ -334,15 +340,15 @@ c       Obtain integrated distribution into wk_so(1:iy)
         endif
 
         CALL PGPAGE
-        CALL PGSVP(.2,.8,.45,.9)
+        CALL PGSVP(R4P2,R4P8,R4P45,R4P9)
         CALL PGSWIN(Rtam1(1),Rtam1(iy),Remin,Remax)
         if(vert_scale.eq.'log10')then
-        CALL PGBOX('BCNST',0.,0,'BCNSTL',0.,0)
+        CALL PGBOX('BCNST',R40,0,'BCNSTL',R40,0)
         else
-        CALL PGBOX('BCNST',0.,0,'BCNST',0.,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         endif
         CALL PGSAVE
-        CALL PGSCH(1.44)
+        CALL PGSCH(R41P44)
         CALL PGLAB('theta0 (degree)','S0(theta0)','v-integrated Source')
         CALL PGUNSA
         CALL PGLINE(iy,RTAM1,RTAM2)
@@ -351,23 +357,23 @@ c       Obtain integrated distribution into wk_so(1:iy)
 10040   format("Particle source integrated over v for species",i2)
 
         RILIN=8.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
         write(t_,10041) 
 10041   format("(int(0,pi)*S0*2pi*sin(theta0)*dtheta0= ptcls/sec)")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
         rr=rpcon(lr_) !rovera(lr_)*radmin  ! YuP[03-2016] changed to rpcon
         write(t_,10030) n,timet
 10030   format("time step (n) is",i5,5x,"time=",1pe12.4," secs")
         RILIN=RILIN+2.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
         write(t_,10031) rovera(lr_),rr
 10031   format("r/a=",1pe12.4,5x,"radial position (R)=",1pe12.4," cm")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
 
  20   continue ! k species

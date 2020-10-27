@@ -5713,8 +5713,10 @@ c                                  D.F. Finkenthal 6-AUG-95
 c
 c ----------------------------------------------------------------------
 c
-      real*8 e(ktk), sgxn(4,kz,kbe,ksge), sgxnloc(kbe)  ! stand alone code
-      integer iz(ktk), imaxa(200)
+      real*8 e(ns) !YuP[2019-06-17]: was e(ktk)   BUG?
+      real*8 sgxn(4,kz,kbe,ksge), sgxnloc(kbe)  ! stand alone code
+      integer iz(ns) !YuP[2019-06-17]: was iz(ktk)   BUG?
+      integer imaxa(200)
       integer,save :: imax 
 c
       ncrt = 6
@@ -6660,7 +6662,7 @@ c
       end
 c
 c
-      real *8  function AMAXAF (array, first, last)
+      real*8  function AMAXAF (array, first, last)
 c
 c --- replacement for this LIBMATH function in UNICOS ------------------
 c

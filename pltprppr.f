@@ -15,8 +15,11 @@ c
       include 'param.h'
       include 'comm.h'
 
-      REAL RILIN !-> For PGPLOT (text output positioning)
-
+      REAL*4 RILIN !-> For PGPLOT (text output positioning)
+      REAL*4 :: R40=0.,R41=1.
+      REAL*4 :: R4P2=.2,R4P8=.8,R4P25=.25,R4P95=.95 !.2,.8,.25,.95
+      !YuP[2019-10-28]
+      
       character*8 target
       if (noplots.eq."enabled1") return
 
@@ -40,7 +43,7 @@ c     (which may conflict with call fle_fsa or fle_pol, below).
           target="mainmesh"
         endif
 c       Obtain equatorial plane pitch-avg'd distribution for ko model
-c       case.  (Else setup interfere's with soureko).
+c       case.  (Else setup interfere's with subroutine sourceko).
         if (knockon.ne."disabled") then
 c           call fle("setup",0)
 c           call fle("calc",1)
@@ -68,9 +71,10 @@ c990131        fmax=amax1(fmax1,fmax2)
         fmin=min(fmin1,fmin2)
         fmax=max(fmax1,fmax2)
         
-        call GXGLFR(0) ! new page(s)
-        call GSVP2D(.2,.8,.25,.95) ! (XLEFT, XRIGHT, YBOT, YTOP)
-        CALL PGSCH(1.) ! set character size; default is 1.
+        CALL PGPAGE ! new page(s)
+        CALL PGSVP(R4P2,R4P8,R4P25,R4P95) !(.2,.8,.25,.95)!YuP[2019-10-28]
+        ! (XLEFT, XRIGHT, YBOT, YTOP)
+        CALL PGSCH(R41) ! set character size; default is 1.
         call GSWD2D("linlin$",0.d0,xlu,fmin,fmax)
         call GPCV2D(xlm(jpxyh),tem1,jpxyhm)
         call GPCV2D(xlm(jpxyh),tem2,jpxyhm)
@@ -78,19 +82,19 @@ c990131        fmax=amax1(fmax1,fmax2)
         write(t_,10011) k
 10011 format("asymmetric cmpt of f_par, and xpar*cmpt, species:",1x,i5)
         RILIN=5.
-        CALL PGSCH(0.8) ! set character size; default is 1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGSCH(R4P8) ! set character size; default is 1.
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         
         write(t_,10012)
 10012 format("(f_par normed so int(-1,+1)=equatorial ne)")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
        
-        call GXGLFR(0) ! new page(s)
+        CALL PGPAGE ! new page(s)
         call aminmx(fl(1),1,2*jpxyhm,1,fmin,fmax,kmin,kmax)
         fmin=1.d-08*fmax
-        call GSVP2D(.2,.8,.25,.95)
-        CALL PGSCH(1.) ! set character size; default is 1.
+        CALL PGSVP(R4P2,R4P8,R4P25,R4P95) !(.2,.8,.25,.95)!YuP[2019-10-28]
+        CALL PGSCH(R41) ! set character size; default is 1.
         call GSWD2D("linlog$",xll,xlu,fmin,fmax)
         do 10 jj=1,2*jpxyhm
           if (fl(jj) .lt. fmin ) fl(jj)=fmin
@@ -102,31 +106,31 @@ c990131        fmax=amax1(fmax1,fmax2)
         write(t_,10013) k
 10013 format("parallel distribution function for species:",1x,i5)
         RILIN=3.
-        CALL PGSCH(0.8) ! set character size; default is 1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGSCH(R4P8) ! set character size; default is 1.
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         
         write(t_,10014) 
 10014 format("(normed so int(-1,+1)=equatorial ne)")        
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         
         write(t_,10020)
 10020 format( "(log plot)")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         
         rr=rpcon(lr_) !rovera(lr_)*radmin  ! YuP[03-2016] changed to rpcon
         write(t_,10030) n,timet
 10030 format("time step (n) is",i5,5x,"time=",e14.6," secs")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
 
         write(t_,10031) rovera(lr_),rr
 10031 format("r/a=",e14.6,5x,"radial position (R) =",e14.6," cm")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         
-        CALL PGSCH(1.0) ! recover default 1.0 fontsize
+        CALL PGSCH(R41) ! recover default 1.0 fontsize
         
  20   continue
 

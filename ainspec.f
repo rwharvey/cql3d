@@ -12,7 +12,7 @@ c     kelec = kelecg (if kelecg>0) or  kelec = kelecm (if kelecg=0)
 c     niong = number of general species ions
 c     kiong(1:niong) = index of general ion specie (otherwise 0 for 1:ngen)
 c     kiongg(k=1:ngen) = k if an ions species, otherwise 0.
-c     nionm = number of background Maxwellian species ions.
+c     nionm = number of ion background Maxwellian species.
 c     kionm(1:nionm) = Maxwellian ion specie indices (otherwise 0).
 c
 c     There must be at least one electron and  
@@ -47,7 +47,7 @@ CMPIINSERT_INCLUDE
       kelecg=0
 CDIR$ NEXTSCALAR
       do 1000 k=1,ngen
-        if (fmass(k) .lt. 1.e-27) then
+        if (fmass(k) .lt. 1.d-27) then
           kelecg=k
           goto 1001
         endif
@@ -56,7 +56,7 @@ CDIR$ NEXTSCALAR
       kelecm=0
 CDIR$ NEXTSCALAR
       do 1002 k=ngen+1,ntotal
-        if (fmass(k) .lt. 1.e-27) then
+        if (fmass(k) .lt. 1.d-27) then
           kelecm=k
           goto 1003
         endif
@@ -67,11 +67,20 @@ CDIR$ NEXTSCALAR
       else
         kelec=kelecm
       endif
-      if (kelec.eq.0) call diagwrng(9)
+cBH180908      if (kelec.eq.0) call diagwrng(9)
+      if (kelec.eq.0) then
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*) 'WARNING: Unphysical plasma, only one species.'
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
+      endif
+
+         
       kionn=0
 CDIR$ NEXTSCALAR
       do 1005 k=1,ntotal
-        if (fmass(k).gt.1.e-27) then
+        if (fmass(k).gt.1.d-27) then
           kionn=k
           goto 1006
         endif
@@ -91,7 +100,7 @@ CDIR$ NEXTSCALAR
  1009 continue
 c     Electron mass is 9.1e-28 grams. Use this to distinguish ions.
       do 1010  k=1,ngen
-        if (fmass(k).gt.1.e-27 .and. kspeci(2,k).eq."general") then
+        if (fmass(k).gt.1.d-27 .and. kspeci(2,k).eq."general") then
           niong=niong+1
           kiong(niong)=k
           kiongg(k)=k
@@ -102,13 +111,20 @@ c     Electron mass is 9.1e-28 grams. Use this to distinguish ions.
         kionm(k)=0
  1011 continue
       do 1012 k=ngen+1,ntotal
-        if (fmass(k).gt.1.e-27 .and. kspeci(2,k).eq."maxwell") then
+        if (fmass(k).gt.1.d-27 .and. kspeci(2,k).eq."maxwell") then
           nionm=nionm+1
           kionm(nionm)=k
         endif
  1012 continue
 
-      if (kionn.eq.0) call diagwrng(9)
+cBHTemp      if (kionn.eq.0) call diagwrng(9)
+      if (kionn.eq.0) then
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*) 'WARNING: Unphysical plasma, only one species.'
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
+      endif
 
 CMPIINSERT_IF_RANK_EQ_0
       WRITE(*,*)

@@ -18,9 +18,9 @@ c     be negative, since the Maxwellians normally are at
 c     a lower average energy than the general species.
 c
 c     0 means power to species "k" from all background Maxwellian ions
-c     is computed.  This number (reflecting collisions) will in genera
+c     is computed.  This number (reflecting collisions) will usually
 c     be negative, since the Maxwellians normally are at
-c     a lower average energy than the general species.
+c     a lower average energy than the heated general species.
 c
 c     1 reflects collisional power transfer to species "k" from all
 c     general species (includes self-collisions - a measure of error).
@@ -29,7 +29,7 @@ c     2 reflects power to "k" from D.C. electric field.
 c
 c     3 reflects power to "k" from RF wave field.
 c
-c     4 entr(k,4,l_) will equal the sum of all physical processes
+c     4 entr(k,4,l_) will equal the sum of all PHYSICAL processes
 c     contributing to energy transfer between and to species.
 c
 c     5 Ion beam source power transfer.
@@ -43,7 +43,9 @@ c     terminator.
 c
 c     9 Power computed from df/dt. Should equal entr(k,4,l_). In other
 c     words 9 comes from the l.h.s. of the equation and 4 from the
-c     r.h.s of the equation.
+c     r.h.s of the equation. [BH180807: Check if calc'd before or
+c     after density rescaling.  Particles could be lost off the grid,
+c     then rescaled back to, for example, achieve a SS.  See 13.]
 c
 c     10 Power gained by setting negative values of f(i,j,l_)
 c     to zero after each time step.
@@ -54,7 +56,12 @@ c
 c     12 Power due to phenomenological energy losses (should
 c     be negative).
 c
-c     entr(k,15,l_) is set in rfupdate.
+c     13 Power due to rescaling density (BH180807: Need to add this calc).
+c
+c     14-
+c
+cBH180906:  Need to add power related to distr function scaling.
+c     
 c
       include 'param.h'
       include 'comm.h'
@@ -69,6 +76,9 @@ c..................................................................
       call bcast(da,zero,iyjxp1)
       call bcast(db,zero,iyjxp1)
       call bcast(dc,zero,iyjxp1)
+      dd=zero !YuP[2019-07-08] added initialization;
+      de=zero !YuP[2019-07-08] added initialization; used by hfi,hfu
+      df=zero !YuP[2019-07-08] added initialization; used by hfi,hfu
 
 c..................................................................
 c     Accordng to the value of lefct, execute a jump.
@@ -84,7 +94,7 @@ c..................................................................
             dc(i,j)=0.
  97       continue
  98     continue
-        go to 1000
+        go to 1000  !l 227
 
       elseif (lefct.eq.0) then
         do 101 j=1,jx
@@ -94,18 +104,20 @@ c..................................................................
             dc(i,j)=0.
  102      continue
  101    continue
-        go to 1000
+        go to 1000  !l 227
 
       elseif (lefct.eq.1) then
         if (colmodl .eq. 1) go to 3000
         do 103 j=1,jx
           do 1031 i=1,iy
+!            da(i,j)=(1d0+0.5/(j+1)**2)*   !Kerbel Correction!
+!     1              cal(i,j,k,l_)-(eal(i,j,k,1,l_)+eal(i,j,k,2,l_))
             da(i,j)=cal(i,j,k,l_)-(eal(i,j,k,1,l_)+eal(i,j,k,2,l_))
             db(i,j)=cbl(i,j,k,l_)-(ebl(i,j,k,1,l_)+ebl(i,j,k,2,l_))
             dc(i,j)=ccl(i,j,k,l_)
  1031     continue
  103    continue
-        go to 1000
+        go to 1000  !l 227
 
       else if (lefct.eq.2) then
         if (abs(elecfld(lr_)).lt.1.e-9 .or. n.lt.nonel .or. n .gt.
@@ -243,6 +255,10 @@ c..................................................................
         call dcopy(iyjx2,f_(0,0,k,l_),1,temp1(0,0),1)
       endif
 
+c..................................................................
+c     Collisional or RF powers, from fluxes
+c..................................................................
+
       !YuP: this (i,j)-loop is the main "drain" for cpu time
       do 1001 i=1,iy 
         !09-09-2015 checked: almost no change when skipping i=1 and i=iy
@@ -260,7 +276,7 @@ c..................................................................
             tam2(j)=tam2(j)+(gfu_n+gfu_o)*0.5*s_cynt2 ! Median flux
             gfu_o=gfu_n
  1002     continue
-        else
+        else  !i.e., implct case
           gfi_o=gfi(i,0,k)
           do 1003 j=1,jx-1
             gfi_n=gfi(i,j,k)
@@ -272,9 +288,17 @@ c..................................................................
  1001 continue ! i
       tott=0.
       do 1004 j=1,jx-1
-        tott=tott+tam1(j)*tcsgm1(j)
+        tott=tott+tam1(j)*tcsgm1(j)  !tcsgm1=2*(clight/vnorm)**2*(gamma-1)
  1004 continue
       
+c..................................................................
+c     Above collisional calc uses power=integral du**3*energy*df/dt.
+c     Would be interesting to compare with calc after u-integration
+c     by parts, which sums up gfu*(u/gamma).  [BH180803].
+c..................................................................
+
+
+
 c..................................................................
 c     Compute the local (in v) RF power deposition and cumulative sum
 c..................................................................
@@ -298,14 +322,35 @@ c..................................................................
           !(instead of deriv. of flux):
           pwrrf(j,k,l_)= -tam2(j)*const_m*x(j)*gammi(j)
           !With this version, The profile of pwrrf is much better - 
-          !no negative part, and no "spikes".
+          !no negative part, and no "spikes" in plot versus x(j).
           !The total integrated powers - same as with original version.
+          !BH180808: Actually, there is no particular problem with the
+          ! negative part of pwrrf(j,,), or s"spikes".  After the 
+          ! integration by parts, a different understanding of pwrrf(j,,)
+          ! may emerge.  I always thought the neg part pwrrf(j,,) 
+          ! represented the effect of digging out of the distribution
+          ! function by the RF diffusion, and QL diffusing these 
+          ! particles to higher velocity.
  1005   continue ! j
+ 
+      !YuP[2019-07-08]For no-RF runs, all these values are supposed to be zero:
+      !!write(*,*)'diagentr: sums for da,db,dc,dd,de,df,dbb,dff=',
+      !! & sum(da),sum(db),sum(dc),sum(dd),sum(de),sum(df),sum(dbb),sum(dff)
+      !!write(*,*)'diagentr: SUM(tam2[~pwrrf])=', l_,SUM(tam2)
+      !Initially they are zero (see the beginning of this subr.),
+      !but after a call coefmidv(db,2) [see few lines above]
+      ! the values of db(i,j) are reset to a small non-zero value em40,
+      ! and it results in non-zero values of RF power in diagentr(*,lefct=3)
+      ! After commenting that line in coefmidv,
+      ! the values of pwrrf are 0. (in no-RF runs).
+      
         pwrrfs(1,k,l_)=dx(1)*pwrrf(1,k,l_)
         do j=2,jx
           pwrrfs(j,k,l_)=pwrrfs(j-1,k,l_)+dx(j)*pwrrf(j,k,l_)
         enddo
-cBH100715        write(*,*)'pwrrfs(jx,k,l_),l_:',l_,pwrrfs(jx,k,l_)
+!        if (ioutput(1).ge.2) then
+         !write(*,*)'pwrrfs(jx,k,l_),l_:',l_,pwrrfs(jx,k,l_)
+!        endif
       endif ! lefct.eq.3
 
       entr(k,lefct,l_)=tott*const
@@ -347,9 +392,9 @@ c            write(*,*)'diagentr: entrintr(k,llefct)',entrintr(k,llefct)
 cBH050616:  Added if statement since above zeroing of entrintr 
 cBH050616:  is not working?
                if(ll.eq.1) entrintr(k,llefct)=0.0
-               lr_=lrindx(ll)
+               lrr=lrindx(ll)
                entrintr(k,llefct)=entrintr(k,llefct)+
-     1              entr(k,llefct,ll)*dvol(lr_)
+     1              entr(k,llefct,ll)*dvol(lrr)
             enddo
 c            write(*,*)'diagentr: entrintr(k,llefct)',entrintr(k,llefct)
          enddo
@@ -396,8 +441,8 @@ c
 c
       real*8 function gfu(i,j,k)
 c..................................................................
-c     Define the flux related quantities G and H the are used in
-c     the r.h.s. of the Fokker-Planck equation.
+c     Define the flux related quantities G ( H not needed for
+c     the power calculation) used in the r.h.s. of the FP eqn.
 c..................................................................
       implicit integer (i-n), real*8 (a-h,o-z)
       include 'param.h'

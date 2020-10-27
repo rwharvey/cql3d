@@ -17,6 +17,7 @@ CMPIINSERT_INCLUDE
       REAL*4 RBOT,RTOP,ZBOT,ZTOP
       REAL*4 RTAB1(LFIELDA),RTAB2(LFIELDA)
       REAL*4 RPG1,RPG2, xyplotmax
+      REAL*4 :: R40=0.
 
       data nconskp /2/
 
@@ -72,7 +73,7 @@ c---- PLOTS in (R,Z) ---------------------------------------------------
       ZTOP=zmaxcon
       CALL PGSWIN(rbot,rtop,zbot,ztop)
       CALL PGWNAD(rbot,rtop,zbot,ztop)  ! limits
-      CALL PGBOX('BCNST',0.,0,'BCNST',0.,0)
+      CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
       if(machine.eq."mirror") then      
       CALL PGLAB('X (cms)','Z (cms)', 'NBI Deposition')
       else
@@ -185,7 +186,7 @@ c---- PLOTS in (X,Y) (top view) -------------------------------------------
       RTOP= rmaxcon
       CALL PGSWIN(rbot,rtop,rbot,rtop)
       CALL PGWNAD(-xyplotmax,xyplotmax,-xyplotmax,xyplotmax) ! limits 
-      CALL PGBOX('BCNST',0.,0,'BCNST',0.,0)
+      CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
       CALL PGLAB('X (cms)','Y (cms)',
      +           'NBI Deposition')
       ! Plot circles for the largest and smallest FP surfaces.

@@ -134,7 +134,7 @@ c     lrorsa
         currmtpz(l)=0.0
         starnue(l)=0.0
         taueeh(l)=0.0
-        vfluxz(l)=0.0
+        vfluxz(l)=0.d0
         rovsloc(l)=0.0
         irzplt(l)=0
         sptzr(l)=0.0
@@ -223,8 +223,12 @@ c     (lrza,nmodsa)
 
 c     (nplota)
       do i=1,nplota
-         tplot(i)=0.0
-         tplt3d(i)=0.0
+         tplot(i)=-one
+         tplt3d(i)=-one
+      enddo
+c     (nsavea)
+      do i=1,nsavea
+         tsave(i)=-one
       enddo
 
 

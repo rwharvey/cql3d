@@ -34,7 +34,7 @@ c------------------------------------------------------------
           xz=psiinv(yval,iupdown)
           psifpy=psifp(xz)
         else if (psimodel.eq."spline") then !But only called with axitorus
-          xt=psiinv(yval)
+          xt=psiinv(yval,iupdown) !BUG, missing iupdown. [2019-07-08]
           psifpy=psifp(xt)
         endif
       endif

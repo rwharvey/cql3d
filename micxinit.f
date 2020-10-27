@@ -34,7 +34,7 @@ c..................................................................
 
 cBH111124      if(iotalim.ge.750) then
       if(iotalim.ge.6400) then
-        write(*,*)'micxinit: Check iotalim' 
+        WRITE(*,*)'micxinit: Check iotalim' 
         call exit(1)
       endif
       do 1 i=0,iotalim
@@ -216,13 +216,15 @@ c     tbnd set to offset from thb
       inewjx_(l_)=inew_(l_)*jx         !Number eqns for l_
 
       if (itl.eq.iyh) then
-         write(*,*)
-         write(*,*)'***************************************************'
-         write(*,*)'micxinit: itl.eq.iyh.   There are some problems'
-         write(*,*)' in the code, e.g. in impavnc0, for this condition.'
-         write(*,*)' It can be avoided by larger rya(1) or iy.'
-         write(*,*)'***************************************************'
-         write(*,*)
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*)'***************************************************'
+         WRITE(*,*)'WARNING/micxinit: itl.eq.iyh.   There are problems'
+         WRITE(*,*)' in the code, e.g. in impavnc0, for this condition.'
+         WRITE(*,*)' It can be avoided by larger rya(1) or iy.'
+         WRITE(*,*)'***************************************************'
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK   
       endif
 
 

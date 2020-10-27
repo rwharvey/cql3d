@@ -5,6 +5,7 @@ c
       include 'param.h'
       include 'comm.h'
       character*8 generate
+      character*8 eqmirror
 
       common/tmp1/ btor00,bthr00,bmod00
       parameter(nworka=3*nconteqa+1)
@@ -58,6 +59,21 @@ c      if (eqcall.eq."enabled") then   !Called on first run through.
         ibd(2)=4
         ibd(3)=4
         ibd(4)=4
+        eqmirror="disabled"
+        if( eqsource.eq."eqdsk".and.machine.eq."mirror") then
+           eqmirror="enabled"
+        else
+           eqmirror="disabled"
+        endif
+        if(eqsource.eq."mirror1" .or. eqmirror.eq."enabled") then
+           ! in this case er(nnr) grid starts from R=0, and rmag=0.
+           ! The pol.flux function has zero derivative at R=0,
+           !i.e. dPSI/dR=0 at any Z.
+           epsirr(1,1:nnza)=0.d0 ! at ir=1 (R=0) boundary, for all iz
+           ibd(1)=2 ! means: 
+           !=2 the first derivative of f(x,y)==epsi(R,Z) with respect
+           !to x is given at (x(1),y(j)) and placed into fxx==epsirr(1,:)
+        endif
 
 c       2D bicubic spline coeffs of poloidal flux. epsi has sign change
 c       after reading eqdsk, so psimag is max psi, psilim is less.
@@ -185,9 +201,9 @@ cBH091017           imag=nnr/2  !nnr set, e.g., by read of eqdsk
            eqpsi(1)=psimag
         endif  !On eqsym
         
+        if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
         write(*,*)'eqrhopsi: psilim=',psilim
         !write(*,*)'eqrhopsi: ez(jmag+-1)',ez(jmag-1),ez(jmag),ez(jmag+1)
-        
         write(*,'(a,i6,2e13.4)')'eqrhopsi: imag, rmag_old/new =', 
      +                                     imag, rmag_old, rmag
         write(*,'(a,i6,2e13.4)')'eqrhopsi: jmag, zmag_old/new =',
@@ -197,6 +213,7 @@ cBH091017           imag=nnr/2  !nnr set, e.g., by read of eqdsk
         write(*,'(a,e13.4)')'eqrhopsi: epsi(imag,jmag)=',epsi(imag,jmag)
         write(*,'(a,e13.4)')'eqrhopsi: er(imag)=',er(imag)
         write(*,'(a,e13.4)')'eqrhopsi: ez(jmag)=',ez(jmag)
+        endif
 
 c      endif  !On eqcall
       endif   !On lr_.eq..rzmax
@@ -235,7 +252,9 @@ c       Find jpsimnr such that psi~psilim
         eqpmn1=epsi(nnr,nzc)
  2      continue
         jpsimnr=iminval + 1 - 1/(nnr+1-iminval)
+        if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
         write(*,*)'eqrhopsi: iminval,jpsimnr=',iminval,jpsimnr
+        endif
 c
 c       Find jpsimnl such that psi~psilim (at the inboard)
         jpsimnl= jpsimnr ! will be over-written in  a tokamak machine
@@ -256,11 +275,11 @@ c..................................................................
 c     The eqpsi array will be chosen if possible so that it is spaced
 c     between the value of psi at the magnetic axis and the value of
 c     psi for a flux surface that passes through:
-c     the point (R=rmag,Z=radmin) if eqsource="ellipse"
-c     psilim if eqsource = "topeol" or "eqdsk"
+c     the point (R=rmag,Z=radmin) if eqsource="ellipse" or "miller",
+c     and psilim if eqsource = "topeol" or "eqdsk" or "mirror1".
 c..................................................................
 
-        if (eqsource.eq."ellipse") then
+        if ( (eqsource.eq."ellipse")  ) then
           if (ez(nnz).lt.radmin) call eqwrng(9)
           do 5 i=nzc,nnz
             if (ez(i).ge.radmin) go to 6
@@ -274,8 +293,12 @@ c..................................................................
           eqpmn2=(psi1-psi2)/(z1-z2)*(radmin-z1)+psi1
           eqpsimin=eqpmn2
           if (eqpmn1.gt.eqpmn2) eqpsimin=eqpmn1
-c*bh*931222elseif(eqsource.eq."eqdsk".or.eqsource.eq."tsc") then
-        else if (eqsource.eq."eqdsk" .or. eqsource.eq."tsc") then
+        else if (eqsource.eq."miller") then
+          eqpsimin=psilim !YuP[2020-07-09]
+          eqpsimax=psimag !YuP[2020-07-09] (Was same as for eqsource.eq."ellipse")
+        else if ( (eqsource.eq."eqdsk")  .or. !Includes eqmirror enabled
+     +            (eqsource.eq."tsc")    .or.
+     +            (eqsource.eq."mirror1")     ) then
 c..................................................................
 c     If an eqdsk equilibrium or a ONETWO equilibrium is being used
 c     we already know psi at the limiter.
@@ -286,7 +309,9 @@ c..................................................................
 c         Prior to moving calc of 2D spline of epsi to beginning of 
 c         this subroutine, following call appears to be a bug (BH091016).
 c         [There must have been some prior rearrangement.]
+          if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
           write(*,*)'eqrhopsi: rmaxcon,zmag,rmag =',rmaxcon,zmag,rmag
+          endif
           psilim=terp2  (rmaxcon,zmag,nnr,er,nnz,ez,epsi,epsirr,
      1      epsizz,epsirz,nnra,0,0)
           eqpsimin=psilim
@@ -372,7 +397,9 @@ c     +                             nconteqn,eqpsi(nconteqn-1),eqpsimin
         
         ! Check that eqpsi is strictly descending:
         do j=2,nconteqn
+          if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
           write(*,'(a,i4,e16.8)')' j,eqpsi(j)-psilim=',j,eqpsi(j)-psilim
+          endif
           if(eqpsi(j)-eqpsi(j-1).ge.0.d0)then
           WRITE(*,*)'eqrhopsi: eqpsi is not descending for j,j-1=',j,j-1
              stop
@@ -400,8 +427,29 @@ c..................................................................
           eqcall="disabled"
         endif
         epsicon_=eqpsi(j)
+
+        if(machine.eq."toroidal")then
         
-        call eqorbit(epsicon_)
+        rstart=0.d0 ! OUTPUT, when kopt=1
+        zstart=zmag ! OUTPUT, when kopt=1
+        call eqorbit(1,epsicon_,rstart,zstart) ! kopt=1
+        !YuP[2020-06-30] Added kopt=2, which allows tracing surface
+        ! directly from point (rstart,zstart) when it is given in INPUT
+        ! (in this case value of epsicon_ is not needed).
+        ! For the original design, use kopt=1,
+        ! which means: find the starting point from knowledge of epsicon_ 
+        ! and zmag coordinate (stored in comm.h).
+        elseif(machine.eq."mirror")then
+!          write(*,*)'j=', j,
+!     +       ' eqrhopsi: calling eqorbit_mirror with epsicon_[cgs]=',
+!     +         epsicon_
+          STOP 'machine=mirror not available in this version'
+          !call eqorbit_mirror(epsicon_)
+        else
+        !WRITE(*,*)'calling eqorbit: machine="toroidal" or "mirror" only'
+        WRITE(*,*)'calling eqorbit: machine="toroidal" '
+        stop
+        endif
         
         eqfopsi(j)=fpsi_
         eqrpcon(j)=rpcon_
@@ -457,6 +505,9 @@ c..................................................................
 
       rmaxcon=rpcon_
       rmincon=rmcon_
+      if(machine.eq."mirror") rmincon=-rmaxcon ! YuP[03-2016] ok? 
+      if(machine.eq."mirror") rmincon=0.1*er(2) ! YuP[03-2016] ok? 
+      if(machine.eq."mirror") rmincon=0.d0 ! YuP[03-2016] ok? 
 c      write(*,*)'eqrhospi: rmincon,rmaxcon',rmincon,rmaxcon
 
 c..................................................................
@@ -506,10 +557,13 @@ c..................................................................
 
       write(*,*)'eqrhopsi: psilim,psimag',psilim,psimag
       write(*,*)'eqrhopsi: rmag,zmag',rmag,zmag
+      
+      if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
       write(*,*)'eqrhopsi: eqpsi(j),j=1,nconteqn',
      +                                    (eqpsi(j),j=1,nconteqn)
       write(*,*)'eqrhopsi: eqrho(j),j=1,nconteqn',
      +                                    (eqrho(j),j=1,nconteqn)
+      endif
 
       rhomax=exlin(eqrho(nconteqn-1),eqrho(nconteqn),
      1  eqpsi(nconteqn-1),eqpsi(nconteqn),eqpsimin)
@@ -557,14 +611,21 @@ c     left and right radius of psi=psilim surface at midplane
 c     assume magnetic axis is at the midplane of the eqdsk.
 c      izmag=nnz/2 + 1
       izmag=jmag
-      rgeom1=exlin(er(jpsimnl),er(jpsimnl+1),
-     +  epsi(jpsimnl,izmag),epsi(jpsimnl+1,izmag),eqpsimin)
-      rgeom2=exlin(er(jpsimnr),er(jpsimnr-1),
-     +  epsi(jpsimnr,izmag),epsi(jpsimnr-1,izmag),eqpsimin)
-c     minor radius of plasma surface
-      rgeomp=0.5 * (rgeom2 - rgeom1)
-c     geometrical center of plasma surface
-      r0geomp=0.5 * (rgeom1 + rgeom2)
+      if(machine.eq."mirror")then
+        rgeom1=rmag
+        rgeom2=rpcon_
+        rgeomp= rpcon_ ! 
+        r0geomp= er(2) ! Not relevant, just any number >0
+      else
+        rgeom1=exlin(er(jpsimnl),er(jpsimnl+1),
+     +    epsi(jpsimnl,izmag),epsi(jpsimnl+1,izmag),eqpsimin)
+        rgeom2=exlin(er(jpsimnr),er(jpsimnr-1),
+     +    epsi(jpsimnr,izmag),epsi(jpsimnr-1,izmag),eqpsimin)
+c       minor radius of plasma surface
+        rgeomp=0.5 * (rgeom2 - rgeom1)
+c       geometrical center of plasma surface
+        r0geomp=0.5 * (rgeom1 + rgeom2)
+      endif
 c
       irc=nnr/2 + 1
       do 100 jz=izmag,nnz

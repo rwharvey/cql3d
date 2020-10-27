@@ -221,8 +221,11 @@ c     Watts/cm**3
       fuspwrm(4,lr_)=sigm(4,lr_)*3.27*1.602e-13
       fuspwrv(4,lr_)=sigf(4,lr_)*3.27*1.602e-13
 c     17.6, etc : Energies of fusion products [MeV]
+
+      if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
       write(*,'(a,i5,4e12.3)')
      + 'sigv5d: lr_, fuspwrv(1:4,lr_)',lr_,fuspwrv(1:4,lr_)
+      endif
       
 
 c     BH120315:

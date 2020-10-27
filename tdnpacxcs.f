@@ -14,7 +14,7 @@ c Output: cs is in cm^2
 c BH100423:  See http://www-amdis.iaea.org/, 
 c BH100423:  go to ALLADIN, Atomic & Molecular Data
 c BH100423:  Substituted alcheb subroutine, below.
-c BH100423:  Had problem here.
+c BH100423:  Had problem here. BH190729: Could check if due to implied Real*4
         
         en=enin*1000 !converts to eV
 c uses chebyshev polynomials
@@ -84,9 +84,9 @@ c     (modified to aladdin calling structure 4/21/88 r.a. hulse)
 c
 c------------------------------------------------------------------------
 c
-      double precision pet, pcf, pfit
-      double precision emin, emax, cheb, eminl, emaxl, enl, xnorm
-      double precision twox, prev, prev2
+      real*8 pet, pcf, pfit
+      real*8 emin, emax, cheb, eminl, emaxl, enl, xnorm
+      real*8 twox, prev, prev2
       dimension pcf(11)
       character*(*) kermsg
       emin = pcf(10)

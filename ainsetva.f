@@ -1,6 +1,8 @@
 c
       subroutine ainsetva
       implicit integer (i-n), real*8 (a-h,o-z)
+      character*8 eqmirror
+
       save
 
 c.......................................................................
@@ -16,9 +18,12 @@ c.......................................................................
       include 'comm.h'
 CMPIINSERT_INCLUDE
 c
+      real*8:: tmpt(njene)  !Temporary array, local. YuP[2019-10-29]
+
 CMPIINSERT_IF_RANK_EQ_0
       WRITE(*,*)''
       WRITE(*,*)'In ainsetva'
+CMPIINSERT_ENDIF_RANK
 c
 c.......................................................................
 c     0. Check for consistency of some parameter settings
@@ -63,11 +68,17 @@ c     storage problem for calc of parallel distn function, if
 c     lrz.gt.lz
       if ((pltprpp.eq."enabled" .or.  knockon.ne."disabled") .and.
      +     lrz.gt.lz) then
-         WRITE(*,*) 'Need lrz.le.lz for pltprpp or knockon enabled'
-         STOP
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)'ainsetva/pltprpp:  lrz=', lrz, ' lz=', lz
+         WRITE(*,*)'Need lrz.le.lz for pltprpp or knockon enabled'
+CMPIINSERT_ENDIF_RANK
+         lz=lrz
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)'WARNING: lz is reset to lrz=', lrz
+CMPIINSERT_ENDIF_RANK
+         !STOP
       endif
 
-CMPIINSERT_ENDIF_RANK
 
       if ((iy/2)*2 .ne. iy) then
 CMPIINSERT_IF_RANK_EQ_0
@@ -181,8 +192,8 @@ cBH110331      endif
  100  continue
       iymax=iy
 
-      ipxy=min(51,iy)
-      jpxy=min(101,jx+1)
+      !ipxy=min(51,iy) !YuP[2020-10-26] Why the lower limit is needed?
+      !jpxy=min(101,jx+1) !YuP[2020-10-26] Why the lower limit is needed?
       if (mod(jpxy,2).eq.0) jpxy=jpxy-1
 
 c.......................................................................
@@ -260,10 +271,47 @@ CMPIINSERT_ENDIF_RANK
          STOP
       endif
 
+      !--------------------------------------------------------------
+      ! For Method of deposition of impurity:
+      if(pellet.eq.'enabled')then !for backward compatibility
+        imp_depos_method='pellet' !YuP[2019-12-05]
+        tstart_imp= pellet_tstart
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)"WARNING: Instead of pellet='enabled'/'disabled' use"
+         WRITE(*,*)" imp_depos_method='pellet'/'instant'/'disabled'. "
+         WRITE(*,*)" Setting imp_depos_method=",imp_depos_method
+         WRITE(*,*)"WARNING: Instead of setting pellet_tstart value, "
+         WRITE(*,*)" set tstart_imp value (in cqlinput)."
+         WRITE(*,*)" Setting tstart_imp to pellet_tstart=",tstart_imp
+         WRITE(*,*)"WARNING: imp_ne_method is set to ",imp_ne_method
+CMPIINSERT_ENDIF_RANK
+      endif  
+      !--------------------------------------------------------------
 
 c.......................................................................
 cl    3. Check and adjust species if iprozeff.ne."disabled"
 c.......................................................................
+
+      if (iprozeff.ne."disabled") then
+        !  iprozeff = 
+        != "parabola","prbola-t", "spline"  or "spline-t", then this 
+        ! option gives ion densities so as to achieve a given zeff
+        ! radial profile, consistent with charge neutrality and the 
+        ! given electron density profile.
+        if((imp_depos_method.ne.'disabled').and.(kelec.ne.0))then
+        !YuP[2020-06-24] Changed (gamafac.eq."hesslow") to (imp_depos_method.ne.'disabled')
+        !   [a more general logic]
+          iprozeff='disabled'
+CMPIINSERT_IF_RANK_EQ_0
+          WRITE(*,*)'ainsetva: For (imp_depos_method.ne."disabled") '
+          WRITE(*,*)'   and (kelec.ne.0), iprozeff is reset to',iprozeff
+CMPIINSERT_ENDIF_RANK
+            !YuP[2019-09-18] Density of electrons and Zeff
+            ! will be calculated consistently:
+            ! ne will be found from reden() of ions(kion) and from 
+            ! dens_imp(kstate,lr) of additional ions (from pellet, etc.)
+        endif ! (imp_depos_method.ne.'disabled')
+      endif
 
       if (iprozeff.ne."disabled") then  !endif at line 285
         !  iprozeff = 
@@ -320,7 +368,7 @@ c         add a species
             endif
           endif
           if (kelec.gt.kionm(1))  kelec=kelec+1
-          fmass(kionm(nionm))=2.*50.*1.676e-24
+          fmass(kionm(nionm))=2.*50.*1.676e-24 !YuP:suggested to use "100*proton" here
           bnumb(kionm(nionm))=50.
           kspeci(1,kionm(nionm))="impurity"
           kspeci(2,kionm(nionm))="maxwell"
@@ -341,8 +389,10 @@ CMPIINSERT_ENDIF_RANK
         elseif (ndif_bnumb.eq.2) then
           continue  
         else ! ndif_bnumb ne.1, ne.2
+CMPIINSERT_IF_RANK_EQ_0
           WRITE(*,*)'ainsetva: iprozeff=', iprozeff
           WRITE(*,*)'ainsetva: ndif_bnumb=',ndif_bnumb
+CMPIINSERT_ENDIF_RANK
           stop 'ainsetva: ion species problem. ndif_bnumb'
         endif
 
@@ -356,6 +406,27 @@ c               nbctime.ne.0 cases where time dependent profiles are
 c               desired.  Will ask that cqlinput be checked.
 c.......................................................................
       if (nbctime.ne.0) then
+      
+         !YuP[2019-09-18] Moved this check (of T<0) from profiles.f.
+         !Need to check just once, before start of simulation
+         if(iprote.eq.'prbola-t' .or. iprote.eq.'spline-t')then
+         do it=1,nbctime      
+          if (tempc(it,kelec).le.zero .and. tein_t(1,it).le.zero) then
+          WRITE(*,*) "Time-dependent Te profile input problem at it=",it
+             STOP 'Te<0'
+          endif
+         enddo
+         endif
+         !Assume any time dep in tempc is in first ion species.    
+         if(iproti.eq.'prbola-t' .or. iproti.eq.'spline-t')then
+         do it=1,nbctime
+          if (tempc(it,kionn).le.zero .and. tiin_t(1,it).le.zero) then
+          WRITE(*,*) "Time-dependent Ti profile input problem at it=",it
+             STOP 'Ti<0'
+          endif
+         enddo ! [2019-09-18]
+         endif
+         
          if (iprone.eq."parabola" .or. iprote.eq."parabola"
      1      .or.iproti.eq."parabola" .or. iprozeff.eq."parabola"
      1      .or.iproelec.eq."parabola" .or. iprovphi.eq."parabola"
@@ -373,12 +444,12 @@ CMPIINSERT_ENDIF_RANK
             ! to "prbola-t", in case when the run 
             ! is done with nbctime>0 (time-dependent profiles),
             ! but ipro*** values are set to "parabola". 
-            if(iprone.eq."parabola") then
-               iprone="prbola-t"
+!            if(iprone.eq."parabola") then
+!               iprone="prbola-t"
 CMPIINSERT_IF_RANK_EQ_0
-               WRITE(*,*)'iprone is reset to "prbola-t" '
+!               WRITE(*,*)'iprone is reset to "prbola-t" '
 CMPIINSERT_ENDIF_RANK
-            endif
+!            endif
             if(iprote.eq."parabola") then
                iprote="prbola-t"
 CMPIINSERT_IF_RANK_EQ_0
@@ -398,9 +469,10 @@ CMPIINSERT_IF_RANK_EQ_0
 CMPIINSERT_ENDIF_RANK
             endif
             if(iproelec.eq."parabola") then
-               iproelec="prbola-t"
+               !YuP[2020-04-13] No need to reset:   iproelec="prbola-t"
 CMPIINSERT_IF_RANK_EQ_0
-               WRITE(*,*)'iproelec is reset to "prbola-t" '
+               WRITE(*,*)'WARNING: nbctime>0 but iproelec.eq."parabola"'
+               !YuP[2020-04-13] No need to reset: WRITE(*,*)'iproelec is reset to "prbola-t" '
 CMPIINSERT_ENDIF_RANK
             endif
             if(iprocur.eq."parabola") then
@@ -419,7 +491,12 @@ CMPIINSERT_IF_RANK_EQ_0
             WRITE(*,*)'------------------------------------------------'
 CMPIINSERT_ENDIF_RANK
          endif
-      endif
+         ! Note that if(iprote.eq.'prb-expt' or 'spl-expt'), the above logic
+         ! will NOT reset iprote to "prbola-t", and so 
+         ! the code will go into subr. profiles()
+         ! no matter what the value of nbstime (0 or not).
+         ! This is what we want - this case is treated in subr.profiles.
+      endif ! (nbctime.ne.0) 
       
       if (nbctime.ne.0) then ! YuP[2018-01-02] Since ipro** are reset
         ! to "prbola-t" (above), this part is not needed anymore:
@@ -428,14 +505,18 @@ CMPIINSERT_ENDIF_RANK
               reden(k,0)=redenc(1,k)
               reden(k,1)=redenb(1,k)
 CMPIINSERT_IF_RANK_EQ_0
-              WRITE(*,*)'ainsetva:k,reden(0:1,k)',k,reden(k,0:1)
+              WRITE(*,*)'ainsetva WARN: nbctime>0, but iprone=parabola.'
+              WRITE(*,*)'Setting reden(k,0) profiles from redenc(1,k)'
+              WRITE(*,*)'Setting reden(k,1) profiles from redenb(1,k)'
+              WRITE(*,*)'ainsetva: k,reden(k,0:1)=',
+     &                             k,reden(k,0),reden(k,1)
 CMPIINSERT_ENDIF_RANK
            enddo
         endif
         if (iprote.eq.'parabola') then
            do k=1,ntotal
               if (k.eq.kelecg .or. k.eq.kelecm) then
-                 temp(k,0)=tempc(1,k)
+                 temp(k,0)=tempc(1,k) ! Note: tempc(1:nbctime,k)
                  temp(k,1)=tempb(1,k)
               endif
            enddo
@@ -457,8 +538,8 @@ CMPIINSERT_ENDIF_RANK
            vphiplin(1)=vphib(1)
         endif
         if (iproelec.eq.'parabola') then
-           elecfld(0)=elecc(1)
-           elecfld(1)=elecb(1)
+           !YuP[2020-04-13] No need to reset: elecfld(0)=elecc(1)
+           !YuP[2020-04-13] No need to reset: elecfld(1)=elecb(1)
         endif
       endif !  on nbctime.ne.0
 
@@ -478,6 +559,21 @@ CMPIINSERT_ENDIF_RANK
                tmdmeth="method1"
             endif
          endif
+c     Shift bctime() by bctshift (useful for restart runs with time-dep
+c     namelist input data. bctime() can be shifted to zero time for 
+c     the restart.
+      if (bctshift.ne.0.d0) then
+         do i=1,nbctimea
+            bctime(i)=bctime(i)-bctshift
+         enddo
+      endif
+      endif
+
+c     Rescale bctime, if bctimescal.ne. 1.
+      if (bctimescal.ne.1.d0) then
+         do i=1,nbctimea
+            bctime(i)=bctimescal*bctime(i)
+         enddo
       endif
       
 c.......................................................................
@@ -571,10 +667,12 @@ c     This is a zero-orbit-width version of cql3d. Thus, no
 c     finite-orbit-width FOW effects included.  We keep fow
 c     related namelist names for backward compatibility.
       if (fow.ne.'disabled') then
-         write(*,*)
-         write(*,*) "This is a ZOW version of cql3d."
-         write(*,*) "fow reset to 'disabled'"
-         write(*,*)
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*) "This is a ZOW version of cql3d."
+         WRITE(*,*) "fow reset to 'disabled'"
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
       endif
       fow='disabled' ! just in case, reset anyway
 
@@ -637,6 +735,18 @@ CMPIINSERT_ENDIF_RANK
  399     format(' WARNING: psimodel set =spline, for eqmod.ne.disabled')
          psimodel="spline"
       endif
+      !YuP[2020-01-29] Added , for eqmod="disabled"
+      if (eqmod.eq."disabled" .and. (psimodel.ne."spline")) then
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)'For eqmod=', eqmod
+         WRITE(*,399)
+CMPIINSERT_ENDIF_RANK
+ 3999    format(' WARNING: Strongly recommended to use psimodel=spline')
+         !psimodel="spline" ! YuP: Or should we enforce it?
+         !For example, Some arrays that are used in ampfmod calculations
+         !in case of eqmod="disabled" are only setup when psimodel="spline"
+      endif !YuP[2020-01-29]
+
 
       if (yreset.eq."enabled") then
 CMPIINSERT_IF_RANK_EQ_0
@@ -707,10 +817,28 @@ CMPIINSERT_ENDIF_RANK
  402      format('WARNING:sigmamod set disabled,Commission tandem case')
           sigmamod="disabled"
       endif
- 
-      if (totcrt(1).ne.zero .and. xjc(1).eq.zero)
-     +        stop 'inconsistent totcrt(1),xjc(1)'
- 
+
+      if(efswtch.eq."method2" .or. efswtch.eq."method3" .or.
+     +   efswtch.eq."method4") then
+        if(iprocur.eq."prbola-t")then !YuP[2019-10-29]added if(..."prbola-t")
+        if (totcrt(1).ne.zero .and. xjc(1).eq.zero)
+     +   stop 'iprocur.eq."prbola-t": inconsistent totcrt(1),xjc(1)'
+        endif
+        if(iprocur.eq."spline-t")then !YuP[2019-10-29]Similar for "spline-t"
+        if (totcrt(1).ne.zero .and. xjin_t(1,1).eq.zero)
+     +  stop 'iprocur.eq."spline-t": inconsistent totcrt(1),xjin_t(1,1)'
+        endif
+      endif ! efswtch.eq."method2","method3","method4"
+
+      if(iprozeff.eq."curr_fit")then !YuP[2019-10-29]added check
+      if(totcrt(1).eq.zero)then
+CMPIINSERT_IF_RANK_EQ_0
+        WRITE(*,*)'For iprozeff=curr_fit, should have totcrt(1).ne.0.'
+CMPIINSERT_ENDIF_RANK
+        stop 'iprozeff=curr_fit but totcrt(1).eq.zero'
+      endif
+      endif
+      
 cBH170630: Changing lbdry="scale" to "consscal", following problem with
 cBH170630: recent "scale" modification giving non-SS results, as pointed
 cBH170630: out by Syun'ichi Shiraiwa (2017-06-23).
@@ -745,8 +873,10 @@ CMPIINSERT_ENDIF_RANK
       endif
 
       if (zeffc(1).ne.zero .and. 
-     +   (iprozeff.ne."parabola" .and. iprozeff.ne."prbola-t") )
+     +   (iprozeff.ne."parabola" .and. iprozeff.ne."prbola-t" 
+     &                           .and. iprozeff.ne."curr_fit") )
      +         stop 'inconsistent zeffc(1) and iprozeff'
+               !YuP[2019-10-31] Added iprozeff.ne."curr_fit"
 
       if (gamaset.eq.zero .and. (ngen.gt.1.or.kelecg.ne.1)) 
      +         stop 'inconsistent gamaset'
@@ -758,9 +888,17 @@ CMPIINSERT_ENDIF_RANK
 CMPIINSERT_IF_RANK_EQ_0
          WRITE(*,204)
 CMPIINSERT_ENDIF_RANK
-         efiter="disabled"
+         efiter="disabled" !The only option for efswtch.eq."method1"
       endif
  204  format('WARNING: reset efiter=disabled, consistent with efswtch')
+
+      if (efiter.eq."enabled" .and. efswtch.eq."method4") then 
+         !YuP[2019-10-29] Added, for method4, setting efiter to disabled. ok???
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,204)
+CMPIINSERT_ENDIF_RANK
+         efiter="disabled" !The only option for efswtch.eq."method4"
+      endif
 
       if (noncntrl.ne.0 .and. (efswtch.ne."method2" .and.
      +     efswtch.ne."method3")) then
@@ -793,6 +931,19 @@ CMPIINSERT_ENDIF_RANK
       if (mod(jfl,2).eq.0) jfl=jfl-1  
       ! jfl needed to be odd because of jpxyh=(jfl+1)/2 in pltprppr.f
 
+cBH180717:  noticed possible problem in fle, for knockon.eq.enabled:
+      if (knockon.eq."enabled") then
+         if (jfl.ne.jx) then
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,230)
+ 230        format(//,'WARNING for knockon calc: Need jfl=jx in fle',//)
+CMPIINSERT_ENDIF_RANK
+            jfl=jx
+         endif
+      endif
+            
+         
+
       if (pltra.ne."disabled" .and. knockon.ne."enabled") then
 CMPIINSERT_IF_RANK_EQ_0
          WRITE(*,208)
@@ -821,56 +972,178 @@ cBH131104:  ADD BUNCH more qualifications to use of ampfmod,
 cBH131104:  ensuring not using conflicting code capabilites,
 cBH131104:  for example, using with iterative electric field control.
       if (ampfmod.eq."enabled") then
+      
+         if(ampfadd.eq."add_bscd" .or. ampfadd.eq."neo+bscd")then
+          !YuP[2019-12-26] Added ampfadd: make sure other settings 
+          !are consistent with certain settings of ampfadd.
+          if(bootst.ne."enabled")then
+            bootst="enabled" 
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)'WARNING: For ampfadd=',ampfadd
+            WRITE(*,*)'  Need bootst="enabled" and jhirsh=99; Resetting'
+            WRITE(*,*)'  bootst=',bootst
+CMPIINSERT_ENDIF_RANK
+          endif
+          if(jhirsh.eq.0)then ! Maybe better check that jhirsh.ne.99 ?
+            jhirsh=99 !Note: tdboothi works for jhirsh=99 or 88
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)'WARNING: For ampfadd=',ampfadd
+            WRITE(*,*)'  Need bootst="enabled" and jhirsh=99; Resetting'
+            WRITE(*,*)'  jhirsh=',jhirsh
+CMPIINSERT_ENDIF_RANK
+          endif
+         endif !YuP[2019-12-26] done checking ampfadd
+
          !do k=1,ngen
          if(soln_method.eq.'it3drv' .or. 
      +      soln_method.eq.'it3dv'      ) then
+CMPIINSERT_IF_RANK_EQ_0
             WRITE(*,*)'Warning: Setting soln_method=direct: for ampfmod'
             WRITE(*,*)'      Code not presently set up for it3dv/it3drv'
+CMPIINSERT_ENDIF_RANK
             soln_method='direct'
          endif
          !enddo ! k=1,ngen
          if (lrz.ne.lrzmax) then
+CMPIINSERT_IF_RANK_EQ_0
             WRITE(*,*)
-            WRITE(*,*)'STOP: Not good to use lrz.ne.lrzmax'
+            WRITE(*,*)'STOP/ampfmod: Not good to use lrz.ne.lrzmax'
             WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
             stop
          endif
 cBH131104:  NEED to increase boundary options/include t-dep Vphib.
          if ((iproelec.eq.'parabola' .or. iproelec.eq.'prbola-t').or.
-     +        (iproelec.eq.'spline' .or. iproelec.eq.'spline-t')) then
+     +        (iproelec.eq.'spline')) then
+            !YuP[2019-10-31] iproelec.eq.'spline-t' is not setup for ampfmod
             if (efswtch.eq."method1".and.tmdmeth.eq."method1") then
                continue
             else
+CMPIINSERT_IF_RANK_EQ_0
+               WRITE(*,*)'ampfmod case only setup for efswtch=method1'
                WRITE(*,*)'STOP1: Incorrectly specd boundary elec fld'
-               stop
+CMPIINSERT_ENDIF_RANK
+               stop 'STOP1/ampfmod'
             endif
          else
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)'ampfmod setup for iproelec=parabola,spline,prbola-t'
             WRITE(*,*)'STOP2: Incorrectly specd boundary elec fld'
-            stop
+CMPIINSERT_ENDIF_RANK
+            stop 'STOP2/ampfmod'
          endif
 
          if (iproelec.eq.'spline' .or.iproelec.eq.'spline-t') then
             if (abs(ryain(1)).gt.em10.or.
      +          abs(ryain(njene)-1.d0).gt.em10) then
+CMPIINSERT_IF_RANK_EQ_0
                WRITE(*,*)'STOP Incorrectly specd ryain for ampfar case'
+CMPIINSERT_ENDIF_RANK
                stop
             endif
          endif
 
          if (efflag.ne."toroidal") then
-            write(*,*)'STOP: AmpFar assumes toroidal elec fld calc'
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)'STOP: AmpFar assumes toroidal elec fld calc'
+CMPIINSERT_ENDIF_RANK
             stop
+         endif
+
+         if (nlrestrt.eq."ncdfdist" .and. elecscal.ne.one) then
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)'STOP: AmpFar restart assumes elecscal=1.'
+CMPIINSERT_ENDIF_RANK
+            stop
+         endif
+
+         if (nlrestrt.eq."ncdfdist" .and. nonampf.ne.0) then
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)'WARNING: AmpFar restart assumes nonampf=0'
+CMPIINSERT_ENDIF_RANK
+            nonampf=0
          endif
      
       endif  !On ampfmod
       
       if (ampfmod.eq."enabled".and.cqlpmod.eq."enabled") then
-         write(*,*)
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
          WRITE(*,*)'STOP: ampfmod.ne.enabled with cqlpmod.eq.enabled'
-         write(*,*)
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
          stop
       endif
-         
+
+      if (nlrestrt.eq."ncdfdist" .or. nlrestrt.eq."ncregrid") then
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*)'WARNING: Check that did not have netcdfshort='
+         WRITE(*,*)'         longer_f or lngshrtf'
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
+      endif
+
+      if(nlrestrt.ne."disabled")then 
+         !YuP[2019-07-15] Added check/reset of chang and urfdmp settings.
+         !With present definition of jchang() in subr. coefwti,
+         !in case of chang.eq."noneg", the values of jchang may not be always
+         !updated for each distr.function at a given time step.
+         !Instead, they can be taken from previous time steps.
+         !So, for a restart run, these values of jchang should be saved 
+         !together with values of distr.function, for the subsequent restart.
+         !This is not done presently.
+         !Until the values of jchang are saved for a restart, 
+         !or until the subr.coefwti is changed (for example, by enforcing
+         ! updating jchang values at every time step),
+         !here we simply reset the chang option to "enabled".
+         !For chang="enabled", the values of jchang are all =jx.
+         if(chang.eq."noneg")then 
+            chang="enabled" ! Reset, for restart runs
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*)'chang=noneg is not compatible with restart option'
+         WRITE(*,*)'Resetting to enabled'
+         WRITE(*,*)'Make sure that all initial runs also had same chang'
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
+         endif
+         !----------
+         !YuP[2019-07-15] Check/reset urfdmp suitable for a restart run.
+         ! Subr.urfavg (called for urfdmp="secondd") is not suitable
+         ! for a restart run, because it requires averaging of f()
+         ! over 3 time steps. So, if we want a restart run, 
+         ! we need to save data from those 3 time steps,
+         ! or at least save the g_() function (set in urfavg) into *.nc file.
+         ! So, in case of restart it is better to use urfdmp='firstd' ;
+         ! then this subr. is not called.
+         if(urfdmp.eq."secondd")then 
+            urfdmp="firstd" ! Reset, for restart runs
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*)'urfdmp=secondd is incompatible with restart option'
+         WRITE(*,*)'Resetting to firstd'
+         WRITE(*,*)'Make sure all initial runs also had urfdmp=firstd '
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
+         endif
+      endif
+
+      if (nlwritf.ne."disabled") then
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*)'WARNING: If this run to be restarted, ensure that'
+         WRITE(*,*)'         netcdfshort .ne. longer_f or lngshrtf.'
+         WRITE(*,*)'         Only save f at last time step'
+         WRITE(*,*)'WARNING: Also, chang=noneg is incompatible '
+         WRITE(*,*)'         with restart option.  Use chang=enabled '
+         WRITE(*,*)'WARNING: Also, urfdmp=secondd is incompatible '
+         WRITE(*,*)'         with restart option.  Use urfdmp=firstd '
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
+         if (netcdfshort.eq."longer_f") netcdfshort="disabled"
+         if (netcdfshort.eq."lngshrtf") netcdfshort="disabled"
+      endif
 
       if (eseswtch.eq."enabled") then
          if (.not.(cqlpmod.eq."enabled".and. sbdry.eq."periodic")) then
@@ -909,13 +1182,131 @@ CMPIINSERT_ENDIF_RANK
       if (.not.(eqmod.eq."enabled" .and. eqsource.eq."eqdsk"))  then
          if (eqsym.eq."none") then
 CMPIINSERT_IF_RANK_EQ_0
-         WRITE(*,*)
-         WRITE(*,*)'WARNING:  Re-setting eqsym="average":'  
-         WRITE(*,*)'          It should not ="none" for eqmod/eqsource'
-         WRITE(*,*)
+         !WRITE(*,*)
+         !WRITE(*,*)'WARNING:  Re-setting eqsym="average":'  
+         !WRITE(*,*)'          It should not ="none" for eqmod/eqsource'
+         !WRITE(*,*)
+         !YuP[2020] the above message is obsolete; Now can handle any eqsym
 CMPIINSERT_ENDIF_RANK
          endif
       endif
+      
+
+      !----- For Miller Equilibrium:   ---------------------------------
+c**   REF: R.L. Miller et al., "Noncircular, finite aspect ratio, local
+c**   equilibrium model", Phys. Plasmas, Vol. 5, No. 4, April 1998.
+c**   Setup is done similar to COGENT version (MillerBlockCoordSysF.ChF)  
+c**   The difference is in units: COGENT uses [Tesla, meters],
+c**   while CQL3D uses [Gauss, cm]. 
+      if (eqsource.eq."miller")  then
+      
+         if(eqmod.ne."enabled")then
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)
+            WRITE(*,*)'For Miller equilibr.: Set eqmod="enabled" '
+CMPIINSERT_ENDIF_RANK
+            stop
+         endif
+      
+         if(fpsimodl.ne."constant") then
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)
+            WRITE(*,*)'For Miller equilibr.: Set fpsimodl="constant" '
+CMPIINSERT_ENDIF_RANK
+            stop
+         endif
+
+         if(eqsym.ne."none") then
+CMPIINSERT_IF_RANK_EQ_0
+            WRITE(*,*)
+            WRITE(*,*)'For Miller equilibr.: Set eqsym="none" '
+            ! YuP: Need to check, maybe eqsym='avg_zmag' is also ok?
+CMPIINSERT_ENDIF_RANK
+            stop
+         endif
+
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,*)
+         WRITE(*,*)'eq_miller_rmag=',eq_miller_rmag ! Magnetic axis: major radius coord [cm]
+         WRITE(*,*)'eq_miller_zmag=',eq_miller_zmag ! Magnetic axis: vertical coord [cm]
+         WRITE(*,*)'eq_miller_btor=',eq_miller_btor ! Tor field at Geom. center of LCFS [Gauss]
+         WRITE(*,*)'eq_miller_radmin=',eq_miller_radmin   ! Plasma minor radius [cm]
+         WRITE(*,*)'eq_miller_cursign=',eq_miller_cursign  ! Sign of Plasma Current [+1. or -1.]
+         WRITE(*,*)'eq_miller_psimag=',eq_miller_psimag ! Pol.flux at magn.axis [cgs] Set as positive
+         WRITE(*,*)'eq_miller_psilim=',eq_miller_psilim ! Pol.flux at LCFS
+         WRITE(*,*)'eq_miller_psi_n=',eq_miller_psi_n ! n and m powers for PSI(r) profile as in 
+         WRITE(*,*)'eq_miller_psi_m=',eq_miller_psi_m ! PSI(r)= psilim + (psimag-psilim)*(1-(r/a)^n)^m
+         WRITE(*,*)'eq_miller_deltaedge=',eq_miller_deltaedge ! Triangularity of LCFS (at r=radmin)
+         WRITE(*,*)'eq_miller_kappa=',eq_miller_kappa  ! Vertical elongation (const for all surfaces)
+         WRITE(*,*)'eq_miller_drr0=',eq_miller_drr0  ! dR0/dr  we assume Shafr.shift=-drr0*r
+         WRITE(*,*)
+CMPIINSERT_ENDIF_RANK
+
+         if(abs(eq_miller_rmag).ge. 1.d99) then
+CMPIINSERT_IF_RANK_EQ_0
+           WRITE(*,*)'Set eq_miller_rmag in cqlinput' 
+CMPIINSERT_ENDIF_RANK
+           stop ! stop at all cores
+         endif
+
+         if(eq_miller_psimag.le.eq_miller_psilim)then
+CMPIINSERT_IF_RANK_EQ_0
+           WRITE(*,*)'Set eq_miller_psimag > eq_miller_psilim' 
+CMPIINSERT_ENDIF_RANK
+           stop ! stop at all cores
+         endif
+         
+         if(abs(eq_miller_btor).ge. 1.d99) then
+CMPIINSERT_IF_RANK_EQ_0
+           WRITE(*,*)'Set eq_miller_btor in cqlinput' 
+CMPIINSERT_ENDIF_RANK
+           stop ! stop at all cores
+         endif
+
+         if(abs(eq_miller_radmin).ge. 1.d99) then
+CMPIINSERT_IF_RANK_EQ_0
+           WRITE(*,*)'Set eq_miller_radmin in cqlinput' 
+CMPIINSERT_ENDIF_RANK
+           stop ! stop at all cores
+         endif
+
+         if(abs(eq_miller_psimag).ge. 1.d99) then
+CMPIINSERT_IF_RANK_EQ_0
+           WRITE(*,*)'Set eq_miller_psimag in cqlinput' 
+CMPIINSERT_ENDIF_RANK
+           stop ! stop at all cores
+         endif
+
+         if(abs(eq_miller_psilim).ge. 1.d99) then
+CMPIINSERT_IF_RANK_EQ_0
+           WRITE(*,*)'Set eq_miller_psilim in cqlinput' 
+CMPIINSERT_ENDIF_RANK
+           stop ! stop at all cores
+         endif
+
+         if(eq_miller_drr0.gt. 0.d0) then
+CMPIINSERT_IF_RANK_EQ_0
+           WRITE(*,*)'Set eq_miller_drr0 as a negative value' 
+CMPIINSERT_ENDIF_RANK
+           stop ! stop at all cores
+         endif
+
+      endif
+      ! See subr. eq_miller() for definition of surfaces and fields.
+      !------------------------------------------------------------------
+      
+      
+
+      eqmirror="disabled"
+      if( eqsource.eq."eqdsk".and.machine.eq."mirror") then
+         eqmirror="enabled"
+      else
+         eqmirror="disabled"
+      endif
+      if (eqsource.eq."mirror1" .or. eqmirror.eq."enabled") then ! YuP[03-2016]
+       STOP 'eqsource=mirror1 is not available in this CQL3D version'
+      endif ! (eqsource.eq."mirror1" .or. eqmirror.eq."enabled")
+
 
       if (nv.gt.nva) then
          stop 'SXR: nv .gt. nva.  Also check length of XR input arrays.'
@@ -1062,7 +1453,7 @@ CMPIINSERT_ENDIF_RANK
 c     Make sure nrdc is not too large.
       if (nrdc.gt.nrdca) then
 CMPIINSERT_IF_RANK_EQ_0
-         write(*,*) "STOP: Need to increase nrdca in param.h"
+         WRITE(*,*) "STOP: Need to increase nrdca in param.h"
 CMPIINSERT_ENDIF_RANK
          stop
       endif
@@ -1070,8 +1461,8 @@ CMPIINSERT_ENDIF_RANK
 c     Make sure nrdc=1, for rdcmod="format2"
       if (rdcmod.eq."format2" .and. nrdc.ne.1) then
 CMPIINSERT_IF_RANK_EQ_0
-         write(*,*) "STOP: Need nrdc=1 for rdcmod=format2"
-         write(*,*) "      Else, need to recode"
+         WRITE(*,*) "STOP: Need nrdc=1 for rdcmod=format2"
+         WRITE(*,*) "      Else, need to recode"
 CMPIINSERT_ENDIF_RANK
          stop
       endif

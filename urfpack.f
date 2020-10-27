@@ -39,7 +39,9 @@ c     Loop over modes (or harmonics) and flux surfaces..
 c..................................................................
 
       do 500 krf=1,mrfn
+        if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
         write(*,*)'urfpack: krf(1:mrfn) = ', krf
+        endif
 
 c       k is general species to which this krf mode is to be applied:
         k=nrfspecies(krfn(krf))
@@ -128,22 +130,32 @@ c..................................................................
               !For a mirror machine: ray can get outside of zbox
               !which defines the border of ez() equilibrium grid
               ![so that zbox=ez(nnz)-ez(1)]
-              if (icount_outside_ez.eq.0) 
-     +        write(*,*)'urfpack: Ray elements outside of ez grid'
+              if (icount_outside_ez.eq.0) then
+                if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+                write(*,*)'urfpack: Ray elements outside of ez grid'
+                endif
+              endif
               icount_outside_ez=icount_outside_ez+1 !for a printout
+              if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
               write(*,*)'urfpack: zray>ez; iray,is,icount_outside_ez',
      +                                     iray,is,icount_outside_ez
+              endif
               ! Make an adjustment:
               zray=ez(nnz)
               !This correction is ok for a tokamak, too,
               !although not likely to happen.
             endif
             if(zray.lt.ez(1))then 
-              if (icount_outside_ez.eq.0) 
-     +        write(*,*)'urfpack: Ray elements outside of ez grid'
+              if (icount_outside_ez.eq.0) then
+                if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+                write(*,*)'urfpack: Ray elements outside of ez grid'
+                endif
+              endif
               icount_outside_ez=icount_outside_ez+1 !for a printout
+              if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
               write(*,*)'urfpack: zray<ez; iray,is,icount_outside_ez',
      +                                     iray,is,icount_outside_ez
+              endif
               ! Similarly, Make an adjustment:
               zray=ez(1)
             endif
@@ -673,8 +685,10 @@ c$$$      STOP
 
       !if(urfb_version.eq.1)then ! 2 is the new version developed by YuP
          ! if 1, it will use the original version
+      if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
           write(*,*)'URFpacked ifct1 to ifct1_; Sizes=',
      +               size(ifct1),size(ifct1_)
+      endif
       !endif
             
       write(*,*)'urfpack:  END'

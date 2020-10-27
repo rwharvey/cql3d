@@ -1,27 +1,4 @@
-      subroutine init_mpi
-      include 'mpilib.h'
-      call MPI_INIT(mpiierr)
-      call MPI_COMM_SIZE(MPI_COMM_WORLD,mpisize,mpiierr)
-      call MPI_COMM_RANK(MPI_COMM_WORLD,mpirank,mpiierr)
-      if(mpirank.eq.0) PRINT *,'MPISIZE ===',mpisize
-      if(mpisize.le.1) stop '===   Run with number of cores >1   ==='
-c      PRINT *,'Start mpirank=',mpirank
-CMPIINSERT_STARTTIME
-      return
-      end
-      
 c-------------------------------------------------------
-
-      subroutine close_mpi
-      include 'mpilib.h'
-CMPIINSERT_ENDTIME
-      call MPI_FINALIZE(mpiierr)
-c      PRINT *,'close_mpi:  mpirank===',mpirank
-      return
-      end
-
-c-------------------------------------------------------
-
       subroutine send_data
       implicit integer (i-n), real*8 (a-h,o-z)
       include 'param.h'
@@ -136,14 +113,4 @@ c-------------------------------------------------------
       
       return
       end
-
 c-------------------------------------------------------
-
-      subroutine mpiwtime(s)
-      character(*) s
-      include 'mpilib.h'
-      mpitime1 = MPI_WTIME()
-CMPIINSERT_WRITETIME
-      mpitime = mpitime1
-      return 
-      end

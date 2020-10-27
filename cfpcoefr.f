@@ -276,13 +276,13 @@ c     general  to the Max. species.
           call bcast(tem1,zero,iyjx)
           call bcast(tem2,zero,iyjx)
           do 70 j=2,jx
-            ttta=-anr2*gamman(j,1)*xsq(j)*temp1(4,j)*gamefac(j)
+            ttta=-anr2*gamman(j,1)*xsq(j)*temp1(4,j)*gamefac(j,k) !YuP[2019-07-26] k index added
             tttb=anr1*xsq(j)*
      *        (gamman(j,3)*temp1(3,j)+
      *        gamman(j,1)*x(j)*temp1(2,j)*cnorm2i+
-     *        .5*gamman(j,1)*temp1(1,j)*cnorm2i)*gamefac(j)
+     *        .5*gamman(j,1)*temp1(1,j)*cnorm2i)*gamefac(j,k) !YuP[2019-07-26] k index added
             tttf=anr1*(gman(1,1,j)*temp1(2,j)/cnorm+
-     *        .5*gamman(j,-1)*temp1(1,j)*cnorm2i)*gamefac(j)
+     *        .5*gamman(j,-1)*temp1(1,j)*cnorm2i)*gamefac(j,k) !YuP[2019-07-26] k index added
             do 60 i=1,iy
               jj=i+(j-1)*iy 
               tem1(jj)=ttta*vptb(i,lr_)
@@ -788,16 +788,16 @@ c..................................................................
                 if (madd.eq.2 .and. ii.eq.0) goto 370
                 i=iii*ii-(iy+1-iii)*(ii-1)
                 do 360 j=2,jx
-                  ca(i,j)=ca(i,j)+ss(i,ileff,m,lr_)*tam7(j)*gamefac(j)
-                  cb(i,j)=cb(i,j)+ss(i,ileff,m,lr_)*tam8(j)*gamefac(j)
-                  cc(i,j)=cc(i,j)+ssy(i,ileff,m,lr_)*tam9(j)*gamefac(j)
+                 ca(i,j)=ca(i,j)+ss(i,ileff,m,lr_)*tam7(j)*gamefac(j,k) !YuP[2019-07-26] k index added
+                 cb(i,j)=cb(i,j)+ss(i,ileff,m,lr_)*tam8(j)*gamefac(j,k) !YuP[2019-07-26] k index added
+                 cc(i,j)=cc(i,j)+ssy(i,ileff,m,lr_)*tam9(j)*gamefac(j,k) !YuP[2019-07-26] k index added
                   cd(i,j)=cd(i,j)+sinz(i,ileff,lr_)*
-     *              ssy(i,ileff,m,lr_)*tam10(j)*gamefac(j)
+     *              ssy(i,ileff,m,lr_)*tam10(j)*gamefac(j,k) !YuP[2019-07-26] k index added
                   ce(i,j)=ce(i,j)+sinz(i,ileff,lr_)*
-     *              ssy(i,ileff,m,lr_)*tam9(j)*gamefac(j)
+     *              ssy(i,ileff,m,lr_)*tam9(j)*gamefac(j,k) !YuP[2019-07-26] k index added
                   cf(i,j)=cf(i,j)+sinz(i,ileff,lr_)*
      *              (ss(i,ileff,m,lr_)*tam11(j)+
-     +              ssyy(i,ileff,m,lr_)*tam12(j))*gamefac(j)
+     +              ssyy(i,ileff,m,lr_)*tam12(j))*gamefac(j,k) !YuP[2019-07-26] k index added
  360            continue
  370          continue
  380        continue

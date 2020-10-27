@@ -6,7 +6,8 @@ c
       include 'comm.h'
 CMPIINSERT_INCLUDE
 
-      REAL RILIN
+      REAL*4 RILIN
+      REAL*4 :: R40=0.
 
 c..................................................................
 c     This routine does some minor initialization for
@@ -25,27 +26,27 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
       if (noplots.ne."enabled1") then
       CALL PGPAGE
       RILIN=0.
-      CALL PGMTXT('T',-RILIN,0.,0.,"PARAMETER VALUES")
+      CALL PGMTXT('T',-RILIN,R40,R40,"PARAMETER VALUES")
       
       write(t_,1000) 
  1000 format("EQUILIBRIUM model parameters:")
       RILIN=2.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       
       write(t_,1001)
  1001 format("nnra,nnza give the Maximum size the eqdsk")
       RILIN=3.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       
       write(t_,1002) nnra,nnza
  1002 format("====>NNRA = ",i5,"        ====>NNZA = ",i5)
       RILIN=4.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       
       write(t_,1003) nconteqa
  1003 format("====>NCONTEQA = ",i5)
       RILIN=5.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
 
       endif
 

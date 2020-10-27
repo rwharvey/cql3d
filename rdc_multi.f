@@ -653,7 +653,7 @@ c     Divide through by factor symm=2., to account for
 c     AORSA calc with bounce time from banana tip to banana tip,
 c     whereas present up-down symmetric cql3d calc uses
 c     bounce time from equatorial plane to banana tip.
-c     (Bilinear interpolation my be preferable to other possibilities,
+c     (Bilinear interpolation may be preferable to other possibilities,
 c     as it does not introduce spurious ringing oscillations;
 c     continuity of derivatives does now appear to be a strong
 c     consideration for diffusion coeffs. BH)

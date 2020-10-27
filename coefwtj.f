@@ -36,8 +36,13 @@ c..................................................................
         do 10 j=1,jx
         
           do 20 i=1,iy
-            temc1(i)=dx(j)*da(i,j)*op*db(i,j)/(op*db(i,j)
-     1        -dbb(i,j))**2
+            db_dbb= op*db(i,j)-dbb(i,j) !YuP[2019-07-09] added check of denom=0
+            if(db_dbb.ne.zero)then
+            temc1(i)=dx(j)*da(i,j)*op*db(i,j)/db_dbb**2
+            else
+            !write(*,*)'coefwtj: db_dbb=0.', op*db(i,j),dbb(i,j)
+            temc1(i)=zero
+            endif
  20       continue
 
 c.................................................................

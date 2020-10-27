@@ -8,16 +8,16 @@ c     vs. time
 c
       include 'param.h'
       include 'comm.h'
-      REAL RILIN
-      REAL RPG1,RPG2
-      REAL RNONCHA1(nonch),RNONCHA2(nonch)
+      REAL*4 RILIN
+      REAL*4 RPG1,RPG2
+      REAL*4 RNONCHA1(nonch),RNONCHA2(nonch)
+      REAL*4 :: R40=0.,R4P2=.2,R4P8=.8,R4P4=.4,R4P95=.95
 
 c
       if (noplots.eq."enabled1") return
 
       do 100 k=1,ngen
         if (colmodl.eq.4 .and. k.eq.ngen) goto 100
-c$$$        call gxglfr(0)
         CALL PGPAGE
         emin=ep90
         emax=-em90
@@ -33,7 +33,7 @@ c191  continue
  192    continue
         emax=emax+.05*(abs(emax))
         emin=emin-.05*(abs(emin))
-        CALL PGSVP(.2,.8,.4,.95)
+        CALL PGSVP(R4P2,R4P8,R4P4,R4P95)
         DO I=1,NCH(L_)
            RNONCHA1(I)=ptime(i,l_)
         ENDDO
@@ -43,7 +43,7 @@ c191  continue
            RPG2= RPG1+1.e-16
         ENDIF
         CALL PGSWIN(RNONCHA1(1),RNONCHA1(NCH(L_)),RPG1,RPG2)
-        CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGLAB('Time (sec)','Power Den (W/cm\u3\d)',' ')
         ! Note: pentr(nch(l_),k,is,l_)=entr(k,is,l_)
 
@@ -142,44 +142,44 @@ c$$$     1    "los-egy---phenomenological energy loss","$")
         RILIN=4.
         write(t_,210) k ! Gen. species number
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,211) entr(k,4,l_),entr(k,9,l_) !sum over all components
                                         !and from df/dt (should be same)
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,212) entr(k,-1,l_) !collisional transfer from Maxwellian elec.
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,213) entr(k,0,l_)  !collisional transfer from Maxwellian ions
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,214) entr(k,1,l_)  !collisional transfer from gens.
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,215) entr(k,2,l_)  !ohmic drive
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,216) entr(k,3,l_)  !RF drive
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,217) entr(k,5,l_)  !particle sources
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,218) entr(k,6,l_),entr(k,7,l_) !loss-lossmode;losses-torloss
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,219) entr(k,8,l_)  !losses due to runaway
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,220) entr(k,10,l_) !setting neg f to zero
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_) 
+        CALL PGMTXT('B',RILIN,R40,R40,t_) 
         write(t_,221) entr(k,11,l_) !synchrotron rad losses
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         write(t_,222) entr(k,12,l_) !phenomenological energy losses
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
 
  210    format("Species k=",i2, "    Final powers in Watts/cc are:")
  211    format("sum over all comp=",1pe10.2, 3x,

@@ -76,8 +76,7 @@ c     Presently only set up for 1 general species,
 c       except for pinch.eq."disabled" (adv()=0.).
 c..............................................................
       if (ngen.gt.1) then
-         write(*,*)'Presently set up for only 1 gen species: STOP'
-         stop
+         stop 'tdtranspn: Presently set up for only 1 gen species: STOP'
       endif
       kprofile=kelecm
       if (niong.ne.0) kprofile=kionm(1)

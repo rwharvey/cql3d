@@ -27,9 +27,9 @@ c     set coefficients to zero near pi and 0 to force zero flux there.
 c..................................................................
 
       do 3 j=1,jx
-        temp1(iy,j)=0.
+        temp1(iy,j)=zero !YuP[] was 0.
 c        c(0,j)=0.    Changed 8/19/94
-        temp1(0,j)=0.
+        temp1(0,j)=zero !YuP[] was 0.
 c$$$c***************************************TRY 090826
 c$$$c Object is to ensure no flux at theta=0 by
 c$$$c setting flux at both -dy/2 and +dy/2 =0, and similarly
@@ -45,8 +45,8 @@ c     redefine fluxes near pass/trapped boundary
 c..................................................................
 
       if (cqlpmod .ne. "enabled") then
-        xx=-1.
-        if (nn .eq. 3) xx=1
+        xx=-one !YuP[] was 1.
+        if (nn .eq. 3) xx=one !YuP[] was 1 (integer)
         do 4 j=1,jx
           temp1(itl-1,j)=c(itl-1,j)
           temp1(itl,j)=c(itl+1,j)
@@ -61,7 +61,7 @@ c..................................................................
 
 c**Changed 8/19/94, for consistency (bh):      do 6 i=1,iy
       do 6 i=0,iy
-        temp1(i,1)=0.
+        temp1(i,1)=zero !YuP[] was 0.
         do 61 j=1,jx
           c(i,j)=temp1(i,j)
  61     continue
@@ -73,20 +73,23 @@ c..................................................................
 
       if (symtrap .eq. "enabled") then
         do 8 j=1,jx
-          c(iyh,j)=0.
+          c(iyh,j)=zero !YuP[] was 0.
  8      continue
       endif
 
       if (nn .ne. 3) return
 
 c     minimum of |F| is set to 1.e-40
-      do 7 j=1,jx
-        do 71 i=0,iy
-          if(abs(c(i,j)) .le. em40) then
-            c(i,j)= sign(em40,c(i,j))
-          endif
- 71     continue
- 7    continue
+!YuP[2019-07-08] Why do we need to impose a lower limit on |df(i,j)| ?
+! In case of no-RF run, all db,dc,...,df coeffs are zero initially, 
+! but this resetting below, c(i,j)=em40, makes df(i,j) [and dff()] a non-zero value.
+c yup      do 7 j=1,jx
+c yup        do 71 i=0,iy
+c yup          if(abs(c(i,j)) .le. em40) then
+c yup            c(i,j)= sign(em40,c(i,j))
+c yup          endif
+c yup 71     continue
+c yup 7    continue
 
         call bcast(temp1(0,0),zero,iyjx2)
       return

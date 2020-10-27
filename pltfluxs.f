@@ -20,7 +20,10 @@ c
 
       include 'advnce.h'
 
-      REAL RILIN !-> For PGPLOT (text output positioning)
+      REAL*4 RILIN !-> For PGPLOT (text output positioning)
+      REAL*4 :: R41=1.,R40=0.,R4P2=.2,R4P3=.3,R4P8=.8,R4P9=.9
+      !YuP[2019-10-28] see PGSVP(R4P2,R4P8,R4P3,R4P9) below
+
       real*8 wkd(jx) 
       CHARACTER*64 TX_
       
@@ -70,9 +73,10 @@ c
         if (n .lt. nonrf(k) .or. n .ge. noffrf(k)) go to 41
 
         call coefrfad(k,xrf)
-          write(*,'(a,2i6,e12.2)')
-     +    'pltfluxs->coefrfad: n,lr_,sum(dbb)=',
+        if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
+          write(*,'(a,2i6,e12.2)')'pltfluxs->coefrfad: n,lr_,sum(dbb)=',
      +    n,lr_,sum(dbb)
+        endif
 
  41     continue
         if (xrf.gt.0.) then
@@ -247,9 +251,9 @@ c       'x', 'u/c', or 'energy', up to maximum pltlimm.
         emax=emax*1.03
         emin=emax/1.e+12
 
-        call GXGLFR(0) ! new page
-        call GSVP2D(.2,.8,.3,.9)
-        CALL PGSCH(1.) ! set character size; default is 1.
+        CALL PGPAGE ! new page
+        CALL PGSVP(R4P2,R4P8,R4P3,R4P9) !(.2,.8,.3,.9)
+        CALL PGSCH(R41) ! set character size; default is 1.
         call GSWD2D("linlog$",tam1(1),tam1(jxq),emin,emax)
         !-YuP:   call GSCVLB(1)
         !-YuP:   call GSCVFT(0.)
@@ -284,62 +288,62 @@ c       'x', 'u/c', or 'energy', up to maximum pltlimm.
         
 c     Write previously set title
         RILIN=1.
-        CALL PGSCH(0.8) ! set character size; default is 1.
-        CALL PGMTXT('T',RILIN,0.,0.,t_) ! Top
+        CALL PGSCH(R4P8) ! set character size; default is 1.
+        CALL PGMTXT('T',RILIN,R40,R40,t_) ! Top
         
         rr=rpcon(lr_) !rovera(lr_)*radmin  ! YuP[03-2016] changed to rpcon
         write(t_,10020) k
 10020 format("Flux vs. velocity for some angles; species number = ",i3)
         RILIN=3.
-        CALL PGMTXT('B',RILIN,0.,0.,t_) ! Bottom
+        CALL PGMTXT('B',RILIN,R40,R40,t_) ! Bottom
         
         write(t_,10010) n,timet
 10010 format("time step (n) is",i5,5x,"time=",e14.6," secs")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
 
         write(t_,10011) rovera(lr_),rr
 10011 format("r/a=",e14.6,5x,"radial position (R) =",e14.6," cm")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_)
+        CALL PGMTXT('B',RILIN,R40,R40,t_)
         
         write(t_,10030) 
 10030 format("pll    ---- theta = 0 radians")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_) 
+        CALL PGMTXT('B',RILIN,R40,R40,t_) 
 
         write(t_,10031) 
 10031 format("pll-pi ---- theta = pi radians")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_) 
+        CALL PGMTXT('B',RILIN,R40,R40,t_) 
 
         write(t_,10032) y(itl,l_)
 10032 format("trp/ps ---- theta = ",e13.5," radians")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_) 
+        CALL PGMTXT('B',RILIN,R40,R40,t_) 
 
         write(t_,10033) trpmd
 10033 format("midtrp ---- theta = ",e13.5," radians")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_) 
+        CALL PGMTXT('B',RILIN,R40,R40,t_) 
 
         write(t_,10034) y(iyh,l_)
 10034 format("perp   ---- theta = ",e13.5," radians")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_) 
+        CALL PGMTXT('B',RILIN,R40,R40,t_) 
 
         write(t_,10035) 
 10035 format("avg    ---- theta averaged over pi radians")
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,0.,0.,t_) 
+        CALL PGMTXT('B',RILIN,R40,R40,t_) 
         
-        CALL PGSCH(1.0) ! recover default 1.0 fontsize
+        CALL PGSCH(R41) ! recover default 1.0 fontsize
 
  410    continue
  400    continue ! k species
  500  continue ! skipping handle
  
-      CALL PGSCH(1.0) ! recover default 1.0 fontsize
+      CALL PGSCH(R41) ! recover default 1.0 fontsize
 
  910  format("species no.",i2,5x,"combined velocity space fluxes")
  920  format("species no.",i2,5x,"Fokker-Planck velocity space flux")

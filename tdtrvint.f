@@ -67,8 +67,7 @@ cBH070419:   removing special itl,itu treatment for ipacktp=0
         vptb_(itu-1,ilr)=0.
 
         elseif (ipacktp.ne.0) then
-           write(*,*)'STOP in tdtrvint:  Check ipacktp'
-           stop
+           stop 'STOP in tdtrvint:  Check ipacktp'
         endif
 
  10     continue

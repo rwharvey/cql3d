@@ -16,6 +16,10 @@ c...................................................................
       REAL*4 RILIN
       REAL*4 RPG1
       REAL*4 RPGX(2),RPGY(2)
+      REAL*4 :: R40=0.,R4P2=.2,R4P25=.25,R4P5=.5
+      REAL*4 :: R4P8=.8,R4P65=.65,R4P9=.9
+
+
       include 'advnce.h'
 
 
@@ -67,7 +71,7 @@ c     to appropriate limit:
          endif
          
 cBH060411         CALL PGSVP(.2,.8,.25,.55)
-         CALL PGSVP(.2,.8,.25,.50)
+         CALL PGSVP(R4P2,R4P8,R4P25,R4P5)
          RILIN=5.
 c     
          call bcast(da,zero,iyjxp1)
@@ -83,7 +87,7 @@ c
  50      call coeffpad(k)
          CALL PGPAGE
          write(t_,200) k
-         CALL PGMTXT('B',RILIN,0.,0.,t_)
+         CALL PGMTXT('B',RILIN,R40,R40,t_)
          go to 120
  60      if (abs(elecfld(lr_)) .lt. 1.e-09) go to 190
          call coefefad(k)
@@ -103,9 +107,9 @@ c$$$     +                    ((df(i,j),i=46,50),j=1,20)
 
          CALL PGPAGE
          write(t_,210) k
-         CALL PGMTXT('B',RILIN,0.,0.,t_)
+         CALL PGMTXT('B',RILIN,R40,R40,t_)
          go to 120
- 80      continue
+ 80      continue ! Flux from RF only
          xrf=0.
          if (n .lt. nonrf(k) .or. n .ge. noffrf(k)) go to 90
          call coefrfad(k,xrf)
@@ -113,23 +117,28 @@ c$$$     +                    ((df(i,j),i=46,50),j=1,20)
          if (xrf.gt.0.) then
             CALL PGPAGE
             write(t_,220) k
-            CALL PGMTXT('B',RILIN,0.,0.,t_)
+            CALL PGMTXT('B',RILIN,R40,R40,t_)
          endif
          go to 120
- 100     continue
+ 100     continue ! Total flux
          call coefstup(k)
          CALL PGPAGE
          write(t_,230) k
-         CALL PGMTXT('B',RILIN,0.,0.,t_)
-         write(t_,231)
+         CALL PGMTXT('B',RILIN,R40,R40,t_)
+         !write(t_,231) !YuP[2020-10-26] Moved it down, avail. for each type of plot
+         !RILIN=RILIN+1.
+         !CALL PGMTXT('B',RILIN,R40,R40,t_)
+         
+ 120     continue ! exit/continue handle
+         
+         !YuP[2020-10-26] Add this text on each type of flux plot:
+         write(t_,231) !"(bottom linear, top logrithmic length of flux vector)"
          RILIN=RILIN+1.
-         CALL PGMTXT('B',RILIN,0.,0.,t_)
-         
- 120     continue
-         
+         CALL PGMTXT('B',RILIN,R40,R40,t_)
+
          RILIN=RILIN+2.
          write(t_,398) n,timet,rovera(lr_)
-         CALL PGMTXT('B',RILIN,0.,0.,t_)
+         CALL PGMTXT('B',RILIN,R40,R40,t_)
          
  200     format("species no.",i2,5x,"Flux Due to Coulomb Collisions")
  210     format("species no.",i2,5x,"Flux Due to Electric Field")
@@ -209,8 +218,8 @@ c$$$     +                    ((temp4(i,j),i=46,50),j=1,20)
 
 
          else
-            call dcopy(iyjx2,f_(0,0,k,l_),1,temp1(0,0),1)
-            call dcopy(iyjx2,fxsp(0,0,k,l_),1,temp2(0,0),1)
+            temp1(0:iy+1,0:jx+1)=f_(0:iy+1,0:jx+1,k,l_)
+            temp2(0:iy+1,0:jx+1)=fxsp(0:iy+1,0:jx+1,k,l_)
             do 240 j=2,jxm1
                do 241 i=2,iy-1
                   temp6(i,j)=-(gfu(i,j,k)+gfu(i,j-1,k))*.5/xsq(j)
@@ -263,13 +272,13 @@ cBH090226          call dcopy(iyjx2,temp2(0,0),1,temp4,1)
                ytail(j,i)=xperp(i)
  151        continue
  150     continue
-c         write(*,*)'pltvec: jpxy,xpar=',jpxy,(xpar(j),j=1,jpxy)
-c         write(*,*)'pltvec: ipxy,xperp=',ipxy,(xperp(i),i=1,ipxy)
+         !write(*,*)'pltvec: jpxy,xpar=',jpxy,(xpar(j),j=1,jpxy)
+         !write(*,*)'pltvec: ipxy,xperp=',ipxy,(xperp(i),i=1,ipxy)
 
         
          RPG1=xmaxq
-         CALL PGSWIN(-RPG1,RPG1,0.,RPG1)
-         CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+         CALL PGSWIN(-RPG1,RPG1,R40,RPG1)
+         CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
          if (pltlim.eq.'u/c') then
             write(t_,10184) 
          elseif (pltlim.eq.'energy') then
@@ -338,10 +347,10 @@ cBH060411            RPGX(2)=-xmaxq*t0t
  171          continue
  170       continue
 cBH060411           CALL PGSVP(.2,.8,.6,.9)
-           CALL PGSVP(.2,.8,.65,.9)
+           CALL PGSVP(R4P2,R4P8,R4P65,R4P9)
            RPG1=xmaxq
-           CALL PGSWIN(-RPG1,RPG1,0.,RPG1)
-           CALL PGBOX('BCNST',0.0,0,'BCNST',0.0,0)
+           CALL PGSWIN(-RPG1,RPG1,R40,RPG1)
+           CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
            if (pltlim.eq.'u/c') then
               write(t_,10184) 
            elseif (pltlim.eq.'energy') then

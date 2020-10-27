@@ -46,6 +46,13 @@ c..................................................................
         do 41 iq=1,8
           sgaint(iq,k,l_)=sgaint(iq,k,l_)+sgain(iq,k)
           sgaint1(l_)=sgaint1(l_)+sgain(iq,k)
+          !YuP[2020] Normally, only these values are calculated:
+          !sgain(3,k) from NBI or KO source
+          !sgain(4,k) from flux of particles through j=jx boundary
+          !sgain(5,k) from bad orbits (krook operator)
+          !sgain(6,k) from toroidal losses
+          !sgain(8,k) from setting negative parts of distr.func. to 0.
+          ![other iq can be used in runs with implct.ne.enabled]
  41     continue
         dentot=dentot+xlndn(k,lr_)
  40   continue

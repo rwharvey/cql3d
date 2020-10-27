@@ -367,8 +367,11 @@ c.......................................................................
 
       if (.not. nlotp1(4)) go to 149
 
+
 c     y mesh for l_=1 and l_=lrors
       WRITE(6,9140) (l,iy_(l),iyh_(l),itl_(l),itu_(l),l=1,lrors)
+
+      if (ioutput(1).ge.1) then !-----YuP[2020] Useful diagnostic printout
       WRITE(6,9141)
       do 140 i=1,iy_(1),10
         WRITE(6,9142) (y(ii,1),ii=i,min(i+9,iy_(1)))
@@ -393,6 +396,8 @@ c     x mesh
       do j=1,jx ! YuP[2018-01-05] added - print in columns: x,dx,u/c
        WRITE(*,'(a,i7,3e13.5)')'j,x,dx,u/c=',j,x(j),dxp5(j),uoc(j)
       enddo
+      
+      endif !---------- ioutput(1).ge.1
 
  149  continue
  9140 format(/," y mesh:",/,1x,7("="),//,"  l","  iy"," iyh"," itl",
@@ -693,8 +698,12 @@ c     rovsc*0.706/0.93=Connor asymptotic, as eps==>1.
      +  ,"Con.larg eps",2x,"sgm_code/BK",2x,"One2/sptzr")
 
       ! Braams-Karney normalization resistivity [cgs]:
-      res_BK = sqrt(fmass(kelec))*4.*pi*charge**2
-     + *gama(kelec,kelec)*zeff(1)/(temp(1,0)*ergtkev)**1.5
+      if(kelec.ne.0)then
+       res_BK = sqrt(fmass(kelec))*4.*pi*charge**2
+     +   *gama(kelec,kelec)*zeff(1)/(temp(kelec,0)*ergtkev)**1.5
+      else
+       res_BK=0.d0 ! not defined
+      endif
 
       il_old=l_
       do 230 il=1,lrz
@@ -722,18 +731,34 @@ c     rovsc*0.706/0.93=Connor asymptotic, as eps==>1.
  230  continue
  9231 format(i3,1p9e11.3,1p1e13.5,1p1e11.3)
 
-      WRITE(*,*)'res_BK Braams-Karney normalization resistivity [cgs]=',
-     + res_BK, restp(nch(l_),1)
+      WRITE(*,*)'res_BK is Braams-Karney normalization resistivity[cgs]'
+      WRITE(*,*)'res_BK, restp=', res_BK, restp(nch(l_),1)
       if(restp(nch(l_),1).ne.0.) WRITE(*,*)
-     +  'Normalized conductivity: sigma_code/sigma_BK=',
+     +  'Normalized conductivity: res_BK/restp==sigma_code/sigma_BK=',
      + res_BK/restp(nch(l_),1)
+     
+      WRITE(*,*)'See [Braams-Karney Phys.Fluids B1 (7) (1989)] '
+      WRITE(*,*)'or Franz Thesis (Ch.3/p.61)'
+      WRITE(*,*)'The normalization of conductivity is done with'
+      WRITE(*,*)
+     &' sigma_BK= (T[kev]*ergtkev)^1.5/[sqrt(m_e)*4*pi*e^2 *ln(L)*Zeff]'
+      WRITE(*,*)'which is related to the sigma_spitzer as'
+      WRITE(*,*)' sigma_BK= sigma_spitzer/(16*sqrt(2)/3), '
+      WRITE(*,*)'[where (16*sqrt(2)/3) ~~ 7.54 ] '
+      WRITE(*,*)'except at large Zeff, where sigma_spitzer has'
+      WRITE(*,*)'dependence on Zeff as  '
+      WRITE(*,*)' sigma_spitzer~ 0.5064/[Zeff*(0.29+0.46/(1.08+Zeff))]'
+      WRITE(*,*)'while sigma_BK~ 1/Zeff'
+     
+     
+      if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
       do ktot1=1,ntotal
       do ktot2=1,ntotal
         WRITE(*,*)'k1,k2, ln(Lambda)==gama(k1,k2)=', 
      +             ktot1,ktot2,  gama(ktot1,ktot2)
       enddo
       enddo
-
+      endif
 c%OS  
       WRITE(*,99)
       WRITE(*,*)'For explanation of following table, see tdoutput.f'
@@ -792,7 +817,7 @@ c%OS
         !-YuP: added: evolution of resistivity for first flux surface [cgs]
         WRITE(6,9235) (il,restp(il,1) ,il=l,min(l+7,nch(1))) 
  231  continue
- 9235 format(8(i3,":",1pe11.4))
+ 9235 format(8(i5,":",1pe11.4))
 
 c     Print out electric field iterations:
       if (efiter.eq."enabled") then
@@ -892,13 +917,13 @@ c.......................................................................
      1    ,l=1,lrors)
  250  continue
  9250 format(//," Component by component power flow:",5x,
-     +  "general species nr: ",i2,/,1x,34("="),//,
+     +  "general species nr: ",i3,/,1x,34("="),//,
      +  " l  coll. to    Ohmic   coll. to  RF drive  ion part. ",
      +  "loss-      losses    runaway synchrot. set negat. phenomen."
      +  ,"    total",/
      +  "    Maxw e/ion  drive   gene. sp.            source   ",
      +  "lossmode   torloss   losses  radiation f to zero enrgy loss"
-     +  ,/,(i2,1pe11.3,10e10.3,e11.3,/,1pe13.3))
+     +  ,/,(i3,1pe11.3,10e10.3,e11.3,/,1pe13.3))
 
 c.......................................................................
 cl    2.6 Soft Xray diagnostic (from tdsxrplt)
@@ -952,3 +977,4 @@ c.......................................................................
 
       return
       end
+

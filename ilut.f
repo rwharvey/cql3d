@@ -1070,10 +1070,10 @@ c-----------------------------------------------------------------------
       end
 c----------------------------------------------------------------------- 
 
-      double precision function dnrm2 ( n, dx, incx)
+      real*8 function dnrm2 ( n, dx, incx)
       integer          next
-cBH100826  double precision   dx(1), cutlo, cuthi, hitest, sum, xmax,zero,one
-      double precision   dx(*), cutlo, cuthi, hitest, sum, xmax,zero,one
+cBH100826  real*8   dx(1), cutlo, cuthi, hitest, sum, xmax,zero,one
+      real*8   dx(*), cutlo, cuthi, hitest, sum, xmax,zero,one
       data   zero, one /0.0d0, 1.0d0/
 c
 c     euclidean norm of the n-vector stored in dx() with storage

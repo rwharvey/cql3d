@@ -1,0 +1,100 @@
+git/cql3d/00_Cql3d_Regression_Tests/README_cql3d_tests
+
+Execute tests.sh with bash commands in ./tests.sh.
+Type ./tests.sh, or scrape each test sequence into the terminal.
+Can compare results with the runs in test_results_yymmdd.zip.
+
+test1.0/test1.1   Dreicer runaway electron rates
+===============
+Runaway calculation, for comparison with Kulrud,Sun et al.,  PRL (1973)
+Derated grids.  Careful comparison might use iy=200, jx=300, taking ~10X
+longer.
+test1.0 gives some time evolution of the distn.  (cpu 3.2s)
+test1.1 gives final result, using very large time step.  (cpu=1.3s)
+
+(Started from 
+/home/bobh/cql3d/TEST_CASES_CQL3D/runaway_kulsrud/201001_multi-flux-surface/\
+cqlinput_eoved_.16_multi-flux-surface0.2.1_uptd)
+
+
+test2   Ohmic resistivity
+=====
+
+Comparison of DC toroidal electric field resistivity with
+various formulas in the literature is shown the screen
+dump file, log.
+See
+resist_phi=Resistivity, calc'd from distn
+                              fnctn results
+           =<E_phi/R>/<j_phi/R>, toroidal resistivity
+and discussion there giving comparisons.  CQL3D calculates
+the neoclassical (low collisionality) resistivity across
+a full range of epsilon=rho/R=(0.,1.), and probably is
+capable of greater accuracy than simi-analytic methods.
+Relevant references are given the the cql3d source.
+
+A constant Etor toroidal electric field across the
+radial cross-section gives neoclassical current density and conductivity
+versus radius rho, in the low-collisionality regime modeled with CQL3D.
+See log_test2
+If the grids and time steps are scaled up from present iy=100,jx=100,lrz=11,
+nstop=2,  then cpu time scales up roughly as iy**2*jx*lrz*nstop.
+
+test3  One ray DIII-D test case, D3D_96143_one_ray (slightly adjusted)
+=====
+
+Low power (0.5 W) for comparison with linear calculation of the ECCD.
+This uses the old, text ray data input. See rayech. Self-documenting
+netcdf files are generally used now (see cqlinput_help:rftype/rffile).
+[Can increase the EC power using pwrscale factor, to get QL effects.
+Might also need to increase enorm.]
+The pltlimm=0.2 namelist variable is used so that plots versus u/vnorm
+only include normalized momentum-per-mass to 0.2, to focus on the 
+lower velocity region.  QL B0 diffusion coefficient, and velocity
+space flux vectors are plotted for several radii.  Damping is included
+due to the 2nd and 3rd harmonic interactions (nharm1=2, nharms=2).
+
+test4  EBW test case with disk-to_disk launch or rays
+=====
+Test case for CD with EBW, which is propagated into MASTU
+through O-X-B conversion.
+The rays from genray (test10) are launched from a disk, using 
+raypatt='diskdisk'.
+The O-X conversion occurs at the omega=omega_pe layer.
+The effect of an exponential drop-off density profile outside the LCFS 
+is included using the new option istep_in_lcfs=0 in genray.in.
+istep_in_lcfs=0 means: Start ray-tracing directly from {rst,zst} even
+if it is far outside of the LCFS, until omega=omegape is encountered. 
+That is, there no stepping along the straight-line ray characteristic 
+from rst,zst until inside LCFS, as in the prior istep_in_lcfs=1 (the default) 
+model. 
+
+The ray data for this run is obtained in the companion 
+git/genray/test10 test run.
+
+
+
+test5
+=====
+test_multiURF_multiSpecies: A DIII-D test case.
+			    Two general species: D, H. NB injection. 
+                            Two FW input file, operating separately on D and H.
+cqlinput_H0.short_mmsv8_adjust.4
+Uses eqdsk file g122080.03100, and RF genray data from genrayfw_18rays.nc.
+An extensive test with two general species of ions, H and D. This is for a 
+DIIID case where primarily there was a D NB into D plasma.  Also, FW
+ICRF heating.  But, a small amount of H was also present in the discharges.
+The consequent heating of H and D is to be examined.
+This is a shortened run from the actual study cases, so full runs would
+use larger lrz,iy,jx,nstop,nplot,nplt3d.
+cpu=12.6sec.
+
+(Ref run in: D3D_ngen2_urf_NBI_H.short_rerun_201018)
+
+
+See /home/bobh/cql3d/cql3d_cvs/code/cql3d_cswim_svn/00_cql3d_Regression_Tests_basic_w_older_runs/README
+
+
+
+Results from these tests can be compared with those given in
+git/cql3d/00_Cql3d_Regression_Tests/test_results/

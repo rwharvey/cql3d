@@ -578,7 +578,8 @@ c..................................................................
         asor(k,1,lr_)=asorz(k,1,lr_)*scalfact*tr3(ll)
         xlncur(k,lr_)=asor(k,1,lr_)*zmaxpsi(lr_)
         xlncurt(lr_)=xlncur(k,lr_)
-        call sourcpwr(k)
+        call sourcpwr(k) !YuP[2020] Maybe no need to call here. 
+                         !It is also called later from achiefn-->sourcee
         call tdtoaray
  300  continue
 

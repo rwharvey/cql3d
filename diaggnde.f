@@ -193,11 +193,11 @@ cBH180531:  Following wpar/wperp (diaggnde2 also) needs clarification..
           wpar(k,lr_)=wpar_*fions(k)/hn
           wperp(k,lr_)=wperp_*fions(k)/hn
         endif
-CMPIINSERT_IF_RANK_EQ_0   
-        write(*,*)
-     + 'diaggnde: k,lr_,l_,en,hn,fions(k),energym(k,l_),energy(k,lr_)',
-     +            k,lr_,l_,en,hn,fions(k),energym(k,l_),energy(k,lr_)
-CMPIINSERT_ENDIF_RANK
+cCMPIINSERT_IF_RANK_EQ_0   
+c        write(*,*)
+c     + 'diaggnde: k,lr_,l_,en,hn,fions(k),energym(k,l_),energy(k,lr_)',
+c     +            k,lr_,l_,en,hn,fions(k),energym(k,l_),energy(k,lr_)
+cCMPIINSERT_ENDIF_RANK
 
 c..................................................................
 c     At timet=0. scale the
@@ -230,10 +230,12 @@ c..................................................................
           if (cqlpmod .eq. "enabled") zfact=gni*denpar(k,ls_)
 
 CMPIINSERT_IF_RANK_EQ_0   
+          if (ioutput(1).ge.1) then !YuP[2020] Useful diagnostic printout
           WRITE(*,*)'----------------------- lr_===', lr_
           WRITE(*,'(a,i4,3e12.4)')
      +     'diaggnde_n=0 lr_, reden, gn, sum_ij(gone)',
      +                   lr_,reden(k,lr_),gn,sum(gone(1:iy,1:jx,k,lr_))
+          endif
 CMPIINSERT_ENDIF_RANK
      
           if ( (nlrestrt.ne."disabled")
@@ -480,6 +482,21 @@ c$$$ 80     continue
            zeff4(lr_)=bnumb(k)**4*reden(k,lr_)+zeff4(lr_)
            zeff1=zeff1+bnumb(k)*reden(k,lr_)
  80     continue
+        !YuP[2020-06-22] if(gamafac.eq."hesslow".and.(kelec.ne.0))then
+        if(nstates.gt.0)then !YuP[2020-06-22] Changed the above logic to this.
+          ! If no suitable impurity is present 
+          ! (example: imp_type is set to 0 in cqlinput),
+          ! then nstates remains 0 ==> Effectively, no impurities.
+          ! This logic is more general.
+          ! Add ions from impurities, all charge states
+          do kstate=1,nstates ! Now additional ions from impur.source.
+           dens_kstate=dens_imp(kstate,lr_)
+           xq=xq+1
+           zeff(lr_)= zeff(lr_) +dens_kstate*bnumb_imp(kstate)**2
+           zeff4(lr_)=zeff4(lr_)+dens_kstate*bnumb_imp(kstate)**4
+           zeff1=     zeff1     +dens_kstate*bnumb_imp(kstate)            
+          enddo ! kstate
+        endif ! nstates.gt.0
         
       elseif (izeff.eq."ion") then
          do kk=1,nionm
@@ -491,8 +508,7 @@ c$$$ 80     continue
          enddo
          
       else
-         write(*,*) 'Problem with izeff specification'
-         stop
+         stop 'diaggnde: Problem with izeff specification'
       endif
       
       zeff4(lr_)=zeff4(lr_)/xq

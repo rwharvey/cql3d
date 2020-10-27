@@ -59,9 +59,11 @@ c..............................................................
         lpt(ii)=lpt(i)
  100  continue
 
+      if (ioutput(1).ge.2) then !YuP[2020] diagnostic printout
       write(*,*)'tdtrflg:  iytr(1:lrors)=',iytr(1:lrors)
       write(*,*)'tdtrflg:  l_lower(1:iytr)=',l_lower(1:iytr(lrors))
       write(*,*)'tdtrflg:  lpt(1:iytr)=',lpt(1:iytr(lrors))
+      endif
 c.......................................................................
 c     initialize coefficients for v to r velocity meshes transformation
 c.......................................................................

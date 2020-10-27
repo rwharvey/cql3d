@@ -23,7 +23,9 @@ c.......................................................................
       endif
       if (numclas .eq. 1) ilzhfs=lz/2+1
 
+      if (ioutput(1).ge.2) then !YuP[2020] diagnostic printout
       write(*,*)'tdtry:  ipacktp =',ipacktp
+      endif
 
       if (cqlpmod .ne."enabled") then
         zsntrp2=1./bbpsi(ilzhfs,lr_)

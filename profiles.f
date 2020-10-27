@@ -18,29 +18,140 @@ CMPIINSERT_INCLUDE
       dimension rban_vth(lrzmax) ! for print-out
       character*8 ztext
 
-      if (nbctime.le.0) return
-
-      itab(1)=1
-      itab(2)=0
-      itab(3)=0
-
-      if (tmdmeth.eq."method1") then
+      if (nbctime.gt.0) then
+        if (tmdmeth.eq."method1") then
          itme=0
          do jtm=1,nbctime
             if (timet.ge.bctime(jtm)) itme=jtm
          enddo
          itme1=itme+1
+        endif
+        ! and continue
+      elseif(iprote.eq.'prb-expt' .or. iproti.eq.'prb-expt'
+     &   .or.iprote.eq.'spl-expt' .or. iproti.eq.'spl-expt'
+     &                                                   )then
+        !Here: nbctime= 0 which means none of profiles 
+        ! is set as 'spline-t' or 'prbola-t',
+        ! but Te profile is in decay mode:
+        ! T(t)= Tend +(T(tstart)-Tend)*exp(-(t-tstart)/tau) for electrons or ions.
+        ! where exp(-(t-tstart)/tau)  is applied only at t.ge.tstart.
+        ! See H.M.Smith and E.Verwichte, PoP vol.15, p.072502, (2008),
+        ! Eqn.(7).
+        ! Update Te profile, then update vth() (further below in this subr)
+        continue
+      else
+        return
       endif
+
+      itab(1)=1
+      itab(2)=0
+      itab(3)=0
+
 
 c     Temperatures
 
 
-         
-      if (iprote.eq."prbola-t") then
+      !YuP[2019-09-18] added [[
+      if (iprote.eq.'prb-expt' .or. iprote.eq.'spl-expt') then 
+         do k=1,ntotal
+         if (k.eq.kelecg .or. k.eq.kelecm) then
+            ! or if(bnumb(k).eq.-1.)then
+          !Note: parabolic Te(rho) profiles, 
+          ! in cases of iprote= "parabola" or 'prb-expt' ,
+          ! were setup in tdxinit
+          ! based on values of temp(k,lr=0) and temp(k,1) in cqlinput,
+          ! and using:
+          ! call tdxin13d(temp,rya,lrzmax,ntotala,k,npwr(k),mpwr(k))
+          !Here, we simply multiply them by time-dependent exponent.
+          ! T(t)= Tend +(T(tstart)-Tend)*exp(-(t-tstart)/tau) for electrons.
+          ! where exp(-(t-tstart)/tau)  is applied only at t.ge.tstart.
+          ! See H.M.Smith and E.Verwichte, PoP vol.15, p.072502, (2008),
+          ! Eqn.(7).
+          ! temp_expt_Tend=0.010d0 ![keV] final(ending) Tend after cooling.
+          ! temp_expt_tau0= 3.0d-3  ![sec]slow decay time of Te(t) 
+          ! temp_expt_tau1= 0.1d-3  ![sec]fast decay time of Te(t)(for Thermal Quench)
+          ! temp_expt_tstart(1:lrz)=0.d0  ![sec] tstart in the above Eqn.
+          ! In case of pellet='enabled', it will be calculated during run
+          ! to match the pellet position.
+          do ll=1,lrz 
+            if( timet.ge.temp_expt_tstart(ll)  
+!     &          .and. dMpellet_dvol_sum(ll).gt.em100      
+     &         )then
+              !Pellet reached the surface ll. 
+              !Fast drop of T with tau=temp_expt_tau1
+              expt= exp(-(timet-temp_expt_tstart(ll))/temp_expt_tau1)
+              temp(k,ll)= temp_expt_Tend +
+     &                   (temp_expt_T1(k,ll)-temp_expt_Tend)*expt
+              !scatfrac=0.d0 !YuP[2020-05-01] Just to try: 
+              !disable pitch-angle scattering when T starts dropping
+            elseif(imp_depos_method.eq.'pellet' 
+     &       .and. timet.gt.pellet_tstart ) then
+              !Pellet did not reach surface ll. But pellet is launched.
+              !Start a slow collapse of T profile (with tau=temp_expt_tau0).
+              !Keep saving temp() until the "Fast drop" section is started:
+              temp_expt_T1(k,ll)=temp(k,ll) !Save T for the start of fast drop
+              expt= exp(-(timet-pellet_tstart)/temp_expt_tau0)
+              temp(k,ll)= temp_expt_Tend +
+     &                   (temp_expt_T0(k,ll)-temp_expt_Tend)*expt
+            endif
+            !write(*,*)'profiles:temp(k,ll)=',n,temp(k,ll)
+          enddo ! ll 
+         endif ! k.eq.kelecg .or. k.eq.kelecm
+         enddo ! k
+      endif ! iprote='prb-expt'  !YuP[2019-09-18] added ]]
 
+      !YuP[2019-09-18] added [[
+      if (iproti.eq.'prb-expt' .or. iproti.eq.'spl-expt') then
+         do k=1,ntotal
+         if((k.ne.kelecg) .and. (k.ne.kelecm))then !ions
+           !Or if (bnumb(k).ne.-1.) then
+          !Note: parabolic Ti(rho) profiles, 
+          ! in cases of iproti= "parabola" or 'prb-expt' ,
+          ! were setup in tdxinit
+          ! based on values of temp(k,lr=0) and temp(k,1) in cqlinput,
+          ! and using:
+          ! call tdxin13d(temp,rya,lrzmax,ntotala,k,npwr(k),mpwr(k))
+          !Here, we simply multiply them by time-dependent exponent.
+          ! T(t)= Tend +(T(tstart)-Tend)*exp(-(t-tstart)/tau) .
+          ! where exp(-(t-tstart)/tau)  is applied only at t.ge.tstart.
+          ! See H.M.Smith and E.Verwichte, PoP vol.15, p.072502, (2008),
+          ! Eqn.(7).
+          ! temp_expt_Tend=0.010d0 ![keV] final(ending) Tend after cooling.
+          ! temp_expt_tau0= 3.0d-3  ![sec]slow decay time of Te(t) 
+          ! temp_expt_tau1= 0.1d-3  ![sec]fast decay time of Te(t)(for Thermal Quench)
+          ! temp_expt_tstart(1:lrz)=0.d0  ![sec] tstart in the above Eqn.
+          ! In case of pellet='enabled', it will be calculated during run
+          ! to match the pellet position.
+          do ll=1,lrz 
+            if( timet.ge.temp_expt_tstart(ll)  
+!     &          .and. dMpellet_dvol_sum(ll).gt.em100      
+     &         )then
+              !Pellet reached the surface ll. 
+              !Fast drop of T with tau=temp_expt_tau1
+              expt= exp(-(timet-temp_expt_tstart(ll))/temp_expt_tau1)
+              temp(k,ll)= temp_expt_Tend +
+     &                   (temp_expt_T1(k,ll)-temp_expt_Tend)*expt
+              !scatfrac=0.d0 !YuP[2020-05-01] Just to try: 
+              !disable pitch-angle scattering when T starts dropping
+            elseif(imp_depos_method.eq.'pellet'
+     &        .and. timet.gt.pellet_tstart ) then
+              !Pellet did not reach surface ll. But pellet is launched.
+              !Start a slow collapse of T profile (with tau=temp_expt_tau0).
+              !Keep saving temp() until the "Fast drop" section is started:
+              temp_expt_T1(k,ll)=temp(k,ll) !Save T for the start of fast drop
+              expt= exp(-(timet-pellet_tstart)/temp_expt_tau0)
+              temp(k,ll)= temp_expt_Tend +
+     &                   (temp_expt_T0(k,ll)-temp_expt_Tend)*expt
+            endif
+          enddo ! ll 
+         endif ! k.ne.kelecg .and. k.ne.kelecm
+         enddo
+      endif ! iproti='prb-expt'  !YuP[2019-09-18] added ]]
+      
+         
+      if (nbctime.gt.0 .and. iprote.eq."prbola-t") then
          do 5 k=1,ntotal
             if (tmdmeth.eq."method1") then
-            
                if (itme.eq.0) then
                   temp(k,0)=tempc(1,k)
                   temp(k,1)=tempb(1,k)
@@ -55,23 +166,17 @@ c     Temperatures
                   temp(k,0)=tempc(nbctime,k)
                   temp(k,1)=tempb(nbctime,k)
                endif
-
                !YuP: called later: call tdxin13d(temp,rya,lrzmax,ntotala,k,npwr(k),mpwr(k))
-
             elseif (tmdmeth.eq."method2")  then
-
                temp(k,0)=tdprof(timet,tempc(1,k),bctime)
                temp(k,1)=tdprof(timet,tempb(1,k),bctime)
-
             endif
-
             call tdxin13d(temp,rya,lrzmax,ntotala,k,npwr(k),mpwr(k))
-            
  5       continue
       endif ! iprote=prbola-t
 
 
-      if (iprote.eq."spline-t") then
+      if (nbctime.gt.0 .and. iprote.eq."spline-t") then
 
 c        Electron temperature
 
@@ -80,10 +185,10 @@ c        Electron temperature
                tmpt(l)=tein_t(l,1)
             enddo
          elseif (itme.lt.nbctime) then
-         do l=1,njene
-            tmpt(l)=tein_t(l,itme)+(tein_t(l,itme1)-tein_t(l,itme))
+            do l=1,njene
+               tmpt(l)=tein_t(l,itme)+(tein_t(l,itme1)-tein_t(l,itme))
      +               /(bctime(itme1)-bctime(itme))*(timet-bctime(itme))
-         enddo
+            enddo
          else
             do l=1,njene
                tmpt(l)=tein_t(l,nbctime)
@@ -92,17 +197,23 @@ c        Electron temperature
 
          do 16  k=1,ntotal
             if(bnumb(k).eq.-1.)  then
-               call tdinterp("zero","free",ryain,tmpt,njene,rya(1),
+               call tdinterp("zero","linear",ryain,tmpt,njene,rya(1),
      +              tr(1),lrzmax)
                tr(0)=tmpt(1)
                do 19  ll=0,lrzmax
                   temp(k,ll)=tr(ll)
- 19            continue
+                  if(temp(k,ll).le.0.001)then ! rarely happens
+CMPIINSERT_IF_RANK_EQ_0
+                   WRITE(*,*)'WARNING: temp<0.001.  tmpt(1:njene)=',tmpt
+                   WRITE(*,*)'temp<0.001.  temp(k,ll)=',k,ll,temp(k,ll)
+CMPIINSERT_ENDIF_RANK  
+                  endif
+ 19            continue ! ll
             endif
- 16      continue
+ 16      continue ! k
       endif ! iprote=spline-t
 
-      if (iproti.eq."spline-t") then
+      if (nbctime.gt.0 .and. iproti.eq."spline-t") then
 c        Ion temperatures
          if (itme.eq.0) then
             do l=1,njene
@@ -121,7 +232,7 @@ c        Ion temperatures
 
          do 26  k=1,ntotal
             if(bnumb(k).ne.-1.)  then
-               call tdinterp("zero","free",ryain,tmpt,njene,rya(1),
+               call tdinterp("zero","linear",ryain,tmpt,njene,rya(1),
      +              tr(1),lrzmax)
                tr(0)=tmpt(1)
                do 29  ll=0,lrzmax
@@ -131,29 +242,55 @@ c        Ion temperatures
  26      continue
       endif  ! (iproti.eq."spline-t")
             
-      if (tempc(1,kelec).eq.zero .and. tein_t(1,1).eq.zero) then
-         WRITE(*,*) "Time-dependent Te profile input problem"
-         STOP
-      endif
-
-c     Assume any time dep in tempc is is first ion species.            
-      if (tempc(1,kionn).eq.zero .and. tiin_t(1,1).eq.zero) then
-         WRITE(*,*) "Time-dependent Ti profile input problem"
-         STOP
-      endif
+         !YuP[2019-09-18] Moved this check (of T<0) from profiles.
+         ! to ainsetva.
+         !Need to check just once, before start of simulation
+!      do it=1,nbctime      
+!      if (tempc(it,kelec).le.zero .and. tein_t(1,it).le.zero) then
+!         WRITE(*,*) "Time-dependent Te profile input problem at it=",it
+!         STOP
+!      endif
+!      enddo
+!
+!c     Assume any time dep in tempc is in first ion species.    
+!      do it=1,nbctime
+!      if (tempc(it,kionn).le.zero .and. tiin_t(1,it).le.zero) then
+!         WRITE(*,*) "Time-dependent Ti profile input problem at it=",it
+!         STOP
+!      endif
+!      enddo
 
 c     Renormalize temperatures using tescal/tiscal
-      do k=1,ntotal
-         if (bnumb(k).eq.-1.) then
+      !Note: in case of 'prb-expt' .or. 'spl-expt' - No need to rescale.
+      ! Already done in tdxinitl, at n=0
+      if (iprote.eq.'prbola-t' .or. iprote.eq.'spline-t') then
+        do k=1,ntotal
+         if (bnumb(k).eq.-1.) then ! electrons
             do l=0,lrzmax
                temp(k,l)=tescal*temp(k,l)
             enddo
-         else
+         endif
+        enddo ! k
+      endif ! (iprote.eq.'prbola-t' .or. iprote.eq.'spline-t')
+      
+      if (iproti.eq.'prbola-t' .or. iproti.eq.'spline-t') then
+        do k=1,ntotal
+         if (bnumb(k).ne.-1.) then ! ions
             do l=0,lrzmax
                temp(k,l)=tiscal*temp(k,l)
             enddo
          endif
-      enddo
+        enddo ! k
+      endif ! (iproti.eq.'prb-expt' .or. iproti.eq.'spl-expt')
+
+      do k=1,ntotal
+         do l=1,lrzmax
+            if (temp(k,l).le.zero) then
+              WRITE(*,*) "profiles.f: temp(k,l)<0 at k,l=",k,l
+              STOP
+            endif
+         enddo ! l
+      enddo ! k
 
 c..................................................................
 c     YuP[2018-01-05] Added resetting of vth() array in profiles.f.
@@ -169,6 +306,42 @@ c     tdoutput, and vlf*,vlh* subroutines].
            if (k .eq. kelec) vthe(l)=vth(kelec,l)
          enddo
       enddo
+      
+      !YuP [2018-09-18] Added warning, similar to micxinit
+      !Check that there are sufficient number of v-grid points  
+      !over thermal part of the distribution (at least 3 points).
+      ! If not, print warning.
+      if(n.gt.0)then ! skip it at n=0 (x(j) not defined yet)
+CMPIINSERT_IF_RANK_EQ_0
+      WRITE(*,'(a)')"==============================================="
+      WRITE(*,*)'profiles.f: time step n, timet=',n,timet
+CMPIINSERT_ENDIF_RANK  
+      do k=1,ngen
+      do l=1,lrzmax
+         j_thermal=1 ! to initialize
+         do j=jx,1,-1 ! scan backward
+           !write(*,*) j, vth(k,l)/vnorm, x(j)
+           if(vth(k,l) .le. x(j)*vnorm)then
+            j_thermal=j !it is such j that v(j_thermal) is just below vth()
+           endif
+         enddo
+CMPIINSERT_IF_RANK_EQ_0
+         WRITE(*,'(a,3i4,3f16.11)') 
+     +   "profiles: k,lr, j_thermal, x(j_thermal), vth/vnorm, temp =",
+     +         k, l, j_thermal, x(j_thermal), vth(k,l)/vnorm, temp(k,l)
+         if(j_thermal.lt.3)then
+           WRITE(*,'(a)')" WARNING(profiles.f): V-grid is too coarse."
+           WRITE(*,'(a)')" Thermal part of distrib. is covered by only"
+           WRITE(*,'(a,i5,a)')"    j=", j_thermal," points."
+           WRITE(*,'(a)')" The solution may become unstable."
+           WRITE(*,'(a)')" Consider increasing jx or setting xfac<1."
+           !pause !-------
+         endif
+CMPIINSERT_ENDIF_RANK  
+      enddo ! l=1,lrzmax 
+      enddo ! k=1,ngen
+      endif ! n>0
+      
 c     The energy() array, initially set as 1.5*temp() [see ainpla.f]
 c     is re-defined at each time step in subr. diaggnde
 c     as the m*v^2/2 average over distr.function in vel. space.
@@ -196,12 +369,33 @@ c..................................................................
       
 c     Densities and Zeff  (cf. subroutine tdxinitl)
       
-      if (iprone.eq."prbola-t") then
+      if (nbctime.gt.0 .and. iprone.eq."prbola-t") then
 
       do 11 k=1,ntotal
          
          if (iprozeff.ne."disabled" .and. 
      +           (k.ne.kelecg .and. k.ne.kelecm)) go to 11
+         
+         if((imp_depos_method.ne.'disabled') .and.
+     &      (k.eq.kelecg.or.k.eq.kelecm)           )then
+          !YuP[2020-06-24] Changed (gamafac.eq."hesslow") to (imp_depos_method.ne.'disabled')
+          !   [a more general logic]
+          !YuP[2019-12-06] There are two ways to adjust electron density:
+          ! 1. Assume that density of main ion species is not changed; 
+          !    then, electron density is set to sum_ni_Zi, see line~746.
+          ! 2. Assume that electron density is not changed
+          !   (or taken from the input list); 
+          !    then, reduce the density of main ions, 1st ionic species.
+          if(imp_ne_method.ne.'ne_list')then ! Option 1 in the above.
+            !YuP[2019-09-18] Skip electrons in this setup
+            !YuP[2019-09-18] Density of electrons and Zeff
+            ! will be calculated consistently:
+            ! ne will be found from reden() of ions(kion) and from 
+            ! dens_imp(kstate,lr) of additional ions (from pellet, etc.)
+            goto 11 !-> Option 1 in the above
+          endif ! (imp_ne_method.ne.'ne_list')
+          !Otherwise, continue with reden() below (iprone.eq.prbola-t)
+         endif ! imp_depos_method.ne.'disabled'
          
          if (redenc(1,k).ne.zero) then
                
@@ -241,12 +435,33 @@ c     Densities and Zeff  (cf. subroutine tdxinitl)
       endif  !On iprone.eq.prbola-t
 
 
-      if (iprone.eq."spline-t") then  !endif at line 245
-
+      if (nbctime.gt.0 .and. iprone.eq."spline-t") then  !endif at l 466
 
       do  k=1,ntotal
          if (iprozeff.ne."disabled" .and. 
      +           (k.ne.kelecg .and. k.ne.kelecm)) go to 12
+     
+         if((imp_depos_method.ne.'disabled') .and.
+     &      (k.eq.kelecg.or.k.eq.kelecm)           )then
+          !YuP[2020-06-24] Changed (gamafac.eq."hesslow") to (imp_depos_method.ne.'disabled')
+          !   [a more general logic]
+          !YuP[2019-12-06] There are two ways to adjust electron density:
+          ! 1. Assume that density of main ion species is not changed; 
+          !    then, electron density is set to sum_ni_Zi, see line~746.
+          ! 2. Assume that electron density is not changed
+          !   (or taken from the input list); 
+          !    then, reduce the density of main ions, 1st ionic species.
+          if(imp_ne_method.ne.'ne_list')then ! Option 1 in the above.
+            !YuP[2019-09-18] Skip electrons in this setup
+            !YuP[2019-09-18] Density of electrons and Zeff
+            ! will be calculated consistently:
+            ! ne will be found from reden() of ions(kion) and from 
+            ! dens_imp(kstate,lr) of additional ions (from pellet, etc.)
+            goto 12 !-> Option 1 in the above
+          endif ! (imp_ne_method.ne.'ne_list')
+          !Otherwise, continue with reden() below (iprone.eq.spline-t)
+         endif ! (imp_depos_method.ne.'disabled')
+     
          if (enein_t(1,k,1).ne.zero) then
 
             if (itme.eq.0) then
@@ -265,7 +480,7 @@ c     Densities and Zeff  (cf. subroutine tdxinitl)
             enddo
             endif
             
-            call tdinterp("zero","free",ryain,tmpt,njene,
+            call tdinterp("zero","linear",ryain,tmpt,njene,
      +           rya(1),tr(1),lrzmax)
             tr(0)=tmpt(1)
             do 13 ll=0,lrzmax
@@ -279,16 +494,21 @@ c     Densities and Zeff  (cf. subroutine tdxinitl)
  12      continue
       enddo  !On k
 
-      endif  !On iprone.eq.spline-t
+      endif  !On iprone.eq.spline-t, l 419
+      
       
 c     Finish up with zeff and ions if iprozeff.ne."disabled"
-      if (iprozeff.ne."disabled") then  !endif at line 406
-         if (iprozeff.eq."prbola-t") then
-            
-            if (zeffc(1).ne.zero) then
-               
-               if (tmdmeth.eq."method1") then
+      if (iprozeff.ne."disabled") then  !endif at line 724
 
+         if(nbctime.gt.0 .and. iprozeff.eq."curr_fit")then ![2019-10-31]  to l 557
+           !YuP[2019-10-31] Renormalize zeff() in such a way that 
+           !current from FPE solution would match the target current, 
+           !which is set in totcrt(1:nbctime) in cqlinput.
+           !But first, set initial zeff(), similar to iprozeff.eq.
+           !"prbola-t", unless has been restored for a restart case.
+           if(n.eq.0.and.nlrestrt.eq."disabled")then ! Set initial zeff(ll).
+            if (zeffc(1).ne.zero) then
+               if (tmdmeth.eq."method1") then
                   if (itme.eq.0) then
                      zeffin(0)=zeffc(1)
                      zeffin(1)=zeffb(1)
@@ -303,24 +523,156 @@ c     Finish up with zeff and ions if iprozeff.ne."disabled"
                      zeffin(0)=zeffc(nbctime)
                      zeffin(1)=zeffb(nbctime)
                   endif
-
                elseif (tmdmeth.eq."method2") then
-
                   zeffin(0)=tdprof(timet,zeffc(1),bctime)
                   zeffin(1)=tdprof(timet,zeffb(1),bctime)
-                  
                endif  !On tmdmeth
-               
             endif  !On zeffc(1)
-            
-            dratio=zeffin(1)/zeffin(0)
+            !YuP dratio=zeffin(1)/zeffin(0)
+            e0=zeffin(0) !YuP[2019-12-29]
+            e1=zeffin(1) !YuP[2019-12-29]
             do ll=1,lrzmax
-               call profaxis(rn,npwrzeff,mpwrzeff,dratio,rya(ll))
-               zeff(ll)=zeffin(0)*rn
+               !YuP call profaxis(rn,npwrzeff,mpwrzeff,dratio,rya(ll))
+               !YuP zeff(ll)=zeffin(0)*rn
+               call profaxis1(e_out,npwrzeff,mpwrzeff,e0,e1,rya(ll)) !YuP[2019-12-29]
+               zeff(ll)=e_out !YuP[2019-12-29]      
             enddo
+           endif !(n.eq.0.and.nlrestrt.eq."disabled") !init zeff(ll) is set.
 
-         elseif (iprozeff.eq."spline-t") then
+           !If nbctime.gt.0, and this is a restart case, then for
+           !iprozeff.eq."curr_fit, need to restore the zeff(ll)
+           !from end of the previous run (from distrfunc.nc).
+           !if(n.eq.0.and.nlrestrt.eq."ncdfdist")then
+           !   call tdreadf(3)  !kopt=3 restores zeff profile
+           !endif  !On n.eq.0.and.nlrestrt.eq."ncdfdist"
+           !YuP[2020-02-11] Moved this part to tdinitl
+           
+           ! For any n step:
+           if(totcrt(1).ne.zero)then !determine the target current at this n
+            if (itme.eq.0) then
+               totcurtt=totcrt(1)
+            elseif (itme.lt.nbctime) then
+               totcurtt=totcrt(itme)+(totcrt(itme1)-totcrt(itme))
+     1              /(bctime(itme1)-bctime(itme))
+     1              *(timet-bctime(itme))
+            else
+               totcurtt=totcrt(nbctime)
+            endif
+            ! Find total current from recent FPE solution
+            currxjtot=0.d0
+            bscurr_tot=0.d0
+            do ll=1,lrzmax
+              currxj(ll)=currtp(ll)/3.e9 !A/cm2, <jpar>_FSA, calc in diaggnde
+              !YuP[2019-12-27] Also add 
+              !  currpar_starnue_n(ll)-currpar_starnue0_n(ll)
+              !It is "missed" in solution of FPE. See tddiag.f
+              curr_add= currpar_starnue_n(ll)-currpar_starnue0_n(ll) !A/cm^2
+              !Also consider the bootstrap current:
+              bscurr_tot= bscurr_tot+darea(ll)*bscurm_n(ll) !bootstrap [A]
+              !Do not include bootstrap current here - 
+              ! it is not linearly dependent on Zeff;
+              ![see functions like sa31, f32ee, f32ei - 
+              ! they have a complicated non-linear dependence on zz].
+              !Instead, subtract it from the target current totcurtt, below.
+              !The adjustment of Zeff (see below) is based on assumption that
+              !the main current depends on Zeff through Ip ~ Te^1.5/Zeff;
+              !so basically it is adjusted as 
+              ! Zeff_new/Zeff_old= currxjtot/Target_current
+              !If the calculated current "currxjtot" is larger than
+              !the target current, it is "suppressed" at next time step 
+              !by a proportionally larger Zeff_new.
+              currxjtot=currxjtot+darea(ll)*(currxj(ll)+curr_add) ! [Amps]
+             !Note: at n=0, at very 1st call to profiles.f, 
+             !darea is not defined yet [it is set in tdrmshst],
+             ! and so currxjtot remains 0.
+             !At n=0 sub.profiles is called from sub.tdinitl
+             !BEFORE tdrmshst. 
+             !But then sub.profiles is called again at n=0, 
+             ! from tdchief[Line~575], just before call_achiefn(0).
+             !At the latter call, darea is defined.
+!--CMPIINSERT_IF_RANK_EQ_0
+!--             WRITE(*,*)'profiles: n,ll,currxj(ll),currxjtot',
+!--     &        n,ll,currxj(ll),currxjtot
+!--CMPIINSERT_ENDIF_RANK
+            enddo ! ll
+!--CMPIINSERT_IF_RANK_EQ_0
+!--            WRITE(*,*)'profiles: n, Target current totcurtt=',n,totcurtt
+!--CMPIINSERT_ENDIF_RANK
+            
+            if( (n.gt.0).and.(currxjtot.ne.zero) .and. 
+     &          (totcurtt-bscurr_tot.ne.zero) )then 
+              !Target current (reduced by bs current)= totcurtt-bscurr_tot
+              !YuP[2019-12-27] 
+              !YuP[2020-02-11] Added n>0 condition. At n=0, currtp() is unknown
+              renorm= (totcurtt-bscurr_tot)/currxjtot 
+              do ll=1,lrzmax
+                zeff(ll)=zeff(ll)/renorm ! Note that Ip ~ Te^1.5/Zeff
+                zeff(ll)=max(zeff(ll),1.d0) ! Cannot be lower than 1.0
+                currxj(ll)=currxj(ll)*renorm
+                currtp(ll)=currtp(ll)*renorm
+                currpar_starnue_n(ll)=currpar_starnue_n(ll)*renorm !YuP[2019-12-27] 
+                currpar_starnue0_n(ll)=currpar_starnue0_n(ll)*renorm
+              !Note: we also renormalize currxj() so that if subr.profiles
+              !is called again at the same time step,
+              !the value of currxjtot would be totcurtt, and then 
+              !renorm=1, so that zeff() would NOT be rescaled again.
+              enddo
+!CMPIINSERT_IF_RANK_EQ_0
+!            do ll=1,lrzmax
+!            write(*,'(a,3i4,3e11.3)')
+!     &          'profiles: n,itme,ll,currxjtot,zeff,currxj',
+!     &           n,itme,ll,currxjtot,zeff(ll),currxj(ll)
+!            enddo
+!CMPIINSERT_ENDIF_RANK  
+            endif ! currxjtot.ne.zero
+           endif ! totcrt(1).ne.zero
+!             write(*,*)'---profiles: n,n_(lrors),
+!     &       renorm',n,n_(lrors),renorm,currxjtot
+             !pause
+           ! The question now is - How to deal with densities?
+           ! Presently, it is setup to keep n_e unchanged,
+           ! and adjust the ion densities (example: reduce D+ density,
+           ! but increase density of impurity, to keep n_e unchanged).
+           ! Another approach would be to increase density of impurity,
+           ! and to increase density of electrons accordingly,
+           ! while the density of D+ remains unchanged.
+         endif ! iprozeff.eq."curr_fit"  ![2019-10-31]new
+         
 
+         if (nbctime.gt.0 .and. iprozeff.eq."prbola-t") then
+            if (zeffc(1).ne.zero) then
+               if (tmdmeth.eq."method1") then
+                  if (itme.eq.0) then
+                     zeffin(0)=zeffc(1)
+                     zeffin(1)=zeffb(1)
+                  elseif (itme.lt.nbctime) then
+                     zeffin(0)=zeffc(itme)+(zeffc(itme1)-zeffc(itme))
+     +                    /(bctime(itme1)-bctime(itme))
+     +                    *(timet-bctime(itme))
+                     zeffin(1)=zeffb(itme)+(zeffb(itme1)-zeffb(itme))
+     +                    /(bctime(itme1)-bctime(itme))
+     +                    *(timet-bctime(itme))
+                  else
+                     zeffin(0)=zeffc(nbctime)
+                     zeffin(1)=zeffb(nbctime)
+                  endif
+               elseif (tmdmeth.eq."method2") then
+                  zeffin(0)=tdprof(timet,zeffc(1),bctime)
+                  zeffin(1)=tdprof(timet,zeffb(1),bctime)
+               endif  !On tmdmeth
+            endif  !On zeffc(1)
+            !YuP dratio=zeffin(1)/zeffin(0)
+            e0=zeffin(0) !YuP[2019-12-29]
+            e1=zeffin(1) !YuP[2019-12-29]
+            do ll=1,lrzmax
+               !YuP call profaxis(rn,npwrzeff,mpwrzeff,dratio,rya(ll))
+               !YuP zeff(ll)=zeffin(0)*rn
+               call profaxis1(e_out,npwrzeff,mpwrzeff,e0,e1,rya(ll)) !YuP[2019-12-29]
+               zeff(ll)=e_out !YuP[2019-12-29]      
+            enddo
+         endif ! iprozeff.eq."prbola-t"
+         
+         if (nbctime.gt.0 .and. iprozeff.eq."spline-t") then
                if (itme.eq.0) then
                   do l=1,njene
                      tmpt(l)=zeffin_t(l,1)
@@ -337,12 +689,12 @@ c     Finish up with zeff and ions if iprozeff.ne."disabled"
                      tmpt(l)=zeffin_t(l,nbctime)
                   enddo
                endif
-               call tdinterp("zero","free",ryain,tmpt,njene,rya(1),
+               call tdinterp("zero","linear",ryain,tmpt,njene,rya(1),
      +              tr(1),lrzmax)
                do  ll=1,lrzmax
                   zeff(ll)=tr(ll)
                enddo
-         endif
+         endif ! iprozeff.eq."spline-t"
 
 c     Scale zeff
          do ll=1,lrzmax
@@ -358,8 +710,10 @@ c     Check that range of bnumb for Maxl species brackets zeff
          enddo
          do 121 ll=1,lrzmax
             if(zeff(ll).gt.fmaxx .or. zeff(ll).lt.fminn) then
+CMPIINSERT_IF_RANK_EQ_0
                WRITE(*,*)'profiles.f: ',
      +              'Adjust bnumb(kion) for compatibility with zeff'
+CMPIINSERT_ENDIF_RANK  
                stop
             endif
  121     continue
@@ -426,9 +780,15 @@ c        For k beyond equal-bnumb species
          endif
          reden(k,0)=reden(kelec,0)*reden(k,0)*(zeff(1)
      +         -bnumb(k2))/(bnumb(k1)-bnumb(k2))/bnumb(k1)
+         !YuP: From the above, reden can be a small negative value,
+         !because of a rounding error. Add lower limit =0.d0
+         reden(k,0)=max(reden(k,0),zero) !YuP[2018-09-18] added
          do 142 ll=1,lrzmax
                reden(k,ll)=reden(kelec,ll)*reden(k,ll)*(zeff(ll)
      +              -bnumb(k2))/(bnumb(k1)-bnumb(k2))/bnumb(k1)
+            !YuP: From the above, reden can be a small negative value,
+            !because of a rounding error. Add lower limit =0.d0
+            reden(k,ll)=max(reden(k,ll),zero) !YuP[2018-09-18] added
  142     continue
          !write(*,*)'profiles:k1,k2=',k1,k2
          !write(*,*)'zeff=',zeff
@@ -449,19 +809,79 @@ c     in order of the indexes.
          enddo
          
          
-      endif  ! on iprozeff.ne."disabled"
+      endif  ! on iprozeff.ne."disabled", begin at l 470
       
+
 c     Renormalize densities using enescal
       do k=1,ntotal
          do l=0,lrzmax
-            reden(k,l)=enescal*reden(k,l)
+            reden(k,l)=enescal*reden(k,l) !ions are needed for next section
+            !For case of imp_depos_method.ne.'disabled',
+            ! the impurities (dens_imp(kstate,l))
+            ! are in cm-3 already, so the reden(kion,*) 
+            ! should also be in cm-3
          enddo
       enddo
+      
+      if((imp_depos_method.ne.'disabled').and.(kelec.ne.0))then
+        !YuP[2020-06-24] Changed (gamafac.eq."hesslow") to (imp_depos_method.ne.'disabled')
+        !   [a more general logic]
+        !YuP[2019-09-18] Density of electrons and Zeff
+        ! will be calculated consistently:
+        ! ne will be found from reden() of ions(kion) and from 
+        ! dens_imp(kstate,lr) of additional ions (from pellet, etc.)
+        do l=1,lrz
+          sum_ni_Zi=0.d0
+          do k=1,ntotal ! Sum up density of ions 'k', with proper Zk
+            if(k.eq.kelecg.or.k.eq.kelecm)then
+              ! skip electrons
+            else ! main ions - sum them up
+              sum_ni_Zi= sum_ni_Zi +reden(k,l)*bnumb(k) !from maxwellian ions
+            endif
+          enddo ! k
+          sum_nimp_zstate=0.d0 !To count electrons from impurity, all Zstates
+          do kstate=1,nstates !These are additional ions from impur.source.
+             sum_nimp_zstate= sum_nimp_zstate
+     &                       +dens_imp(kstate,l)*bnumb_imp(kstate)
+          enddo ! kstate
+          sum_ni_Zi= sum_ni_Zi +sum_nimp_zstate !total number of electrons.
+          !YuP[2019-12-06] There are two ways to adjust electron density:
+          ! 1. Assume that density of main ion species is not changed; 
+          !    then, electron density is set to sum_ni_Zi.
+          ! 2. Assume that electron density is not changed
+          !   (or taken from the input list); 
+          !    then, reduce the density of main ions, 1st ionic species:
+          kion1=kionm(1)
+          if(imp_ne_method.eq.'ne_list')then ! Option 2 in the above.
+          if(kion1.ne.0)then
+           !Remove contribution from kion1 species to total elec.count;
+           !It will be adjusted and then added back.
+           sum_ni_Zi= sum_ni_Zi - reden(kion1,l)*bnumb(kion1)
+           !Recalculate density of kion1 species: 
+           reden(kion1,l)=(reden(kelecm,l)-sum_nimp_zstate)/bnumb(kion1)
+           !It may happen that reden(kion1,l) from the above expression
+           ! is negative (too many electrons from impurity ions).
+           ! Then, set it to a small value and recalculate:
+           reden(kion1,l)= max(reden(kion1,l),1.d5)
+           !Add contribution from kion1 species, using the updated density:
+           sum_ni_Zi= sum_ni_Zi + reden(kion1,l)*bnumb(kion1)
+          endif
+          endif ! imp_ne_method.eq.'ne_list'
+          ! All ions (including those produced by impurity source like pellet
+          ! are summed up. Now we calculate the density of electrons:
+          reden(kelecg,l)= sum_ni_Zi
+          reden(kelecm,l)= sum_ni_Zi
+          ! In diagscal, the distribution function will be adjusted
+          ! to match the new value of reden(kelecg,l)
+        enddo ! l
+      endif !(imp_depos_method.ne.'disabled')
+      
+      
 
 
 
 c--------------------------------------------------------------------
-      if (ipronn.eq."spline-t") then ! time-dep. neutrals or impurities
+      if (nbctime.gt.0 .and. ipronn.eq."spline-t") then ! time-dep. neutrals or impurities
                   
          ! For NPA:
          do kkk=1,npaproc
@@ -482,7 +902,7 @@ c--------------------------------------------------------------------
                   enddo
                endif
                !------------
-               call tdinterp("zero","free",ryain,tmpt,njene,
+               call tdinterp("zero","linear",ryain,tmpt,njene,
      +              rya(1),tr(1),lrzmax)
                do ll=1,lrzmax
                enn(ll,kkk)= ennscal(kkk)*tr(ll) ! for tdnpa
@@ -507,6 +927,7 @@ c     Electric field or target current
 c     Skip, if ampfmod.eq.enabled .and. n+1.ge.nonampf
       
       if (ampfmod.eq.'enabled' .and. n+1.ge.nonampf) then
+cBH191002      if (ampfmod.eq.'enabled' .and. n.ge.nonampf) then
         continue ! Meaning: skip elecfld(0)=elecc(1),etc, setting.
          ! Here, profiles is called from tdchief when
          ! n is not updated yet. Here n=0,1,2,...,nstop-1.
@@ -516,10 +937,12 @@ c     Skip, if ampfmod.eq.enabled .and. n+1.ge.nonampf
          ! when n+1=nstop=nonampf
       else
       
-      if (efswtch.eq."method1") then
-         if (iproelec.eq."prbola-t") then
+      if (efswtch.eq."method1"  .or. efswtch.eq."method6") then
+      
+         if (nbctime.gt.0 .and. iproelec.eq."prbola-t") then
             
-            if (tmdmeth.eq."method1".and.elecc(1).ne.zero) then
+            if (tmdmeth.eq."method1") then
+               !YuP[2019-12-29] Removed ".and.elecc(1).ne.zero" (now can be 0.0)
                
                if (itme.eq.0) then
                   elecfld(0)=elecc(1)
@@ -551,14 +974,18 @@ c     Skip, if ampfmod.eq.enabled .and. n+1.ge.nonampf
                
             endif
 
-            dratio=elecfld(1)/elecfld(0)
-            do 17 ll=1,lrzmax
-               call profaxis(rn,npwrelec,mpwrelec,dratio,rya(ll))
-               elecfld(ll)=elecfld(0)*rn
- 17            continue
+            !YuP dratio=elecfld(1)/elecfld(0)
+            e0=elecfld(0) !YuP[2019-12-29]
+            e1=elecfld(1) !YuP[2019-12-29]
+            do ll=1,lrzmax
+               !YuP call profaxis(rn,npwrelec,mpwrelec,dratio,rya(ll))
+               !YuP elecfld(ll)=elecfld(0)*rn
+               call profaxis1(e_out,npwrelec,mpwrelec,e0,e1,rya(ll)) !YuP[2019-12-29]
+               elecfld(ll)=e_out !YuP[2019-12-29]  
+            enddo
          endif  !On iproelec.eq.prbola-t
 
-         if (iproelec.eq."spline-t") then
+         if (nbctime.gt.0 .and. iproelec.eq."spline-t") then
             if (tmdmeth.eq."method1") then
 
               if (itme.eq.0) then
@@ -577,7 +1004,7 @@ c     Skip, if ampfmod.eq.enabled .and. n+1.ge.nonampf
                      tmpt(l)=elecin_t(l,nbctime)
                   enddo
                endif
-               call tdinterp("zero","free",ryain,tmpt,njene,rya(1),
+               call tdinterp("zero","linear",ryain,tmpt,njene,rya(1),
      +              tr(1),lrzmax)
                do  ll=1,lrzmax
                   elecfld(ll)=tr(ll)
@@ -601,13 +1028,11 @@ c100126  Scale elecfld
       elseif (efswtch.eq."method2" .or. efswtch.eq."method3" .or.
      +        efswtch.eq."method4") then
          
-         if (iprocur.eq."prbola-t") then
-            
+         if (nbctime.gt.0 .and. iprocur.eq."prbola-t") then
             if (tmdmeth.eq."method1") then
-            
                if (itme.eq.0) then
-                  currxj(0)=xjc(1)
-                  currxj(1)=xjb(1)
+                  currxj(0)=xjc(1) !for iprocur.eq."prbola-t"
+                  currxj(1)=xjb(1) !for iprocur.eq."prbola-t"
                elseif (itme.lt.nbctime) then
                   currxj(0)=xjc(itme)+(xjc(itme1)-xjc(itme))
      1                 /(bctime(itme1)-bctime(itme))
@@ -619,23 +1044,22 @@ c100126  Scale elecfld
                   currxj(0)=xjc(nbctime)
                   currxj(1)=xjb(nbctime)
                endif
-
             elseif (tmdmeth.eq."method2") then
-               
-               currxj(0)=tdprof(timet,xjc(1),bctime)
-               currxj(1)=tdprof(timet,xjb(1),bctime)
-               
+               currxj(0)=tdprof(timet,xjc(1),bctime) !for iprocur.eq."prbola-t"
+               currxj(1)=tdprof(timet,xjb(1),bctime) !for iprocur.eq."prbola-t"
             endif
-
-            
-            
-            dratio=currxj(1)/currxj(0)
-            do 60 ll=1,lrzmax
-               call profaxis(rn,npwrxj,mpwrxj,dratio,rya(ll))
-               currxj(ll)=currxj(0)*rn
- 60         continue
-
-         elseif (iprocur.eq."spline-t") then
+            !YuP dratio=currxj(1)/currxj(0)
+            e0=currxj(0) !YuP[2019-12-29]
+            e1=currxj(1) !YuP[2019-12-29]
+            do ll=1,lrzmax
+               !YuP call profaxis(rn,npwrxj,mpwrxj,dratio,rya(ll))
+               !YuP currxj(ll)=currxj(0)*rn
+               call profaxis1(e_out,npwrxj,mpwrxj,e0,e1,rya(ll)) !YuP[2019-12-29]
+               currxj(ll)=e_out !YuP[2019-12-29]      
+            enddo
+         endif ! iprocur.eq."prbola-t"
+         
+         if (nbctime.gt.0 .and. iprocur.eq."spline-t") then
             if (tmdmeth.eq."method1") then
               if (itme.eq.0) then
                   do l=1,njene
@@ -653,13 +1077,13 @@ c100126  Scale elecfld
                      tmpt(l)=xjin_t(l,nbctime)
                   enddo
                endif
-               call tdinterp("zero","free",ryain,tmpt,njene,rya(1),
+               call tdinterp("zero","linear",ryain,tmpt,njene,rya(1),
      +              tr(1),lrzmax)
                do  ll=1,lrzmax
-                  currxj(ll)=tr(ll)
+                  currxj(ll)=tr(ll) !for iprocur.eq."spline-t"
                enddo
-            endif  !On tmdmeth
-         endif  !On iprocur .eq. prbola-t or spline-t
+            endif  !On tmdmeth.eq."method1"
+         endif  !On iprocur.eq."spline-t"
 
       elseif (efswtch.eq."method5") then
 
@@ -701,20 +1125,38 @@ c          make this setup AFTER processing the eqdsk.
          endif
          
 c     Renormalize currxj
-         currxjtot=0.
+         currxjtot=0.d0
          do 80 ll=1,lrzmax
             currxjtot=currxjtot+darea(ll)*currxj(ll)
+            !YuP[2019-10-29] The problem here is that at n=0
+            !darea is not defined yet [it is set in tdrmshst].
+            !At n=0 sub.profiles is called from sub.tdinitl
+            !BEFORE tdrmshst. 
+            !But then sub.profiles is called again at n=0, 
+            ! from tdchief[Line~575], just before call_achiefn(0).
+            !At the latter call, darea is defined.
  80      continue
-         do 81 ll=1,lrzmax
-            currxj(ll)=totcurtt/currxjtot*currxj(ll)
- 81      continue
+ 
+         if(currxjtot.ne.0.d0)then !YuP[2019-10-29] Added currxjtot condition
+           !At n=0, at first call of profiles, when darea=0 and so currxjtot=0.d0, 
+           ! do this renormalization in tdrmshst.f(239)
+           do 81 ll=1,lrzmax
+            currxj(ll)=(totcurtt/currxjtot)*currxj(ll)
+ 81        continue
+         endif !currxjtot.ne.0.d0
          
-      endif                     !On totcft(1)
+!           do ll=1,lrzmax
+!            write(*,'(a,3i4,3e12.3)')
+!     &          'profiles: n,itme,ll,elecfld,totcurtt,currxj',
+!     &           n,itme,ll,elecfld(ll),totcurtt,currxj(ll)
+!           enddo
+!           pause
+         
+      endif ! totcrt(1).ne.zero
          
 c     Toroidal rotation velocity
          
-      if (iprovphi.eq."prbola-t") then
-         
+      if (nbctime.gt.0 .and. iprovphi.eq."prbola-t") then
          if (tmdmeth.eq."method1") then
             if (itme.eq.0) then
                vphiplin(0)=vphic(1)
@@ -730,22 +1172,22 @@ c     Toroidal rotation velocity
                vphiplin(0)=vphic(nbctime)
                vphiplin(1)=vphib(nbctime)
             endif
-            
          elseif (tmdmeth.eq."method2") then
-            
             vphiplin(0)=tdprof(timet,vphic(1),bctime)
             vphiplin(1)=tdprof(timet,vphib(1),bctime)
-            
          endif
-         
-         dratio=vphiplin(1)/vphiplin(0)
-         do 90 ll=1,lrzmax
-            call profaxis(rn,npwrvphi,mpwrvphi,dratio,rya(ll))
-            vphipl(ll)=vphiscal*vphiplin(0)*rn
-            
- 90      continue
-         
-      elseif (iprovphi.eq."spline-t") then
+         !YuP dratio=vphiplin(1)/vphiplin(0)
+         e0=vphiplin(0) !YuP[2019-12-29]
+         e1=vphiplin(1) !YuP[2019-12-29]
+         do ll=1,lrzmax
+            !YuP call profaxis(rn,npwrvphi,mpwrvphi,dratio,rya(ll))
+            !YuP vphipl(ll)=vphiscal*vphiplin(0)*rn
+            call profaxis1(e_out,npwrvphi,mpwrvphi,e0,e1,rya(ll)) !YuP[2019-12-29]
+            vphipl(ll)=e_out !YuP[2019-12-29]      
+         enddo
+      endif ! iprovphi.eq."prbola-t"
+      
+      if (nbctime.gt.0 .and. iprovphi.eq."spline-t") then
          if (tmdmeth.eq."method1") then
             if (itme.eq.0) then
                do l=1,njene
@@ -763,18 +1205,19 @@ c     Toroidal rotation velocity
                   tmpt(l)=vphiplin_t(l,nbctime)
                enddo
             endif
-            call tdinterp("zero","free",ryain,tmpt,njene,rya(1),
+            call tdinterp("zero","linear",ryain,tmpt,njene,rya(1),
      +           tr(1),lrzmax)
             do  ll=1,lrzmax
                vphipl(ll)=vphiscal*tr(ll)
             enddo
          endif                  !On tmdmeth
-         
-      endif                     !On iprovphi
+      endif  ! iprovphi.eq."spline-t"
 
 
-      write(*,*)
-      write(*,*)'profiles: time step n, timet=',n,timet
+CMPIINSERT_IF_RANK_EQ_0
+      WRITE(*,*)
+      WRITE(*,*)'profiles: time step n, timet=',n,timet
+CMPIINSERT_ENDIF_RANK  
 
 c     From tdoutput.f:
 c.......................................................................
@@ -867,9 +1310,11 @@ CMPIINSERT_ENDIF_RANK
      +  "tor vel(cm/s)")
  9129 format(i3,1p7e13.5)
 
-      write(*,*)
-      write(*,*)'profiles: zeff(1:lrzmax)=',(zeff(il), il=1,lrzmax)
-      write(*,*)
+CMPIINSERT_IF_RANK_EQ_0
+      WRITE(*,*)
+      WRITE(*,*)'profiles: zeff(1:lrzmax)=',(zeff(il), il=1,lrzmax)
+      WRITE(*,*)
+CMPIINSERT_ENDIF_RANK  
 
 c
       

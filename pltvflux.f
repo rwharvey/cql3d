@@ -13,8 +13,11 @@ c..................................................................
       include 'param.h'
       include 'comm.h'
 
-      REAL RTAM1(jx),RTAM2(jx), vth_mark
-      REAL REMAX,REMIN,RILIN, RXMAXQ
+      REAL*4 RTAM1(jx),RTAM2(jx), vth_mark
+      REAL*4 REMAX,REMIN,RILIN, RXMAXQ
+      REAL*4 :: R4P2=.2,R4P8=.8,R4P5=.5,R4P9=.9
+      REAL*4 :: R40=0.,R41=1.,R41P44=1.44,R4MP2=-.2
+
       real*8 wkd(jx) 
       character*64 tx_
 c
@@ -95,7 +98,7 @@ cyup                   BUT, for 2d plots, use u/c units, not keV
         REMIN=EMIN
         REMAX=EMAX
         TEST=ABS((EMAX-EMIN)/EMAX)
-        write(*,*) 'pltvflux: n,emax,emin,test ',n,emax,emin,test
+        !write(*,*) 'pltvflux: n,emax,emin,test ',n,emax,emin,test
         !write(*,*)'RTAM1=',RTAM1
         !write(*,*)'RTAM2=',RTAM2
         IF (TEST .lt. 0.0001) THEN
@@ -103,14 +106,14 @@ cyup                   BUT, for 2d plots, use u/c units, not keV
         ENDIF
         
         CALL PGPAGE
-        CALL PGSVP(.2,.8,.5,.9)
+        CALL PGSVP(R4P2,R4P8,R4P5,R4P9)
         IF ( Remax-Remin .le. 1.e-16 ) THEN ! YuP [02-23-2016]
            Remax= Remin+1.e-16
         ENDIF
-        CALL PGSWIN(0.,RXMAXQ,Remin,Remax) !YuP: use jxq-1 (was jx)
-        CALL PGBOX('BCNST',0.,0,'BCNST',0.,0)
+        CALL PGSWIN(R40,RXMAXQ,Remin,Remax) !YuP: use jxq-1 (was jx)
+        CALL PGBOX('BCNST',R40,0,'BCNST',R40,0)
         CALL PGSAVE
-        CALL PGSCH(1.44)
+        CALL PGSCH(R41P44)
         CALL PGLAB(tx_, ' (\gt\dei\u/n) (dn/dt)', 
      +       'Normalized v-flux (\gt\dei\u/n)(dn/dt)')
         CALL PGUNSA
@@ -127,29 +130,29 @@ cyup                   BUT, for 2d plots, use u/c units, not keV
 
 
         RILIN=7.5
-        CALL PGMTXT('B',RILIN,-.2,0.,'Dashed line: u = Vthermal')
+        CALL PGMTXT('B',RILIN,R4MP2,R40,'Dashed line: u = Vthermal')
         
         write(t_,186) k,lr_,n
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
         
         write(t_,1861) 
         RILIN=RILIN+2.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
         write(t_,185) tam1(1),tam2(1),tam1(2),tam2(2)
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
         do 184 j=jxq*2/3,jxq,16 !YuP: use jxq-1 (was jx)
           if (j+11 .gt. jxq) go to 184 !YuP: use jxq-1 (was jx)
           write(t_,185) tam1(j),tam2(j),tam1(j+8),tam2(j+8)
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
  184    continue
         write(t_,185) tam1(jxq-2),tam2(jxq-2),tam1(jxq-1),tam2(jxq-1)
         !YuP: use jxq-1 (was jx)
 
         RILIN=RILIN+1.
-        CALL PGMTXT('B',RILIN,-.2,0.,t_)
+        CALL PGMTXT('B',RILIN,R4MP2,R40,t_)
 
  185    format(2(1pe12.4,2x,1pe12.4,5x))
 
@@ -158,7 +161,7 @@ cyup                   BUT, for 2d plots, use u/c units, not keV
  
  100  continue ! k species -------------------------------------
  
-      CALL PGSCH(1.) ! restore character size; default is 1.
+      CALL PGSCH(R41) ! restore character size; default is 1.
 
       return
       end

@@ -18,9 +18,11 @@ c..................................................................
           u=u+source(i,1,k,indxlr_)*cynt2(i,l_)*vptb(i,lr_)
           s=s+cynt2(i,l_)*vptb(i,lr_)
  11     continue
-        do 12 i=1,iy
-          source(i,1,k,indxlr_)=u/s
- 12     continue
+        if(s.gt.0.d0)then !YuP[2020-10-19] added checking s>0
+          do i=1,iy
+             source(i,1,k,indxlr_)=u/s
+          enddo
+        endif
  10   continue
       return
       end

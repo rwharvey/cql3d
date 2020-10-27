@@ -62,8 +62,7 @@ c      write(*,*)'eqtopeol: bz =', ((bz(i1,j1),i1=1,nnr),j1=1,nnz)
 cBH   We assume nnz is an odd number, so that ez(nzc) gives
 cBH   the equatorial plane.   Checking
       if (abs(ez(nzc)).gt.1.e-9) then
-         write(*,*)'eqtopeol:  Problem, ez(nzc).ne.0'
-         stop
+         stop 'eqtopeol:  Problem, ez(nzc).ne.0'
       endif
 
 

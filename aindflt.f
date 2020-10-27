@@ -36,6 +36,8 @@ c      pi=3.141592653589793d0
       lz=lza
 
       ampfmod="disabled"
+      ampfadd="neo+bscd" !YuP[2019-12-26] Added ampfadd; 
+                         !other values: "disabled","neosigma","add_bscd"
       nampfmax=2
       ampferr=1.d-3
       nonampf=0
@@ -99,6 +101,7 @@ c      pi=3.141592653589793d0
       efswtchn="disabled"
       efrelax=0.5
       efrelax1=0.5 !0.8
+      efrelax_exp=1.d0 !YuP[2020-04-03] For generalized procedure in efswtch="method4"
       elpar0=0.
       eoved=-.01
       enorm=200.
@@ -110,6 +113,190 @@ c      pi=3.141592653589793d0
       f4d_out="disabled"
       gamaset=0.
       gamafac="disabled"
+      !--------------------------------------------------------------
+      !YuP[2019-07-31]-[2019-09] Added new namelist var:
+      !Impurity type, which can be in many ionization states,
+      ! depending on plasma electron temperature, etc.
+      adpak='enabled' ! To use ADPAK tables (alternatively, use ADCDO)
+      imp_type=6 !for gamafac="hesslow". 1-He,2-Be,3-C,4-N,5-Ne,6-Ar,7-Xe,8-W
+      ! For ADPAK subroutines/tables, need values of neutral D0.
+      model_dens_nD0=1  ! Only one model so far for neutral D0. 
+      dens_nD0_b=1.0d10 ! 1/cm^3 ! Edge density of neutral D0
+      dens_nD0_l=10.d0  !cm! Scale length of exp-decay, as in  
+      !                      dens_nD0_b*exp[(rho-1)*radmin/dens_nD0_l]
+      ! Also for ADPAK subroutines/tables, need this:
+      adpak_tau_r=1.d-3 !sec! Characteristic time of radial decay of T_e
+      !           Note from A. Pigarov:
+      !           For disruption case, I would set tau(r)=1.e-3 sec. 
+      !           For Smith-like run case tau(r)=TauT, 
+      !           where TauT is the temperature decay time.
+      !           For quasi-stationary plasma it is likely about 
+      !           plasma confinement time ~1 s.
+      !           Or should we rather get this time from actual change
+      !           of temp() ?  Values of temp() are updated 
+      !           in subr.profiles, in case of nbctime.ne.0.
+      ! For test purposes (set to 0 to disable):
+      imp_bounde_collscat=1 !=1 to enable effects of scattering 
+        !of electrons on partially-ionized impurity ions 
+        !(Hesslow corrections)
+      imp_bounde_collslow=1 !=1 to enable effects of slowing down 
+        !of electrons on partially-ionized impurity ions
+      !--------------------------------------------------------------
+      ! Method of deposition of impurity:
+      imp_depos_method='disabled' !or "pellet" or "instant" !YuP[2019-12-05]
+      imp_ne_method='ne_list' !YuP[2019-12-06] How ne is calculated:
+      !YuP[2019-12-06] There are two ways to adjust electron density:
+      ! 1. Assume that density of main ion species (not impurity ions) is
+      !    taken from input namelist (could be time-dependent); 
+      !    then, electron density is set to 
+      !      sum(n(k)*Z(k))[all k=kionm] +
+      !    + sum(nimp(kstate)*Zimp(kstate))[all kstates].
+      !    This is imp_ne_method.eq.'ni_list' option.
+      !    See profiles.f, line~760.
+      ! 2. Assume that electron density is 
+      !    taken from the input namelist; 
+      !    then, reduce the density of main ions, 1st ionic species.
+      !    With increase of impurity ions, the density of main ions
+      !    will go down, to maintain the value of ne from list.  
+      !    This is imp_ne_method.eq.'ne_list' option.
+      !    See profiles.f, line~760.
+      !--------------------------------------------------------------
+      !---> For (imp_depos_method="pellet") pellet propagation/ablation model:
+      pellet='disabled' !enable to use a pellet as a source of impurities
+      pellet_Rstart=230. ![cm] Major radius where pellet is launched.
+      ! Suggestion: Set it to rpcon(lrz), or R_LCFS radius.
+      pellet_tstart=0.d0 ![sec] Instant when pellet is launched.
+      ! Not necessarily 0.0, but should be .ge.0.
+      pellet_V=30000.d0 ![cm/s] Pellet speed. Typically 10000-900000cm/s
+      ! Assumed constant all the way through plasma.
+      ! Assumed that pellet travels along equatorial
+      ! plane, going through magnetic axis.
+      pellet_M0=30.d-3 ![gram] Initial mass of pellet(at t=pellet_tstart)
+      ! If pellet is large, it can make to the inner border of plasma.
+      !.......
+      ! Related to pellet size and ablation cloud:
+      ! For distributing the ablated mass among several flux surfaces,
+      ! assume that the ablation cloud is 5--8 times
+      ! larger than the pellet itself.
+      ! Allow for assymmetry between leading (front) 
+      ! and trailing (back) side of the cloud.
+      pellet_rp0=0.5d0 !cm! Pellet radius at t=pellet_tstart (plasma edge).
+      pellet_rcloud1=4.d0 !cm! Radius of ablation cloud, leading (front) side.
+      pellet_rcloud2=4.d0 !cm! Radius of ablation cloud, trailing (back) side. 
+      ! Typically pellet_rp0== rp(0) = 0.2--0.5 cm.
+      ! Recommended: pellet_rcloud ~(5--8)*pellet_rp0
+      ! Pellet radius is reduced during propagation 
+      ! (as the mass is reduced).
+      ! However, in present model, rcloud is not changed, 
+      ! so the cloud size remains as described by pellet_rcloud1,2 above.
+      !.......
+      ! Related to description of ablation rate:
+      ! Assume that the ablation rate of pellet is proportional to local 
+      ! ne^pn * Te^pt (electron T and density in some powers),
+      ! and proportional to remaining_mass/pellet_M0 in some power "pm".
+      ! So that the local ablation rate is 
+      ! G[gram/s]= 
+      !  =Cablation* ne[cm-3]^pn *Te[keV]^pt *(Mpellet(t)/Mpellet(0))^pm
+      ! See REFS: "2019-03-15-Friday Science Meeting-Jie Zhang.pdf"
+      ! Values for those powers:
+      pellet_pn=1.d0/3.d0 ! power "pn" in the above Eqn. for G.
+      !             REFS: should be 1/3
+      pellet_pt=5.d0/3.d0 ! power "pt" in the above Eqn. 
+      !             REFS: should be 11/6, or 5/3 
+      pellet_pm=4.d0/9.d0 ! power "pm" in the above Eqn. 
+      !             REFS: should be 4/9 (so that rp^(4/3))
+      ! where Mpellet(t)==Mpellet_rem is the remaining mass
+      ! at given radial position R(t).
+      ! Note that  (Mpellet(t)/Mpellet(0))^pm ~~  (rp(t)/rp(0))^(3*pm)
+      ! For example, when pm=2/3, we get  G~~ rp^2,
+      ! which means - proportional to surface area of the pellet
+      ! (S_pellet= 4*pi*rp^2).
+      ! Why in REFS they use pm=4/9, and not 2/3 ?
+      ! The value of Cablation=="pellet_Cablation" is either calculated
+      ! during kopt=0 call of this subroutine, 
+      ! or set as a namelist value, see below.
+      !.......
+      ! Related to calculation of pellet_Cablation value.
+      ipellet_method=1  !Iterative procedure,
+      ! to find such value of pellet_Cablation which yields the value
+      ! of fraction of pellet remained at magnetic axis.
+      pellet_fract_rem=0.5d0 !Fraction of remaining mass when pellet 
+      ! reaches magn.axis, i.e. it is   
+      ! pellet_fract_rem= (pellet_M0-dMpellet_sum(t_axis))/pellet_M0
+      ! where dMpellet_sum(t_axis) is the total ablated mass 
+      ! during the flight of the pellet from plasma edge to magn.axis.
+      ! The value of pellet_Cablation will be found from iterations.
+      ! For this method, also specify these two values:
+      ipellet_iter_max=50 ! Max number of iterations
+      pellet_iter_accur=1.d-2 !Relative error (accuracy) 
+      ! achieved in iterations, to be compared with 
+      ! |pellet_fract_rem-pellet_rem_iter|/pellet_fract_rem
+      pellet_Cablation=0.001d0 ! Only needed for ipellet_method=3 :
+      ! Instead of value found from iterations, use the value from input
+      !-----------------------------------------------------------------
+      !YuP[2019-09-18]
+      !---> For new option iprote='prb-expt' or 'spl-expt',
+      ! to set the temper. decay.
+      ! T(t)= Tend +(T(tstart)-Tend)*exp(-(t-tstart)/tau) for electrons.
+      ! where exp(-(t-tstart)/tau)  is applied only at t.ge.tstart.
+      ! See H.M.Smith and E.Verwichte, PoP vol.15, p.072502, (2008),
+      ! Eqn.(7).
+      temp_expt_Tend=0.010d0 ![keV] final(ending) Tend after cooling.
+      temp_expt_tau0=3.0d-3 ![sec]slow decay time of Te(t) 
+      temp_expt_tau1=0.1d-3 ![sec]fast decay time of Te(t)(for Thermal Quench)
+      do ll=1,lrza
+         temp_expt_tstart(ll)=0.d0  ![sec] tstart in the above Eqn.
+      ! In case of pellet='enabled', it will be calculated during run
+      ! to match the pellet position. 
+      enddo
+      ! Similarly in case of iproti='prb-expt' or 'spl-expt',
+      ! and we use same values of temp_expt_Tend, temp_expt_tau,
+      ! temp_expt_tstart.
+      
+      !YuP[2020-03-18] Not ready yet
+      !---> For new option iprone='prb-expt' or 'spl-expt',
+      ! to set the density growth (or decay, depending on ne_end).
+      ! n(t)= nend +(n(tstart)-nend)*exp(-(t-tstart)/tau) for electrons.
+      ! where exp(-(t-tstart)/tau)  is applied only at t.ge.tstart.
+      ! See H.M.Smith and E.Verwichte, PoP vol.15, p.072502, (2008),
+      ! Eqn.(7).
+!      dens_expt_nend=2.d14  ![cm^-3] final(ending) ne_end after cooling.
+!      dens_expt_tau0=3.0d-3 ![sec]slow decay time of ne(t) 
+!      dens_expt_tau1=0.1d-3 ![sec]fast decay time of ne(t)(for Thermal Quench)
+!      do ll=1,lrza
+!         dens_expt_tstart(ll)=0.d0  ![sec] tstart in the above Eqn.
+!      ! In case of pellet='enabled', it will be calculated during run
+!      ! to match the pellet position. 
+!      enddo
+
+      dens0_imp(0:lrza)=0.d0 !YuP[2019-12-05], for imp_depos_method="instant"
+      ! dens0_imp = Density profile of deposited impurity [1/cm^3];
+      ! This is just the ablated material (e.g. from pellet, flake, etc),
+      ! before ionization process occured.
+      !Note: For imp_depos_method="pellet", this profile is calculated 
+      !during run, based on parameters of pellet (mass, speed, ...).
+      tstart_imp=0.d0 ![sec] Instant when impurity is deposited.
+      !For imp_depos_method="pellet", tstart_imp=pellet_tstart (launch time)
+      !-----------------------------------------------------------------
+      
+      !-------------------------
+      !YuP[2020-07-02] Added, for usage in ainalloc,tdchief,cfpcoefn
+      cfp_integrals="disabled" !means: Use the original method for calc. of
+      ! integrals for Maxwellian distribution (slow method),
+      ! in subr. cfpcoefn.
+      ! Alternatively, set to 'enabled', which means that the table 
+      ! will be produced in subr. cfp_integrals_maxw.
+      ! These integrals describe a contribution to BA coll.coefs
+      ! from local collisions of general species with the background 
+      ! Maxwellian species (search "kbm=ngen+1,ntotal").
+      ! These integrals only depend on mass (fmass)
+      ! and local temperature of these (Maxwellian) species.
+      ! So, instead of calculating them over and over again,
+      ! calculate them once as a table over temperature grid 
+      ! and then reuse them by matching a local T
+      ! along orbit with the nearest values in the T-grid.
+      !-------------------------
+      
       gsla=270.
       ephicc=0.
       gslb=35.
@@ -190,8 +377,11 @@ cBH080305      do k=1,nmodsa
       nrskip=10
       numby=20
       do i=1,nplota
-         nplot(i)=0
-         nplt3d(i)=0
+         nplot(i)=-10000
+         nplt3d(i)=-10000
+      enddo
+      do i=1,nsavea
+         nsave(i)=-10000
       enddo
       do 4 i=1,ndtr1a
          nondtr1(i)=-1
@@ -218,7 +408,7 @@ c     old way of integrating dens,cur in diaggnde
       pltso="disabled" 
        !YuP[2018-02-07] New: pltso='color' and 'first_cl' 
        !for color contour plots
-      pltmag=1.
+      pltmag=1.  !YuP: Not used?
       pltsig="enabled"
       pltpowe="disabled"
       pltprpp="disabled"
@@ -241,6 +431,30 @@ c     old way of integrating dens,cur in diaggnde
       psimodel="axitorus"
       radcoord="sqtorflx"
       radmaj=100.
+      !----- For Miller Equilibrium (eqsource.eq."miller"):   -----------
+c**   REF: R.L. Miller et al., "Noncircular, finite aspect ratio, local
+c**   equilibrium model", Phys. Plasmas, Vol. 5, No. 4, April 1998.
+c**   Setup is done similar to COGENT version (MillerBlockCoordSysF.ChF)  
+c**   The difference is in units: COGENT uses [Tesla, meters],
+c**   while CQL3D uses [Gauss, cm]. Need to specify input values:
+      ! Some of values below are set to unlikely numbers.
+      ! It will trigger warning/stop, with suggestion 
+      ! to specify them in cqlinput. 
+      eq_miller_rmag=1.d99 ! Magnetic axis: major radius coord [cm]
+      eq_miller_zmag=0.d0  ! Magnetic axis: vertical coord [cm]
+      eq_miller_btor=1.d99 ! Tor field at Geom. center of LCFS [Gauss]
+      eq_miller_radmin=1.d99   ! Plasma minor radius [cm]
+      eq_miller_cursign=+1.d0  ! Sign of Plasma Current [+1. or -1.]
+      eq_miller_psimag=1.d99 ! Pol.flux at magn.axis [cgs] Set as positive
+      eq_miller_psilim=1.d99 ! Pol.flux at LCFS: Set smaller than psimag
+      eq_miller_psi_n=2.0 ! n and m powers for PSI(r) profile as in 
+      eq_miller_psi_m=1.0 !for PSI(r)= psilim+(psimag-psilim)*(1-(r/a)^n)^m
+      eq_miller_deltaedge=0.d0 ! Triangularity of LCFS (at r=radmin)
+      eq_miller_kappa=1.d0  ! Vertical elongation (const for all surfaces)
+      eq_miller_drr0= 0.d0  ! dR0/dr  we assume Shafr.shift=-drr0*r
+      ! See subr. eq_miller() for definition of surfaces and fields.
+      !------------------------------------------------------------------
+      
       eleccomp="enabled"
       radmin=50.
       relativ="enabled"
@@ -269,7 +483,7 @@ c     old way of integrating dens,cur in diaggnde
       do ll=2,lrorsa
          tbnd(ll)=0.
       enddo
-      temp_den=0.0
+      temp_den=0.d0
       tfac=1.
       tfacz=1.
       thetd=0.0
@@ -520,6 +734,8 @@ c..................................................................
       zeffscal=1.
       elecscal=1.
       vphiscal=1.
+      bctimescal=1.d0
+      bctshift=0.d0
 
 c..................................................................
 c     acoef's specify ASDEX exponentail profiles
@@ -583,9 +799,9 @@ c..................................................................
          elecb(i)=0.d0
          vphic(i)=0.d0
          vphib(i)=0.d0
-         xjc(i)=0.d0
-         xjb(i)=0.d0
-         totcrt(i)=0.d0
+         xjc(i)=0.d0 !for iprocur.eq."prbola-t" (not used in "spline-t")
+         xjb(i)=0.d0 !for iprocur.eq."prbola-t" (not used in "spline-t")
+         totcrt(i)=0.d0 !target current, set to ne.0. for efswtch=method2,3,4
  30   continue
 
       do 32 i=1,nbctimea
@@ -597,7 +813,7 @@ c..................................................................
             tiin_t(l,i)=0.0d0
             zeffin_t(l,i)=0.0d0
             elecin_t(l,i)=0.0d0
-            xjin_t(l,i)=0.0d0
+            xjin_t(l,i)=0.0d0 !for iprocur.eq."spline-t"
             vphiplin_t(l,i)=0.0d0
  33      continue
  32   continue
@@ -751,28 +967,5 @@ c$$$                ! see below, iorb2=0)
 c$$$      i_orb_width=1 ! 1 -> Normal finite-orbit-width calculations. 
 c$$$                    ! 0 -> V_drift_perp is set to 0 
 c$$$                    ! (to mimic ZOW approximation)
-c$$$      iorb2= 0 ! set to 1 to perform Runge-Kutta integration for tracing
-c$$$               ! SECONDARY orbits to midplane; 0 - no RK tracing.
-c$$$               ! This option (1) can be used for plotting orbits
-c$$$               ! (together with outorb="detailed"),
-c$$$               ! otherwise not needed.
-c$$$      !=> MAIN orbits:  
-c$$$      ! u-grid:
-c$$$      j0_ini= 20 !20 !2 !max(2, inc_j0/2)
-c$$$      j0_end= 20 !20 !40
-c$$$      inc_j0= 2  ! increment
-c$$$      ! pitch-angle grid:
-c$$$      i0_ini= 2  ! select as max(1, (inc_i0+1)/2)
-c$$$      i0_end= iy-1
-c$$$      inc_i0= 4  ! increment
-c$$$      !=> SECONDARY orbits (launched from selected points on MAIN orbit)
-c$$$      ! u-grid:
-c$$$      j2_ini= 20 !20 !2  !max(2, inc_j2/2)
-c$$$      j2_end= 20 !20 !40 
-c$$$      inc_j2= 2  !1 !2  ! increment
-c$$$      ! pitch-angle grid:
-c$$$      i2_ini= 1 !max(1, (inc_i2+1)/2) !1
-c$$$      i2_end= iy-1
-c$$$      inc_i2= 10 !4  ! increment
       return
       end

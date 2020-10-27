@@ -6,8 +6,6 @@ c
       include 'frname_decl.h'
       character*8 machinei
 
-      REAL RILIN
-
       ep100=1.d+100
 
 c..................................................................

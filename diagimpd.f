@@ -22,6 +22,9 @@ c     6- toroidal losses(part of krook operator)
 c     7- fusion losses (part of krook operator)
 c     8- density gained due to setting negative values of
 c     distribution to 0 after call to impadv (implicit).
+cBH180809: Should add calc of density change due to rescaling?
+cBH180809: Done elsewhere? Yuri added plot of added particles at .ps end 
+
 
 c
 c     Further the normalized velocity flux at mesh point x(j+.5) is put
@@ -51,7 +54,8 @@ c     Initialize..
 c..................................................................
 
 
-      call dcopy(iyjx2,f(0,0,k,l_),1,temp2(0,0),1)
+      !call dcopy(iyjx2,f(0,0,k,l_),1,temp2(0,0),1)
+      temp2(0:iy+1,0:jx+1)= f(0:iy+1,0:jx+1,k,l_)
       sgain(1,k)=0.
       sgain(2,k)=0.
       sgain(3,k)=0.
@@ -103,8 +107,8 @@ c..................................................................
 
       sden=0.
       do 3 j=1,jx
-        sgain(5,k)=sgain(5,k)+tam5(j)*cint2(j)*one_
-        sgain(6,k)=sgain(6,k)+tam6(j)*cint2(j)*one_
+        sgain(5,k)=sgain(5,k)+tam5(j)*cint2(j)*one_ ! Bad orbits
+        sgain(6,k)=sgain(6,k)+tam6(j)*cint2(j)*one_ ! Tor. losses
         sden=sden+tam4(j)*cint2(j)*one_
 c     For diagnostic purposes to compare with tem5 at end of diaggnde:
 c     Summing tam7 over j will give flux surface averaged density.
@@ -112,7 +116,7 @@ c     Summing tam7 over j will give flux surface averaged density.
  3    continue
 
 c..................................................................
-c     Ion source gain..
+c     Ion source (freyasou) or electron_KO (sourceko) gain..
 c..................................................................
 
       sgain(3,k)=xlncur(k,lr_)*dtreff
@@ -129,10 +133,10 @@ c..................................................................
  6    continue
 
 c..................................................................
-c     Compute density lost at upper terminator
+c     Compute density lost at upper terminator (j=jx)
 c..................................................................
 
-      sgain(4,k)=vflux(jx,k,l_)*dtreff
+      sgain(4,k)=vflux(jx,k,l_)*dtreff ! Note: j=jx here
 ccc       write(*,'(a,i5,e13.5)')'diagimpd sgain(4,k)=', l_,sgain(4,k)
 
 c..................................................................
@@ -174,7 +178,8 @@ c..................................................................
 c     if ineg="enabled" or "enabled1" or "trunc_d", set f.le.0 to zero.
 c..................................................................
 
-      call dcopy(iyjx2,temp2(0,0),1,temp1(0,0),1)
+      !call dcopy(iyjx2,temp2(0,0),1,temp1(0,0),1)
+      temp1=temp2 ! for all (0:iy+1,0:jx+1)
       call bcast(temp4,zero,iyjx2)
 
       if (ineg .eq. "disabled") go to 141
@@ -223,7 +228,7 @@ c..................................................................
       else ! on ineg
 
       f011=temp2(1,1)
-      fmin=1.e-20*f011
+      fmin=1.d-20*f011
       do i=1,iy
       do j=1,jx
          if ( temp2(i,j) .le. fmin) then ! Found f(i,j)<=fmin
@@ -245,7 +250,7 @@ c     routine diagdens will compute density gained by setting negative
 c     values of distribution to 0.
 c
       call diagdens(xline,xmidp,eline)
-      sgain(8,k)=xline*one_
+      sgain(8,k)=xline*one_ ! from f<0 being set to 0.
       engain(k)=eline*one_
 
       elseif(ineg.eq."renorm") then
@@ -292,7 +297,23 @@ c     change of line density (/2) and line energy density
 
  141  continue
  
+CMPIINSERT_IF_RANK_EQ_0      
+      !WRITE(*,*)'diagimpd fmin,jmin_nosource=',fmin,jmin_nosource
+!      WRITE(*,'(a,2i4,2e15.7)')
+!     + 'diagimpd BEFORE f update. n,l_,MIN(temp2),MAX(temp2)',
+!     +   n,l_,MINVAL(temp2),MAXVAL(temp2)
+!      WRITE(*,'(a,2i4,2e15.7)')
+!     + 'diagimpd neg.val.adjusted n,l_,MIN(temp1),MAX(temp1)',
+!     +   n,l_,MINVAL(temp1),MAXVAL(temp1)
+CMPIINSERT_ENDIF_RANK
       call dcopy(iyjx2,temp1(0,0),1,f(0,0,k,l_),1)
+CMPIINSERT_IF_RANK_EQ_0      
+!      WRITE(*,*)
+!     + 'diagimpd AFTER  f update. MIN(f),MAX(f),SUM(f)=', 
+!     +          MINVAL(f),MAXVAL(f),SUM(f)
+CMPIINSERT_ENDIF_RANK
+      !!!if(l_.eq.lrz)  pause
+      
       if (n .gt. 0 .and. n/nchec*nchec .eq. n) then
         call diagentr(9,k)
         call diagentr(10,k)
@@ -300,3 +321,5 @@ c     change of line density (/2) and line energy density
 
       return
       end
+      
+CMPIINSERT_SUB_SEND_ENTR      

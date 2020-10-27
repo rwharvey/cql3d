@@ -16,7 +16,7 @@ c     kopt=2: Calculated h and g functions and associated fluxes,
 c             to obtain electrostatic electric field for
 c             cqlpmod="enabled",sbdry="periodic",esfld="enabled".
 c             (BH:Evidently, have not fully implemented this yet. 
-c             No kopt reference is in impanvc0.  It was
+c             No kopt=2 reference is in impanvc0.  It was
 c             successfully implemented in the STELLA code (a derivative
 c             of Kupfer's FPET code).  See achiefn in stella.f. 
 c             Also check file Harvey_rf99.pdf, or related paper, from 
@@ -25,7 +25,7 @@ c     kopt=3: Calculate h and g functions, for time-advancing of electric
 c             field according to Ampere-Faraday equations.
 c             Iteration on Kupfer's g and h functions is used in
 c             obtaining the implicit toroidal electric field.
-c             BH131104.
+c             BH131104, with help from YuP.
 c             
 c..................................................................
 
@@ -50,7 +50,12 @@ c     compute electric field either according to direct specification,
 c     or to maintain a target toroidal current.
 c.....................................................................
       if (eseswtch.ne."enabled") then
-         call efield
+         if(ampfmod.ne."enabled") call efield
+         !YuP[2019-10-29]With ampfmod='enabled', we could skip calling efield.
+         !Presently it is called, but has no effect on value of elecfld()
+         !because of eoved=0.0 setting (see efield.f, Line~22 and 180).
+         !But: Need to be sure to set eoved=0.0 (with efswtch="method1")
+         !in cqlinput. For safety, added if(ampfmod.ne."enabled") condition.
       endif
 
         ! Start time advancement:
@@ -78,22 +83,23 @@ c....................................................
           call finit ! Note: at n=0 finit is called from ainitial.
       endif          ! First call to achiefn is with n=0, then advanced.
 
-c..................................................
-c     determine particle sources...
-c..................................................
-      if (n.ne.1 .and. nefiter.eq.1) call sourcee
+      call lossegy !YuP[2020-06-22] added: need to recompute egylosa(),
+                                    ! because vth() could change;
+                                    !(Also, impurity content could change)
+CMPIINSERT_IF_RANK_EQ_MPIWORKER
+      !YuP[2020-02-06] Moved call_sourcee into MPI (at each ll index)
+      !Determine particle sources...
+!YuP[2020-02-11] no need in n.ne.1   if (n.ne.1 .and. nefiter.eq.1) call sourcee
+      if (nefiter.eq.1) call sourcee
+        if (ioutput(1).ge.2) then !YuP[2020] diagnostic printout
+!         write(*,*)'achief[89/kopt0]sourcee: xlncur(1,lr_)=',
+!     +    n,xlncur(1,lr_)
+        endif
       ! Note: at n=0 sourcee is called from ainitial
       ! First call to achiefn is with n=0, then advanced in tdchief.
-      
-
-CMPIINSERT_IF_RANK_EQ_MPIWORKER
-c..................................................
-c     generate collisional F.P. coefficients...
-c..................................................
+      !generate collisional F.P. coefficients...
        call cfpcoefc ! time-consuming calculations
-c..................................................................
-c     call implicit time advancement routine if implct.eq."enabled"
-c..................................................................
+      !call implicit time advancement routine if implct.eq."enabled"
       if (implct .eq. "enabled") call impavnc0(kopt)
 CMPIINSERT_ENDIF_RANK
 
@@ -113,12 +119,13 @@ c..................................................................
       if (kopt.eq.3) then
          n=n+1  ! n is used by logics in cfpcoefn, impavnc0, etc.
          zdttot=one
-         call cfpgamma
+         !call cfpgamma
          if (adimeth.eq."enabled" .and. transp.eq."enabled"
      +        .and. n.ge.nonadi) zdttot=2.0
          timet=timet+zdttot*dtreff
         ! n and time are not really updated yet - 
         ! n and time are updated after n_ and time_ are updated.
+CMPIINSERT_IF_RANK_EQ_MPIWORKER
         call cfpgamma  !determine coulomb log...   But called 6 lines above?
 cBH131107:  NEED to check this n=0 issue.
         ! Apply additional preloading to f, if n=nfpld
@@ -128,19 +135,23 @@ cBH131107:  NEED to check this n=0 issue.
         endif
         ! Note: at n=0 finit is called from ainitial.
         ! First call to achiefn is with n=0, then advanced.
-        if (n.ne.1) call sourcee !determine particle sources...
+
+!YuP[2020-02-11] no need in n.ne.1  if (n.ne.1 .and.(it_ampf.eq.1)) call sourcee !determine particle sources..(sourceko)
+        if (it_ampf.eq.1) call sourcee !determine particle sources..(sourceko)
+        !YuP[2020-01] Added (it_ampf.eq.1): Reuse sources from 1st iteration.
+!         write(*,*)'achief[139/kopt3]sourcee: xlncur(1,lr_)=',
+!     +    n,xlncur(1,lr_)
         ! Note: at n=0 sourcee is called from ainitial
         ! First call to achiefn is with n=0, then advanced in tdchief.
-
-c For ZOW, parallelization (in lr) is done here.
-CMPIINSERT_IF_RANK_EQ_MPIWORKER
-          !collisional F.P. coefficients:
-          call cfpcoefc ! time-consuming calculations
-          !call implicit time advancement:
-          if (implct .eq. "enabled") call impavnc0(kopt)
-CMPIINSERT_ENDIF_RANK
+        ! MPI is in ll index.
+        !collisional F.P. coefficients:
+        if (it_ampf.eq.1) call cfpcoefc ! time-consuming calculations
+        !YuP[2020-01] Added (it_ampf.eq.1): Reuse coll.coeffs from 1st iteration.
+        !call implicit time advancement:
+        if (implct .eq. "enabled") call impavnc0(kopt) ! kopt=3
 cBH110309:  Restore n
 cBH110309:        n=n-1
+CMPIINSERT_ENDIF_RANK
       endif  !On kopt.eq.3
 
 
@@ -173,17 +184,22 @@ c..................................................
 c     Obtain data for time dependent plots
 c..................................................
         call ntdstore
-      endif
+      endif  !On transp.eq."disabled" ....
 
 c..................................................
 c     plotting logic for 2-D (v-theta) code...
 c..................................................
-      iplot=0
+      iplot=0  !Index for nonzero values of increasing nplot(1:nplota)
+      nplott=0 !Total nplot(i).ge.0 and .le.nstop
+      do i=1,nplota
+         if (nplot(i).ge.0 .and. nplot(i).le.nstop)
+     1       nplott=nplott+1 !YuP:could do this counting in ainsetva?
+      enddo
       if (noplots.ne."enabled1") then
-         do i=1,nplota
+         do i=1,nplott
             if(n.eq.nplot(i)) then
                iplot=i
-               tplot(i)=timet
+               tplot(i)=timet ! to be printed in plots (sub.pltrun)
             endif
          enddo
       endif

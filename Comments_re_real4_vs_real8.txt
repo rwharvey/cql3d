@@ -1,0 +1,88 @@
+190727
+google:how does fortran convert from real*8 to real*4?
+
+
+real4 to real8 conversion
+jaeger0  Fri, 02/04/2011 - 06:28
+I would like to conver a real4 variable to a real8 variable
+real(4) val4
+real(8) val8
+.. some code 
+val4 = 3.0000000E-03
+
+val8=dble(val4) ! val8 = 3.000000026077032E-003
+
+So i got problems since the numbers behind the 8th sign are not zero. How can I do that. I want
+the result of val8 = 3.000000000000000E-003
+
+
+Jeff Arnold (Intel)  Fri, 02/04/2011 - 10:07
+You are aware that there is no IEEE double precision floating-point number
+which is exactly equal to 3.0E-3, aren't you? Neither is there any  such IEEE
+single precision floating-point number. When the value of val4 is converted
+from REAL(4) to REAL(8), it is the binary approximation to 3.0E-3 which is
+converted (by appending zeros), not the decimal value.
+
+If haven't already, you should study David Goldberg's classic paper "What
+Every Computer Scientist Should Know About Floating-Point Arithmetic"
+(goldberg-floating-point.pdf)  to
+understand why floating-point number aren't the same as real numbers. Google
+will find a copy for you (since it no long seems to be at the canonical place
+eat dlc.sun.com).
+
+
+
+jaeger0  Fri, 02/04/2011 - 12:18
+now I understand, but will val4 = 3.0000000E-03
+always transfered to val8 = 3.000000026077032E-003, since I'm looking to
+identify the source of some numeric problems I have?
+
+
+
+Jeff Arnold (Intel)  Fri, 02/04/2011 - 14:19
+The answer to your question is "Yes."
+
+The statement
+
+val4 = 3.0E-3 !  val4 is REAL(4); the number of 0s to the right of the decimal point doesn't matter
+assigns the best REAL(4) (i.e., IEEE single-precision) representation of 3.0E-3 to val4. The value ofval4 IS NOT EXACTLY 3.0E-3 but no other representation is closer to 3.0E-3.
+
+The statement
+
+val8 = val4  !  val8 is REAL(8)
+takes that IEEE single-precisionrepresentation of3.0E-3 and converts it into an IEEE double-precision representation by "extending" it with0-bits. IT DOES NOT CHANGE THE VALUE! It only adds "trailing zeros." Thus, since val4 was not exactly equal to 3.0E-3 to begin with, val8 will not be exactly equal to 3.0E-3.
+
+Note that if you execute the statement
+
+val8 = 3.0E-3  !  val8 is REAL(8)
+you will get the same resultbecause the exact same operations are taking place:the bestIEEE single-precision representation of 3.0E-3 is converted to IEEE double-precision format.
+
+(I realize there is notational confusion here. In code, 3.0E-3 is a REAL(4) constant; in text, 3.0E-3 means the arithmetic number 0.003.)
+
+As Jim says, you will get a better representation (i.e., the approximation error is less) to 3.0E-3 with
+
+val8 = 3.0D-3
+However, if errors this small are in fact causing your numeric problems, you need to examine the numerical stability of the algorithms you are using and the way they've been implemented in your code.
+
+Top
+￼￼
+jim
+
+
+
+BH190727
+========
+Wrote little program real4_vs_real8.f, and ran it:
+      real*4 val4
+      real*8 val8
+
+      val4=3.0e-3
+      val8=val4
+
+      write(*,*) val4,val8
+
+==>3.00000003E-03   3.0000000260770321E-003   (9 sig fig, 17 sig fig)
+   Above results from internet: val8 = 3.000000026077032E-003.
+
+That is, val8 appears to be a  unique representation of val4 
+(except last digit).

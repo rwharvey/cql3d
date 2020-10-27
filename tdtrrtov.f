@@ -42,8 +42,7 @@ cBH070419:   removing special itl,itu treatment for ipacktp=0
  10   continue
 
         elseif (ipacktp.ne.0) then
-           write(*,*)'STOP in tdtrrtov:  Check ipacktp'
-           stop
+           stop 'STOP in tdtrrtov:  Check ipacktp'
         endif
 
       call tdtrchkd(f1,vpint,denvel)

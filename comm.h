@@ -92,6 +92,8 @@ c
      1  zmaxpsii(0:lrza),zeff(lrza),zeff4(lrza),
      1  vphipl(lrza),
      1  srckotot(lrza),elecr(lrza),
+     1  denfl(lrza),denfl1(lrza),denfl2(lrza),
+     1  den_of_s(lza),den_of_s1(lza),den_of_s2(lza),
      1  tauii(lrza),tau_neo(lrza),drr_gs(lrza),
      1  rhol(lrza),rhol_pol(lrza)
       common /diskx/
@@ -109,7 +111,9 @@ c..................................................................
 
       common /diskx/
      1  den_fsa(ngena,lrza), 
-     1  den_fsa_t0(ngena,lrza), reden_t0(ngena,lrza),
+     1  den_fsa_t0(ngena,lrza), 
+     &  reden_t0(ngena,lrza),temp_t0(ngena,lrza),
+     &  reden_wk(lrza),temp_wk(lrza),
      1  currm(ngena,lrorsa),curr(ngena,lrza),
      1  hnis(ngena,lrza),
      1  ratio(ngena,lrza),
@@ -171,7 +175,7 @@ c..................................................................
      1  vparl,vpovth,
      1  xconn,xmax,ipxy,jpxy,
      1  zero,zstar,
-     1  iplot,nirzplt,
+     1  iplot,nplott,isave,nsavet,nirzplt,
      1  nefiter ! counts iterations for el.field (efswtch="method5")
       common
      1  elecfldc,elecfldb,  !V/cm, Added for ampfmod case
@@ -210,7 +214,7 @@ cBH111124     1  iota(0:750),realiota(0:750),
 
        common
      1  mplot(lrorsa),
-     1  tplot(nplota)
+     1  tplot(nplota),tsave(nsavea)
 
 c..................................................................
 c     TWO-DIMENSIONAL ARRAYS.....
@@ -298,6 +302,24 @@ cBH_YP090809  First dimension of choose should be larger of 2*mx,mx+2
       pointer ebl
       dimension ebl(:,:,:,:,:)
       common /dptr95/ ebl
+
+      !YuP[08-2017][2020-07-02] Added, for usage in tdchief, cfpcoefn
+      !character*8 cfp_integrals ! "enabled" or "disabled"(by default)
+      pointer temp_min(:), temp_max(:) ! (nmaxw_sp) 
+      ! min/max of temp() for each Maxw.species, 
+      ! to set a uniform T-grid within [temp_min; temp_max] range;
+      ! Different for each Maxwellian species!
+      pointer cfpm(:,:,:,:) !(3,nmaxw_sp,ntemp,jx) 
+      ! cfpm() == storage of three integrals, 
+      !           for each Maxw.species (1:nmaxw_sp),
+      !           set as a table over 1:ntemp uniform T-grid,
+      !           saved as a function of j index (func. of momentum). 
+      ! Set ntemp=100 ! 100 points is sufficient to represent 
+      ! all possible values of temp(kbm,lr) profile;
+      ! so typically 3*6*100*200=360000 data points.
+      common /dptr95_cfp/ nmaxw_sp,ntemp,temp_min,temp_max,cfpm
+            
+	  
       pointer scal
       dimension scal(:,:)
       common /dptr95/ scal
@@ -789,7 +811,7 @@ c                     (R,Z) point on flux surface, (R,Z)==(solrz,solzz)
       dimension tcsgm1(:)
       common /dptr95/ tcsgm1
       pointer gamefac
-      dimension gamefac(:)
+      dimension gamefac(:,:) !YuP[2019-07-26] k index added, so now gamefac(jx,ntotal)
       common /dptr95/ gamefac
       pointer ident
       dimension ident(:)
@@ -1247,6 +1269,18 @@ c..................................................................
      1  onovrpz(lrza,2),
      1  tplt3d(nplota),
      1  bscurma(2,2),bscurm(0:lrza,2,2),bscurmi(0:lrza,2,2)
+     
+      real*8 bscurm_n(lrza),reden_n(lrza),energy_n(lrza) !YuP[2019-12-18]
+      common/ar3d/bscurm_n,reden_n,energy_n !YuP[2019-12-18] for save/restore,
+                          !when making iterations involving jbs current.
+      real*8 currpar_starnue(lrza),  sig_starnue(lrza) !YuP[2019-12-19]
+      common/ar3d/currpar_starnue,sig_starnue
+      real*8 currpar_starnue0(lrza), sig_starnue0(lrza) !YuP[2019-12-19]
+      common/ar3d/currpar_starnue0,sig_starnue0
+      real*8 currpar_starnue_n(lrza),  sig_starnue_n(lrza) !YuP[2019-12-19]
+      common/ar3d/currpar_starnue_n,sig_starnue_n
+      real*8 currpar_starnue0_n(lrza), sig_starnue0_n(lrza) !YuP[2019-12-19]
+      common/ar3d/currpar_starnue0_n,sig_starnue0_n
 
       common/sc3d/
      1  sorpwtza
@@ -1867,6 +1901,37 @@ c.......................................................................
       pointer ampf2ebar
       dimension ampf2ebar(:)
       common /dptr95/ ampf2ebar
+
+
+!--------------------------------------------------------------------
+!YuP[2019-07-29] For gscreen(p) function (of normalized momentum p) 
+!that describes the effect of partially screened ions 
+!on enhanced scattering of electrons (fast electrons can "probe" 
+!the inner structure of a partially ionized ion).
+!See Hesslow et al, JPP-2018,vol.84, Eq.(2.25).
+!Also, for hbethe(p) function that describes the slowing down
+!of free electron on bound electrons in partially ionized ion
+!or neutral atom.
+!The arrays are allocated and set in subr. set_gscreen_hesslow.
+! They are only needed when gamafac.eq."hesslow" .and. kelecg.eq.1.
+! At present, it is set for one ion type (imp_type), 
+! but it could be generalized in future.
+      integer nstates ! save into comm.h
+      real*8, dimension(:),  pointer :: a_imp       ! (0:nstates)
+      real*8, dimension(:),  pointer :: bnumb_imp   ! (0:nstates) !Could be set as integer?
+      real*8, dimension(:),  pointer :: excit_enrgy ! (0:nstates)
+      real*8, dimension(:,:),pointer :: gscreen,hbethe   ! (0:nstates,1:jx)
+      real*8, dimension(:),  pointer :: fz        ! (0:nstates)
+      real*8, dimension(:,:),pointer :: temp_imp  ! (0:nstates,1:lrz)
+      real*8, dimension(:,:),pointer :: dens_imp  ! (0:nstates,1:lrz)
+      !real*8, dimension(:),  pointer :: dens_imp_allstates  ! (1:lrz)
+      !real*8, dimension(:),  pointer :: dMpellet_dvol_sum  ! (1:lrz)
+      common/impur/nstates,a_imp,bnumb_imp,excit_enrgy,fmass_imp
+      common/impur/fz,dens_imp,temp_imp ! found by ADCDO or ADPAK
+      common/hesslow_gscreen/gscreen,hbethe
+      common/impurities/dens_imp_allstates(lrza),dMpellet_dvol_sum(lrza)
+!--------------------------------------------------------------------
+      
       
 c.......................................................................
 c     Arrays for finite orbit width (FOW) calculations
@@ -1885,109 +1950,6 @@ c.......................................................................
                                              ! (R,Z)-grid (cm);
                                              ! Setup by call equilib()
 
-
-cBH170708: Removing FOW material from ZOW code      
-c$$$C---> Equilibrium B is calc-ed on (R,Z)-grid == (req(ir),zeq(iz))
-c$$$      common/Beq/ ireq,izeq,dreq,dzeq,odr,odz,req(nreqa),zeq(nzeqa), 
-c$$$     +       Beqr(nreqa,nzeqa),Beqz(nreqa,nzeqa),Beqphi(nreqa,nzeqa),
-c$$$     +       Beqmod(nreqa,nzeqa), psieq(nreqa,nzeqa) ! [cgs]
-c$$$C---> dreq=(ermax-ermin)/(nreqa-1); odr=1.d0/dreq
-c$$$C---> This block is used by subroutine gc_vel()
-c$$$C---> The fields at a given point along orbit are calculated  
-c$$$C---> by bilinear interpolation from four nearest nodes.
-c$$$ 
-c$$$      common/border/ iborder(nreqa,nzeqa),
-c$$$     +  Rplasma_min, Rplasma_max, 
-c$$$     +  Bplasma_min, Bplasma_max, 
-c$$$     +  PSIplasma_min, PSIplasma_max ! min/max values within border
-c$$$C---> iborder=0 in plasma; >0 at nodes representing wall.
-c$$$ 
-c$$$C---> Unit vector of eq.field (Beq) and its derivative-dep. functions:
-c$$$      common/BeqGrad/
-c$$$     +  bhri(nreqa,nzeqa),bhzi(nreqa,nzeqa),bhfi(nreqa,nzeqa), 
-c$$$     +  GRr(nreqa,nzeqa), GRz(nreqa,nzeqa), GRf(nreqa,nzeqa),
-c$$$     +  Ori(nreqa,nzeqa), Ozi(nreqa,nzeqa), Ofi(nreqa,nzeqa),
-c$$$     +  GV(nreqa,nzeqa), DRbbf(nreqa,nzeqa)
-c$$$C---> bh== B/|B|;   
-c$$$C---> GR== [Bxgrad|B|]/B^2
-c$$$C---> O == { [Bxgrad|B|]/B^2 + rot(B)/|B| - bhat(B.rotB)/B^2 }/|B| 
-c$$$C---> GV== dreq*{B.grad|B|}/|B| 
-c$$$
-c$$$
-c$$$
-c$$$      pointer cmu,cpfi_min,cpfi_max,dpfi,Rpfimax,cpfi,
-c$$$     +        com_rt1,com_rt2,com_rt3,com_rt4,
-c$$$     +        com_cp1,com_cp2,com_cp3,com_cp4
-c$$$      dimension cmu(:),      !(nmu) Normalized adiab.invariant mu (grid)
-c$$$     +          cpfi_min(:), !(jx) min of Canon. angular tor. momentum
-c$$$     +          cpfi_max(:), !(jx) max of Canon. angular tor. momentum
-c$$$     +          dpfi(:),     !(jx)
-c$$$     +          Rpfimax(:),  !(jx) R for the peak of Pfi on the midplane
-c$$$     +          cpfi(:,:),   !(jx,npfi) Canon. tor. momentum (grid)
-c$$$     +        com_rt1(:,:,:), !Rmidplane as a function of COM, 1st root
-c$$$     +        com_rt2(:,:,:), !Rmidplane as a function of COM, 2nd root
-c$$$     +        com_rt3(:,:,:), !Rmidplane as a function of COM, 3rd root
-c$$$     +        com_rt4(:,:,:), !Rmidplane as a function of COM, 4th root
-c$$$     +        com_cp1(:,:,:), !cosp as a function of COM, 1st root
-c$$$     +        com_cp2(:,:,:), !cosp as a function of COM, 2nd root
-c$$$     +        com_cp3(:,:,:), !cosp as a function of COM, 3rd root
-c$$$     +        com_cp4(:,:,:)  !cosp as a function of COM, 4th root
-c$$$
-c$$$      common/com/dmu,odmu,odpfi,dtcom,Ucom,cosps, cmu_min,cmu_max, cmu,
-c$$$     +           cpfi_min,cpfi_max,dpfi,Rpfimax, cpfi,
-c$$$     +           com_rt1,com_rt2,com_rt3,com_rt4,
-c$$$     +           com_cp1,com_cp2,com_cp3,com_cp4
-c$$$
-c$$$
-c$$$      REAL*8 mcq_drdt
-c$$$      common/orb/ nstp_orb,lostorb,not_complete,
-c$$$     +            cmuorb,vpar_ini,vprp_ini,mcq_drdt,renv,dtorb
-c$$$C---> nstp_orb= number of steps along orbit; found after orbit is traced
-c$$$C---> lostorb=1 if orbit is lost to walls,
-c$$$C---> not_complete=1 if not enough steps to complete the orbit,
-c$$$C---> cmuorb== 0.5(Vprpini^2/B)*(dtorb/dreq)^2, 
-c$$$C---> mcq_drdt== (dreq/dtorb)*mc/q
-c$$$C---> renv== dreq/dtorb
-c$$$C---> Used by subroutine gc_vel()
-c$$$
-c$$$      common/vdrift/ vdrift_r,vdrift_z,vdrift_phi 
-c$$$C---> Drift vel.*dtorb/dreq. Saved from gc_vel()
-c$$$      
-c$$$
-c$$$C---> Values at all steps along orbit:
-c$$$      pointer t_orb,R_orb,Z_orb,phi_orb,
-c$$$     +        upar_orb,uprp_orb,psi_orb,b_orb,bphi_orb ! (0:nsteps_orb)
-c$$$      dimension t_orb(:),     !-> [s]
-c$$$     &          R_orb(:),     !-> [cm]
-c$$$     &          Z_orb(:),     !-> [cm]
-c$$$     &          phi_orb(:),   !-> [rad]
-c$$$     &          upar_orb(:),
-c$$$     &          uprp_orb(:),  !-> [cm/s]
-c$$$     &          psi_orb(:),   !-> Psi/2pi  [cgs]
-c$$$     &          b_orb(:),bphi_orb(:)   !-> [cgs]
-c$$$      common/dptr95/ t_orb,R_orb,Z_orb,phi_orb,
-c$$$     +        upar_orb,uprp_orb,psi_orb,b_orb,bphi_orb
-c$$$
-c$$$
-c$$$C---> Values at selected points along MAIN orbit:
-c$$$      pointer t_orb0,R_orb0,Z_orb0,phi_orb0,
-c$$$     +        upar_orb0,uprp_orb0,psi_orb0,b_orb0,bphi_orb0 ! (1:nptsorb)
-c$$$      dimension t_orb0(:),     !-> [s]
-c$$$     &          R_orb0(:),     !-> [cm]
-c$$$     &          Z_orb0(:),     !-> [cm]
-c$$$     &          phi_orb0(:),   !-> [rad]
-c$$$     &          upar_orb0(:),
-c$$$     &          uprp_orb0(:),  !-> [cm/s]
-c$$$     &          psi_orb0(:),   !-> Psi/2pi  [cgs]
-c$$$     &          b_orb0(:),bphi_orb0(:)  !-> [cgs]
-c$$$      common/dptr95/ t_orb0,R_orb0,Z_orb0,phi_orb0,
-c$$$     +        upar_orb0,uprp_orb0,psi_orb0,b_orb0,bphi_orb0
-c$$$
-c$$$
-c$$$      common/orb0/qmc,Rorb0,Zorb0,borb0,psiorb0,cosp0,Rmid
-c$$$C---> '0' - values at the launching point of g.c. orbit [cgs]
-c$$$C---> cosp0 is cos(pitch-angle) at launching point.
-c$$$C---> Rmid is R at midplane for given orbit found by Newton iterations
 c.......................................................................
 c     variables transferred from freya
 c.......................................................................

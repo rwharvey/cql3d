@@ -21,8 +21,17 @@ c.......................................................................
       ibox(2)="unset"
       ibox(3)="unset"
       iuser="unset"
-      ioutput(1)=6
-      ioutput(2)=0
+      ioutput(1)=0 !YuP[2020-10-21] was 6, but was not used anywhere
+      ! After 2020, the usage of ioutput(1):
+      ! ioutput(1)=0  means the printout to screen is reduced to a minimum,
+      !               leaving namelist printout, warning messages,
+      !               and physics-related values used or computed by code.
+      !               (default value ioutput(1)=0)
+      ! ioutput(1)=1  The above, and more printout - 
+      !               values of arrays for diagnostic purpose.
+      ! ioutput(1)=2  The above, and even more diagnostic printout.
+      ioutput(2)=0 ! No usage at present [2020]
+      
       mnemonic="mnemonic"
 
 c     Avoid some special calls, if special_calls=disabled in 
@@ -252,7 +261,7 @@ c.......................................................................
 c     Copy cqlinput to cqlinput_tmp
 
          if (inlmod.le.0) then
-           WRITE(*,*)'FSETUP namelist is absent (probably using SETUP0)'
+cBH180613           WRITE(*,*)'FSETUP namelist is absent (probably using SETUP0)'
            goto 999 !Implies new namelist &setup0 is present (not $fsetup)
             
          else ! inlmod=1
@@ -351,7 +360,7 @@ CMPIINSERT_IF_RANK_NE_0_RETURN
       WRITE(*,*)
 
       max_length=0
-      WRITE(*,*)'ain_transcibe: filename =',filename
+      WRITE(*,*)'ain_transcribe: filename =',filename
       inquire(file=filename,iostat=kiostat,opened=logic1,number=inumber)
       WRITE(*,*)'ain_transcribe: inquire on ',filename,
      1   ' opened=',logic1,'iostat=',kiostat,'unit=',inumber

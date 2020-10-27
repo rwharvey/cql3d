@@ -10,7 +10,8 @@ CMPIINSERT_INCLUDE
       character*1024 t_
       character*8 noplots,nmlstout
 
-      REAL RILIN
+      REAL*4 RILIN
+      REAL*4 :: R40=0.
 
 c..................................................................
 c     frset initializes non-namelist variables.
@@ -136,17 +137,17 @@ CMPIINSERT_IF_RANK_EQ_0
       write(t_,1000)
  1000 format("FR (freya beam deposition) model parameters:")
       RILIN=11.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
 
       write(t_,1001) 
  1001 format("npart is the number of ions launched")
       RILIN=12.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
 
       write(t_,1002) npart
  1002 format("====>npart = ",i7)
       RILIN=13.
-      CALL PGMTXT('T',-RILIN,0.,0.,t_)
+      CALL PGMTXT('T',-RILIN,R40,R40,t_)
       endif
 CMPIINSERT_ENDIF_RANK
 
